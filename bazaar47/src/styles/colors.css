@@ -1,0 +1,63 @@
+@layer base {
+  :root {
+    /* ===== BRAND PALETTE ===== */
+    --color-cypress: #295211;
+    --color-hippie: #FFB0BC;
+    --color-plaster: #EFEADE;
+    --color-sand-dune: #D5C9B1;
+    --color-henna: #A62630;
+    --color-chartreuse: #CCD145;
+    --color-olive: #C4C687;
+    --color-petal: #FFDBE1;
+    --color-grove: #202912;
+    --color-rosewood: #341B1C;
+    --color-poppy: #96161A;
+
+    /* ===== SEMANTIC TOKENS ===== */
+    --background: var(--color-plaster);
+    --foreground: var(--color-rosewood);
+    
+    --primary: var(--color-cypress);
+    --primary-foreground: var(--color-plaster);
+    
+    --secondary: var(--color-sand-dune);
+    --secondary-foreground: var(--color-rosewood);
+    
+    --accent: var(--color-hippie);
+    --accent-foreground: var(--color-rosewood);
+    
+    --muted: var(--color-olive);
+    --muted-foreground: var(--color-grove);
+    
+    --destructive: var(--color-poppy);
+    --destructive-foreground: var(--color-plaster);
+    
+    --border: var(--color-sand-dune);
+    --input: var(--color-sand-dune);
+    --ring: var(--color-henna);
+  }
+
+  .dark {
+    --background: var(--color-grove);
+    --foreground: var(--color-plaster);
+    
+    --primary: var(--color-plaster);
+    --primary-foreground: var(--color-grove);
+    
+    --secondary: var(--color-rosewood);
+    --secondary-foreground: var(--color-plaster);
+    
+    --accent: var(--color-hippie);
+    --accent-foreground: var(--color-grove);
+    
+    --muted: var(--color-cypress);
+    --muted-foreground: var(--color-olive);
+    
+    --destructive: var(--color-poppy);
+    --destructive-foreground: var(--color-plaster);
+    
+    --border: var(--color-cypress);
+    --input: var(--color-cypress);
+    --ring: var(--color-chartreuse);
+  }
+}

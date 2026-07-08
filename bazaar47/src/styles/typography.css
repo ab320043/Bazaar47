@@ -1,0 +1,40 @@
+@layer base {
+  :root {
+    /* ===== FONT FAMILIES ===== */
+    --font-family-primary: 'Peridot', -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-family-narrow: 'Peridot Narrow', var(--font-family-primary);
+
+    /* ===== FONT WEIGHTS ===== */
+    --font-weight-regular: 400;
+    --font-weight-semibold: 600;
+    --font-weight-bold: 700;
+
+    /* ===== FONT SIZES ===== */
+    --text-xs: 0.75rem;
+    --text-sm: 0.875rem;
+    --text-base: 1rem;
+    --text-lg: 1.125rem;
+    --text-xl: 1.25rem;
+    --text-2xl: 1.5rem;
+    --text-3xl: 1.875rem;
+    --text-4xl: 2.25rem;
+    --text-5xl: 3rem;
+    --text-6xl: 3.75rem;
+    --text-7xl: 4.5rem;
+    --text-8xl: 6rem;
+  }
+}
+
+@layer utilities {
+  .font-period {
+    font-family: var(--font-peridot), system-ui, sans-serif;
+  }
+  
+  .font-period-narrow {
+    font-family: var(--font-peridot-narrow), system-ui, sans-serif;
+  }
+  
+  .text-balance {
+    text-wrap: balance;
+  }
+}

@@ -1,0 +1,354 @@
+@import "tailwindcss";
+
+/* ============================================
+   BRAND COLOR PALETTE
+   ============================================ */
+@theme {
+  /* Primary Brand Colors */
+  --color-cypress: #295211;
+  --color-hippie: #FFB0BC;
+  --color-plaster: #EFEADE;
+  --color-sand-dune: #D5C9B1;
+  --color-henna: #A62630;
+  --color-chartreuse: #CCD145;
+  --color-olive: #C4C687;
+  --color-petal: #FFDBE1;
+  --color-grove: #202912;
+  --color-rosewood: #341B1C;
+  --color-poppy: #96161A;
+
+  /* Semantic Color Tokens (Light Theme) */
+  --color-background: var(--color-plaster);
+  --color-foreground: var(--color-rosewood);
+  --color-primary: var(--color-cypress);
+  --color-primary-foreground: var(--color-plaster);
+  --color-secondary: var(--color-sand-dune);
+  --color-secondary-foreground: var(--color-rosewood);
+  --color-accent: var(--color-hippie);
+  --color-accent-foreground: var(--color-rosewood);
+  --color-muted: var(--color-olive);
+  --color-muted-foreground: var(--color-grove);
+  --color-destructive: var(--color-poppy);
+  --color-destructive-foreground: var(--color-plaster);
+  --color-border: var(--color-sand-dune);
+  --color-input: var(--color-sand-dune);
+  --color-ring: var(--color-henna);
+
+  /* Spacing System */
+  --spacing-1: 4px;
+  --spacing-2: 8px;
+  --spacing-3: 12px;
+  --spacing-4: 16px;
+  --spacing-6: 24px;
+  --spacing-8: 32px;
+  --spacing-12: 48px;
+  --spacing-16: 64px;
+  --spacing-24: 96px;
+  --spacing-32: 128px;
+
+  /* Border Radius */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-pill: 9999px;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(52, 27, 28, 0.04);
+  --shadow-md: 0 4px 12px rgba(52, 27, 28, 0.06);
+  --shadow-lg: 0 8px 24px rgba(52, 27, 28, 0.08);
+  --shadow-xl: 0 16px 48px rgba(52, 27, 28, 0.10);
+
+  /* Animation Durations */
+  --duration-fast: 150ms;
+  --duration-medium: 300ms;
+  --duration-slow: 500ms;
+}
+
+/* ============================================
+   DARK THEME
+   ============================================ */
+@custom-variant dark (&:where(.dark, .dark *));
+
+.dark {
+  --color-background: var(--color-grove);
+  --color-foreground: var(--color-plaster);
+  --color-primary: var(--color-plaster);
+  --color-primary-foreground: var(--color-grove);
+  --color-secondary: var(--color-rosewood);
+  --color-secondary-foreground: var(--color-plaster);
+  --color-accent: var(--color-hippie);
+  --color-accent-foreground: var(--color-grove);
+  --color-muted: var(--color-cypress);
+  --color-muted-foreground: var(--color-olive);
+  --color-destructive: var(--color-poppy);
+  --color-destructive-foreground: var(--color-plaster);
+  --color-border: var(--color-cypress);
+  --color-input: var(--color-cypress);
+  --color-ring: var(--color-chartreuse);
+}
+
+/* ============================================
+   BASE STYLES
+   ============================================ */
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-peridot), system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1, h2, h3, h4 {
+    font-family: var(--font-peridot), system-ui, sans-serif;
+    font-weight: 600;
+  }
+
+  /* ============================================
+     FONT FACES
+     ============================================ */
+  @font-face {
+    font-family: 'Peridot';
+    src: url('/fonts/Fontspring-DEMO-peridotlatin-regular.otf') format('otf');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+  }
+
+  @font-face {
+    font-family: 'Peridot';
+    src: url('/fonts/Fontspring-DEMO-peridotlatin-italic.otf') format('otf');
+    font-weight: 400;
+    font-style: italic;
+    font-display: swap;
+  }
+
+  @font-face {
+    font-family: 'Peridot';
+    src: url('/fonts/Fontspring-DEMO-peridotlatin-semibold.otf') format('otf');
+    font-weight: 600;
+    font-style: normal;
+    font-display: swap;
+  }
+
+  @font-face {
+    font-family: 'Peridot';
+    src: url('/fonts/Fontspring-DEMO-peridotlatin-semibolditalic.otf') format('otf');
+    font-weight: 600;
+    font-style: italic;
+    font-display: swap;
+  }
+
+  @font-face {
+    font-family: 'Peridot Narrow';
+    src: url('/fonts/Fontspring-DEMO-peridotlatin-narrowbold.otf') format('otf');
+    font-weight: 700;
+    font-style: normal;
+    font-display: swap;
+  }
+}
+
+/* ============================================
+   UTILITY CLASSES
+   ============================================ */
+@layer utilities {
+  /* Font Families */
+  .font-period {
+    font-family: var(--font-peridot), system-ui, sans-serif;
+  }
+  
+  .font-period-narrow {
+    font-family: var(--font-peridot-narrow), system-ui, sans-serif;
+  }
+
+  .font-regular {
+    font-weight: 400;
+  }
+  
+  .font-semibold {
+    font-weight: 600;
+  }
+  
+  .font-bold {
+    font-weight: 700;
+  }
+
+  .headline-special {
+    font-family: var(--font-peridot-narrow), system-ui, sans-serif;
+    font-weight: 700;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+  }
+
+  .italic-regular {
+    font-family: var(--font-peridot), system-ui, sans-serif;
+    font-weight: 400;
+    font-style: italic;
+  }
+
+  .italic-semibold {
+    font-family: var(--font-peridot), system-ui, sans-serif;
+    font-weight: 600;
+    font-style: italic;
+  }
+
+  /* Background Colors */
+  .bg-background { background-color: var(--color-background); }
+  .text-foreground { color: var(--color-foreground); }
+  .bg-primary { background-color: var(--color-primary); }
+  .text-primary-foreground { color: var(--color-primary-foreground); }
+  .bg-secondary { background-color: var(--color-secondary); }
+  .text-secondary-foreground { color: var(--color-secondary-foreground); }
+  .bg-accent { background-color: var(--color-accent); }
+  .text-accent-foreground { color: var(--color-accent-foreground); }
+  .bg-muted { background-color: var(--color-muted); }
+  .text-muted-foreground { color: var(--color-muted-foreground); }
+  .bg-destructive { background-color: var(--color-destructive); }
+  .text-destructive-foreground { color: var(--color-destructive-foreground); }
+
+  /* Brand Color Utilities */
+  .bg-cypress { background-color: var(--color-cypress); }
+  .bg-hippie { background-color: var(--color-hippie); }
+  .bg-plaster { background-color: var(--color-plaster); }
+  .bg-sand-dune { background-color: var(--color-sand-dune); }
+  .bg-henna { background-color: var(--color-henna); }
+  .bg-chartreuse { background-color: var(--color-chartreuse); }
+  .bg-olive { background-color: var(--color-olive); }
+  .bg-petal { background-color: var(--color-petal); }
+  .bg-grove { background-color: var(--color-grove); }
+  .bg-rosewood { background-color: var(--color-rosewood); }
+  .bg-poppy { background-color: var(--color-poppy); }
+
+  .text-cypress { color: var(--color-cypress); }
+  .text-hippie { color: var(--color-hippie); }
+  .text-plaster { color: var(--color-plaster); }
+  .text-sand-dune { color: var(--color-sand-dune); }
+  .text-henna { color: var(--color-henna); }
+  .text-chartreuse { color: var(--color-chartreuse); }
+  .text-olive { color: var(--color-olive); }
+  .text-petal { color: var(--color-petal); }
+  .text-grove { color: var(--color-grove); }
+  .text-rosewood { color: var(--color-rosewood); }
+  .text-poppy { color: var(--color-poppy); }
+
+  .border-cypress { border-color: var(--color-cypress); }
+  .border-hippie { border-color: var(--color-hippie); }
+  .border-plaster { border-color: var(--color-plaster); }
+  .border-sand-dune { border-color: var(--color-sand-dune); }
+  .border-henna { border-color: var(--color-henna); }
+  .border-chartreuse { border-color: var(--color-chartreuse); }
+  .border-olive { border-color: var(--color-olive); }
+  .border-petal { border-color: var(--color-petal); }
+  .border-grove { border-color: var(--color-grove); }
+  .border-rosewood { border-color: var(--color-rosewood); }
+  .border-poppy { border-color: var(--color-poppy); }
+
+  .rounded-sm { border-radius: var(--radius-sm); }
+  .rounded-md { border-radius: var(--radius-md); }
+  .rounded-lg { border-radius: var(--radius-lg); }
+  .rounded-pill { border-radius: var(--radius-pill); }
+
+  .shadow-sm { box-shadow: var(--shadow-sm); }
+  .shadow-md { box-shadow: var(--shadow-md); }
+  .shadow-lg { box-shadow: var(--shadow-lg); }
+  .shadow-xl { box-shadow: var(--shadow-xl); }
+
+  .animate-fade-in {
+    animation: fadeIn var(--duration-medium) ease-out;
+  }
+  
+  .animate-slide-up {
+    animation: slideUp var(--duration-medium) ease-out;
+  }
+  
+  .animate-scale-in {
+    animation: scaleIn var(--duration-medium) ease-out;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes slideUp {
+    from { transform: translateY(20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+
+  @keyframes scaleIn {
+    from { transform: scale(0.95); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+  }
+}
+
+/* ============================================
+   COMPONENT STYLES
+   ============================================ */
+@layer components {
+  .container {
+    max-width: 1280px;
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  .section-light {
+    background-color: var(--color-plaster);
+    padding-top: 6rem;
+    padding-bottom: 6rem;
+  }
+  
+  .section-dark {
+    background-color: var(--color-rosewood);
+    color: var(--color-plaster);
+    padding-top: 6rem;
+    padding-bottom: 6rem;
+  }
+  
+  .section-accent {
+    background-color: var(--color-sand-dune);
+    padding-top: 6rem;
+    padding-bottom: 6rem;
+  }
+  
+  .section-transparent {
+    background-color: transparent;
+    padding-top: 6rem;
+    padding-bottom: 6rem;
+  }
+
+  .card {
+    background-color: rgba(255, 255, 255, 0.5);
+    backdrop-filter: blur(8px);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+    border: 1px solid var(--color-sand-dune);
+    padding: 1.5rem;
+  }
+  
+  .card-dark {
+    background-color: rgba(52, 27, 28, 0.5);
+    backdrop-filter: blur(8px);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+    border: 1px solid rgba(52, 27, 28, 0.3);
+    padding: 1.5rem;
+    color: var(--color-plaster);
+  }
+
+  .portal-frame-container {
+    position: relative;
+    aspect-ratio: 1 / 1;
+    width: 100%;
+    max-width: 400px;
+    margin-left: auto;
+    margin-right: auto;
+    background-color: var(--color-plaster);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+  }
+}
