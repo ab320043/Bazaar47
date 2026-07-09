@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils'
 interface SectionContainerProps {
   children: ReactNode
   className?: string
-  background?: 'light' | 'dark' | 'accent' | 'transparent'
+  background?: 'light' | 'dark' | 'accent' | 'transparent' | 'warm'
   spacing?: 'sm' | 'md' | 'lg' | 'xl'
 }
 
@@ -19,13 +19,14 @@ export function SectionContainer({
     dark: 'bg-rosewood text-plaster',
     accent: 'bg-sand-dune',
     transparent: 'bg-transparent',
+    warm: 'bg-gradient-to-b from-plaster via-plaster to-sand-dune/30',
   }
 
   const spacingClasses = {
     sm: 'py-12',
-    md: 'py-24',
-    lg: 'py-32',
-    xl: 'py-48',
+    md: 'py-20',
+    lg: 'py-24',
+    xl: 'py-32',
   }
 
   return (
