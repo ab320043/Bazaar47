@@ -1,5 +1,5 @@
 import { Hero } from '@/components/hero/hero'
-import { PortalFrames } from '@/components/portal/portal-frames'
+// import { PortalFrames } from '@/components/portal/portal-frames'
 import { TourSection } from '@/components/tour/tour-section'
 import { SectionContainer } from '@/components/ui/section-container'
 import { Heading } from '@/components/ui/heading'
@@ -8,7 +8,7 @@ export default function HomePage() {
   return (
     <>
       <Hero />
-      <PortalFrames />
+      {/* <PortalFrames /> */}
       <TourSection />
       
       {/* Placeholder for future sections */}

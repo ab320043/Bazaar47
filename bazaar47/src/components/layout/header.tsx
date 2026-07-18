@@ -1,22 +1,23 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import BLACK from '@/assets/BLACK.svg'
 import WHITE from '@/assets/WHITE.svg'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, ShoppingBag, Menu, X } from 'lucide-react'
+import { ShoppingBag, Menu, X, ChevronDown } from 'lucide-react'
 import { useCart } from '@/hooks/use-cart'
 import { useTheme } from 'next-themes'
 
 export function Header() {
   const [isScrolled, setIsScrolled] = useState(false)
   const [isMenuOpen, setIsMenuOpen] = useState(false)
-  const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [isCartOpen, setIsCartOpen] = useState(false)
+  const [isToursDropdownOpen, setIsToursDropdownOpen] = useState(false)
   const { items, itemCount, removeItem, updateQuantity, totalPrice } = useCart()
   const { theme } = useTheme()
+  const toursRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const handleScroll = () => {
@@ -38,6 +39,19 @@ export function Header() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
+  // Close tours dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (toursRef.current && !toursRef.current.contains(e.target as Node)) {
+        setIsToursDropdownOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  const tourCities = ['Gainesville', 'Orlando', 'South Florida', 'Jacksonville']
+
   return (
     <>
       <header
@@ -49,9 +63,71 @@ export function Header() {
       >
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between h-20">
-            {/* Logo */}
-            <Link href="/" className="flex-shrink-0">
-              <div className="relative w-[120px] h-[40px]">
+            {/* Left Navigation - Desktop */}
+            <nav className="hidden md:flex items-center space-x-10 flex-1">
+              {/* Tours with Dropdown */}
+              <div className="relative" ref={toursRef}>
+                <button
+                  onMouseEnter={() => setIsToursDropdownOpen(true)}
+                  className="flex items-center gap-1 font-period font-bold text-base text-rosewood/80 hover:text-rosewood transition-colors dark:text-plaster/80 dark:hover:text-plaster group"
+                >
+                  Tours
+                  <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isToursDropdownOpen ? 'rotate-180' : ''}`} />
+                </button>
+                
+                <AnimatePresence>
+                  {isToursDropdownOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                      transition={{ duration: 0.2 }}
+                      className="absolute top-full left-0 mt-2 w-56 bg-plaster dark:bg-grove rounded-lg shadow-xl border border-sand-dune dark:border-cypress overflow-hidden"
+                      onMouseLeave={() => setIsToursDropdownOpen(false)}
+                    >
+                      <div className="py-2">
+                        <div className="px-4 py-2 bg-sand-dune/10 dark:bg-cypress/10">
+                          <p className="font-period-narrow text-sm text-rosewood/60 dark:text-plaster/60">
+                            Bazar à la Carte
+                          </p>
+                        </div>
+                        {tourCities.map((city) => (
+                          <Link
+                            key={city}
+                            href={`/tours/${city.toLowerCase().replace(' ', '-')}`}
+                            className="block px-4 py-2 font-period text-rosewood dark:text-plaster hover:bg-sand-dune/20 dark:hover:bg-cypress/20 transition-all duration-200 hover:pl-6"
+                            onClick={() => setIsToursDropdownOpen(false)}
+                          >
+                            {city}
+                          </Link>
+                        ))}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              <Link 
+                href="/events" 
+                className="font-period font-bold text-base text-rosewood/80 hover:text-rosewood transition-all duration-200 hover:scale-105 dark:text-plaster/80 dark:hover:text-plaster"
+              >
+                Events
+              </Link>
+              <Link 
+                href="/about" 
+                className="font-period font-bold text-base text-rosewood/80 hover:text-rosewood transition-all duration-200 hover:scale-105 dark:text-plaster/80 dark:hover:text-plaster"
+              >
+                About
+              </Link>
+            </nav>
+
+            {/* Logo - Centered */}
+            <Link href="/" className="flex-shrink-0 absolute left-1/2 -translate-x-1/2">
+              <motion.div 
+                className="relative w-[120px] h-[40px]"
+                whileHover={{ scale: 1.05 }}
+                transition={{ duration: 0.2 }}
+              >
                 {theme === 'dark' ? (
                   <Image
                     src={WHITE}
@@ -69,66 +145,33 @@ export function Header() {
                     priority
                   />
                 )}
-              </div>
+              </motion.div>
             </Link>
 
-            {/* Desktop Navigation - Bold & Larger */}
-            <nav className="hidden md:flex items-center space-x-10">
-              <Link 
-                href="/shop" 
-                className="font-period font-bold text-base text-rosewood/80 hover:text-rosewood transition-colors dark:text-plaster/80 dark:hover:text-plaster"
-              >
-                Shop
-              </Link>
-              <Link 
-                href="/tours" 
-                className="font-period font-bold text-base text-rosewood/80 hover:text-rosewood transition-colors dark:text-plaster/80 dark:hover:text-plaster"
-              >
-                Tours
-              </Link>
-              <Link 
-                href="/events" 
-                className="font-period font-bold text-base text-rosewood/80 hover:text-rosewood transition-colors dark:text-plaster/80 dark:hover:text-plaster"
-              >
-                Events
-              </Link>
-              <Link 
-                href="/about" 
-                className="font-period font-bold text-base text-rosewood/80 hover:text-rosewood transition-colors dark:text-plaster/80 dark:hover:text-plaster"
-              >
-                About
-              </Link>
-            </nav>
-
-            {/* Actions */}
-            <div className="flex items-center space-x-2">
-              {/* Search */}
-              <button
-                onClick={() => setIsSearchOpen(!isSearchOpen)}
-                className="p-2 hover:bg-sand-dune/30 rounded-full transition-colors dark:hover:bg-cypress/30"
-                aria-label="Search"
-              >
-                <Search className="w-5 h-5 text-rosewood dark:text-plaster" />
-              </button>
-
+            {/* Right Actions */}
+            <div className="flex items-center space-x-2 flex-1 justify-end">
               {/* Cart */}
               <button
                 onClick={() => setIsCartOpen(true)}
-                className="relative p-2 hover:bg-sand-dune/30 rounded-full transition-colors dark:hover:bg-cypress/30"
+                className="relative p-2 hover:bg-sand-dune/30 rounded-full transition-all duration-200 hover:scale-110 dark:hover:bg-cypress/30"
                 aria-label="Cart"
               >
                 <ShoppingBag className="w-5 h-5 text-rosewood dark:text-plaster" />
                 {itemCount > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-henna text-plaster text-xs font-semibold w-5 h-5 flex items-center justify-center rounded-full">
+                  <motion.span
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    className="absolute -top-1 -right-1 bg-henna text-plaster text-xs font-semibold w-5 h-5 flex items-center justify-center rounded-full"
+                  >
                     {itemCount}
-                  </span>
+                  </motion.span>
                 )}
               </button>
 
               {/* Mobile Menu */}
               <button
                 onClick={() => setIsMenuOpen(!isMenuOpen)}
-                className="md:hidden p-2 hover:bg-sand-dune/30 rounded-full transition-colors dark:hover:bg-cypress/30"
+                className="md:hidden p-2 hover:bg-sand-dune/30 rounded-full transition-all duration-200 hover:scale-110 dark:hover:bg-cypress/30"
                 aria-label="Menu"
               >
                 {isMenuOpen ? (
@@ -139,80 +182,90 @@ export function Header() {
               </button>
             </div>
           </div>
-
-          {/* Expandable Search - Inline with header */}
-          <AnimatePresence>
-            {isSearchOpen && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: 'auto', opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                transition={{ duration: 0.2 }}
-                className="overflow-hidden"
-              >
-                <div className="pb-4">
-                  <div className="relative">
-                    <input
-                      type="text"
-                      placeholder="Search Bazaar 47..."
-                      className="w-full px-4 py-3 pl-12 bg-white/90 dark:bg-grove/90 border border-sand-dune dark:border-cypress rounded-lg focus:outline-none focus:ring-2 focus:ring-henna/40 dark:focus:ring-chartreuse/40 font-period text-rosewood dark:text-plaster placeholder:text-sand-dune dark:placeholder:text-cypress"
-                      autoFocus
-                    />
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-sand-dune dark:text-cypress" />
-                    <button
-                      onClick={() => setIsSearchOpen(false)}
-                      className="absolute right-4 top-1/2 -translate-y-1/2 text-sand-dune dark:text-cypress hover:text-rosewood dark:hover:text-plaster transition-colors"
-                    >
-                      <X className="w-5 h-5" />
-                    </button>
-                  </div>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
         </div>
 
         {/* Mobile Menu */}
         <AnimatePresence>
           {isMenuOpen && (
             <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
+              initial={{ height: 0, opacity: 0, y: -20 }}
+              animate={{ height: 'auto', opacity: 1, y: 0 }}
+              exit={{ height: 0, opacity: 0, y: -20 }}
+              transition={{ duration: 0.3, ease: 'easeInOut' }}
               className="md:hidden overflow-hidden bg-plaster dark:bg-grove border-t border-sand-dune dark:border-cypress"
             >
-              <nav className="container mx-auto px-4 py-6 space-y-4">
-                <Link 
-                  href="/shop" 
-                  className="block font-period font-bold text-lg text-rosewood dark:text-plaster hover:text-henna dark:hover:text-chartreuse transition-colors"
-                >
-                  Shop
-                </Link>
-                <Link 
-                  href="/tours" 
-                  className="block font-period font-bold text-lg text-rosewood dark:text-plaster hover:text-henna dark:hover:text-chartreuse transition-colors"
-                >
-                  Tours
-                </Link>
+              <motion.nav 
+                className="container mx-auto px-4 py-6 space-y-4"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.1 }}
+              >
+                {/* Tours with dropdown in mobile */}
+                <div>
+                  <button
+                    onClick={() => setIsToursDropdownOpen(!isToursDropdownOpen)}
+                    className="flex items-center justify-between w-full font-period font-bold text-lg text-rosewood dark:text-plaster hover:text-henna dark:hover:text-chartreuse transition-colors"
+                  >
+                    Tours
+                    <motion.div
+                      animate={{ rotate: isToursDropdownOpen ? 180 : 0 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <ChevronDown className="w-5 h-5" />
+                    </motion.div>
+                  </button>
+                  <AnimatePresence>
+                    {isToursDropdownOpen && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className="overflow-hidden"
+                      >
+                        <div className="mt-2 ml-4 space-y-2 border-l-2 border-sand-dune dark:border-cypress pl-4">
+                          <p className="font-period-narrow text-sm text-rosewood/60 dark:text-plaster/60 mb-2">
+                            Bazar à la Carte
+                          </p>
+                          {tourCities.map((city) => (
+                            <Link
+                              key={city}
+                              href={`/tours/${city.toLowerCase().replace(' ', '-')}`}
+                              className="block font-period text-rosewood dark:text-plaster hover:text-henna dark:hover:text-chartreuse transition-colors py-1"
+                              onClick={() => {
+                                setIsMenuOpen(false)
+                                setIsToursDropdownOpen(false)
+                              }}
+                            >
+                              {city}
+                            </Link>
+                          ))}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
                 <Link 
                   href="/events" 
                   className="block font-period font-bold text-lg text-rosewood dark:text-plaster hover:text-henna dark:hover:text-chartreuse transition-colors"
+                  onClick={() => setIsMenuOpen(false)}
                 >
                   Events
                 </Link>
                 <Link 
                   href="/about" 
                   className="block font-period font-bold text-lg text-rosewood dark:text-plaster hover:text-henna dark:hover:text-chartreuse transition-colors"
+                  onClick={() => setIsMenuOpen(false)}
                 >
                   About
                 </Link>
-              </nav>
+              </motion.nav>
             </motion.div>
           )}
         </AnimatePresence>
       </header>
 
-      {/* Cart Slide-in Menu */}
+      {/* Cart Slide-in Menu - 70% width on mobile */}
       <AnimatePresence>
         {isCartOpen && (
           <>
@@ -226,14 +279,14 @@ export function Header() {
               onClick={() => setIsCartOpen(false)}
             />
 
-            {/* Cart Panel */}
+            {/* Cart Panel - 70% on mobile, 100% on desktop */}
             <motion.div
               id="cart-slide"
               initial={{ x: '100%' }}
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-              className="fixed right-0 top-0 h-full w-full max-w-md bg-plaster dark:bg-grove shadow-2xl z-50 overflow-y-auto"
+              className="fixed right-0 top-0 h-full w-[70%] sm:w-[60%] md:w-[50%] lg:w-[40%] xl:max-w-md bg-plaster dark:bg-grove shadow-2xl z-50 overflow-y-auto"
             >
               {/* Cart Header */}
               <div className="sticky top-0 bg-plaster dark:bg-grove border-b border-sand-dune dark:border-cypress p-4 flex items-center justify-between">
@@ -242,7 +295,7 @@ export function Header() {
                 </h2>
                 <button
                   onClick={() => setIsCartOpen(false)}
-                  className="p-2 hover:bg-sand-dune/30 dark:hover:bg-cypress/30 rounded-full transition-colors"
+                  className="p-2 hover:bg-sand-dune/30 dark:hover:bg-cypress/30 rounded-full transition-all duration-200 hover:scale-110"
                 >
                   <X className="w-6 h-6 text-rosewood dark:text-plaster" />
                 </button>
@@ -251,35 +304,41 @@ export function Header() {
               {/* Cart Items */}
               <div className="p-4 space-y-4">
                 {items.length === 0 ? (
-                  <div className="text-center py-12">
+                  <motion.div 
+                    className="text-center py-12"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.1 }}
+                  >
                     <ShoppingBag className="w-16 h-16 text-sand-dune dark:text-cypress mx-auto mb-4" />
                     <p className="font-period text-lg text-rosewood/60 dark:text-plaster/60">
                       Your cart is empty
                     </p>
                     <button
                       onClick={() => setIsCartOpen(false)}
-                      className="mt-4 px-6 py-2 bg-cypress dark:bg-chartreuse text-plaster dark:text-grove rounded-lg hover:bg-cypress/90 dark:hover:bg-chartreuse/90 transition-colors"
+                      className="mt-4 px-6 py-2 bg-cypress dark:bg-chartreuse text-plaster dark:text-grove rounded-lg hover:bg-cypress/90 dark:hover:bg-chartreuse/90 transition-all duration-200 hover:scale-105"
                     >
                       Start Shopping
                     </button>
-                  </div>
+                  </motion.div>
                 ) : (
                   <>
-                    {items.map((item) => (
+                    {items.map((item, index) => (
                       <motion.div
                         key={item.id}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="flex items-center gap-4 p-3 bg-white/50 dark:bg-rosewood/50 rounded-lg border border-sand-dune dark:border-cypress"
+                        initial={{ opacity: 0, x: 50 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: index * 0.05 }}
+                        className="flex items-center gap-4 p-3 bg-white/50 dark:bg-rosewood/50 rounded-lg border border-sand-dune dark:border-cypress hover:shadow-md transition-shadow duration-200"
                       >
                         {/* Item Image Placeholder */}
-                        <div className="w-16 h-16 bg-sand-dune/30 dark:bg-cypress/30 rounded-lg flex items-center justify-center">
+                        <div className="w-16 h-16 bg-sand-dune/30 dark:bg-cypress/30 rounded-lg flex items-center justify-center flex-shrink-0">
                           <ShoppingBag className="w-6 h-6 text-sand-dune dark:text-cypress" />
                         </div>
 
                         {/* Item Details */}
-                        <div className="flex-1">
-                          <h4 className="font-period font-semibold text-rosewood dark:text-plaster">
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-period font-semibold text-rosewood dark:text-plaster truncate">
                             {item.name}
                           </h4>
                           <p className="font-period text-sm text-henna dark:text-chartreuse">
@@ -288,7 +347,7 @@ export function Header() {
                           <div className="flex items-center gap-2 mt-1">
                             <button
                               onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                              className="w-6 h-6 flex items-center justify-center bg-sand-dune/30 dark:bg-cypress/30 rounded-full hover:bg-sand-dune/50 dark:hover:bg-cypress/50 transition-colors"
+                              className="w-6 h-6 flex items-center justify-center bg-sand-dune/30 dark:bg-cypress/30 rounded-full hover:bg-sand-dune/50 dark:hover:bg-cypress/50 transition-all duration-200 hover:scale-110"
                             >
                               <span className="text-rosewood dark:text-plaster">-</span>
                             </button>
@@ -297,7 +356,7 @@ export function Header() {
                             </span>
                             <button
                               onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                              className="w-6 h-6 flex items-center justify-center bg-sand-dune/30 dark:bg-cypress/30 rounded-full hover:bg-sand-dune/50 dark:hover:bg-cypress/50 transition-colors"
+                              className="w-6 h-6 flex items-center justify-center bg-sand-dune/30 dark:bg-cypress/30 rounded-full hover:bg-sand-dune/50 dark:hover:bg-cypress/50 transition-all duration-200 hover:scale-110"
                             >
                               <span className="text-rosewood dark:text-plaster">+</span>
                             </button>
@@ -307,7 +366,7 @@ export function Header() {
                         {/* Remove Button */}
                         <button
                           onClick={() => removeItem(item.id)}
-                          className="p-1 hover:bg-henna/10 rounded-full transition-colors"
+                          className="p-1 hover:bg-henna/10 rounded-full transition-all duration-200 hover:scale-110 flex-shrink-0"
                         >
                           <X className="w-4 h-4 text-rosewood/40 dark:text-plaster/40 hover:text-henna dark:hover:text-poppy" />
                         </button>
@@ -315,14 +374,14 @@ export function Header() {
                     ))}
 
                     {/* Cart Footer */}
-                    <div className="sticky bottom-0 bg-plaster dark:bg-grove border-t border-sand-dune dark:border-cypress p-4 space-y-3">
+                    <div className="sticky bottom-0 bg-plaster dark:bg-grove border-t border-sand-dune dark:border-cypress p-4 space-y-3 -mx-4 px-4">
                       <div className="flex justify-between font-period text-lg">
                         <span className="text-rosewood/60 dark:text-plaster/60">Subtotal</span>
                         <span className="font-semibold text-rosewood dark:text-plaster">
                           ${totalPrice.toFixed(2)}
                         </span>
                       </div>
-                      <button className="w-full py-3 bg-cypress dark:bg-chartreuse text-plaster dark:text-grove rounded-lg hover:bg-cypress/90 dark:hover:bg-chartreuse/90 transition-colors font-period font-semibold">
+                      <button className="w-full py-3 bg-cypress dark:bg-chartreuse text-plaster dark:text-grove rounded-lg hover:bg-cypress/90 dark:hover:bg-chartreuse/90 transition-all duration-200 hover:scale-[1.02] font-period font-semibold">
                         Checkout
                       </button>
                       <button
