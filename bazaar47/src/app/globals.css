@@ -9,7 +9,7 @@
   --color-hippie: #FFB0BC;
   --color-plaster: #EFEADE;
   --color-sand-dune: #D5C9B1;
-  --color-henna: #A62630;
+  --color-henna: #6A2630;
   --color-chartreuse: #CCD145;
   --color-olive: #C4C687;
   --color-petal: #FFDBE1;
@@ -98,55 +98,93 @@
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
-    font-family: var(--font-peridot), system-ui, sans-serif;
+    font-family: var(--font-host-grotesk), system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
 
   h1, h2, h3, h4 {
-    font-family: var(--font-peridot), system-ui, sans-serif;
+    font-family: var(--font-host-grotesk), system-ui, sans-serif;
     font-weight: 600;
   }
 
   /* ============================================
-     FONT FACES
+     FONT FACES - HOST GROTESK
      ============================================ */
+  
+  /* Regular */
   @font-face {
-    font-family: 'Peridot';
-    src: url('/fonts/Fontspring-DEMO-peridotlatin-regular.otf') format('otf');
+    font-family: 'Host Grotesk';
+    src: url('/fonts/HostGrotesk-Regular.ttf') format('ttf');
     font-weight: 400;
     font-style: normal;
     font-display: swap;
   }
 
   @font-face {
-    font-family: 'Peridot';
-    src: url('/fonts/Fontspring-DEMO-peridotlatin-italic.otf') format('otf');
+    font-family: 'Host Grotesk';
+    src: url('/fonts/HostGrotesk-Italic.ttf') format('ttf');
     font-weight: 400;
     font-style: italic;
     font-display: swap;
   }
 
+  /* Medium */
   @font-face {
-    font-family: 'Peridot';
-    src: url('/fonts/Fontspring-DEMO-peridotlatin-semibold.otf') format('otf');
+    font-family: 'Host Grotesk';
+    src: url('/fonts/HostGrotesk-Medium.ttf') format('ttf');
+    font-weight: 500;
+    font-style: normal;
+    font-display: swap;
+  }
+
+  @font-face {
+    font-family: 'Host Grotesk';
+    src: url('/fonts/HostGrotesk-MediumItalic.ttf') format('ttf');
+    font-weight: 500;
+    font-style: italic;
+    font-display: swap;
+  }
+
+  /* SemiBold */
+  @font-face {
+    font-family: 'Host Grotesk';
+    src: url('/fonts/HostGrotesk-SemiBold.ttf') format('ttf');
     font-weight: 600;
     font-style: normal;
     font-display: swap;
   }
 
   @font-face {
-    font-family: 'Peridot';
-    src: url('/fonts/Fontspring-DEMO-peridotlatin-semibolditalic.otf') format('otf');
+    font-family: 'Host Grotesk';
+    src: url('/fonts/HostGrotesk-SemiBoldItalic.ttf') format('ttf');
     font-weight: 600;
     font-style: italic;
     font-display: swap;
   }
 
+  /* Bold */
   @font-face {
-    font-family: 'Peridot Narrow';
-    src: url('/fonts/Fontspring-DEMO-peridotlatin-narrowbold.otf') format('otf');
+    font-family: 'Host Grotesk';
+    src: url('/fonts/HostGrotesk-Bold.ttf') format('ttf');
     font-weight: 700;
+    font-style: normal;
+    font-display: swap;
+  }
+
+  @font-face {
+    font-family: 'Host Grotesk';
+    src: url('/fonts/HostGrotesk-BoldItalic.ttf') format('ttf');
+    font-weight: 700;
+    font-style: italic;
+    font-display: swap;
+  }
+
+  /* ExtraBold */
+  @font-face {
+    font-family: 'Host Grotesk';
+    src: url('/fonts/HostGrotesk-ExtraBold.ttf') format('ttf');
+    font-weight: 800;
     font-style: normal;
     font-display: swap;
   }
@@ -157,16 +195,21 @@
    ============================================ */
 @layer utilities {
   /* Font Families */
-  .font-period {
-    font-family: var(--font-peridot), system-ui, sans-serif;
+  .font-host-grotesk {
+    font-family: var(--font-host-grotesk), system-ui, sans-serif;
   }
   
-  .font-period-narrow {
-    font-family: var(--font-peridot-narrow), system-ui, sans-serif;
+  .font-host-grotesk-narrow {
+    font-family: var(--font-host-grotesk), system-ui, sans-serif;
   }
 
+  /* Font Weights */
   .font-regular {
     font-weight: 400;
+  }
+  
+  .font-medium {
+    font-weight: 500;
   }
   
   .font-semibold {
@@ -177,20 +220,24 @@
     font-weight: 700;
   }
 
+  .font-extrabold {
+    font-weight: 800;
+  }
+
   .headline-special {
-    font-family: var(--font-peridot-narrow), system-ui, sans-serif;
-    font-weight: 700;
+    font-family: var(--font-host-grotesk), system-ui, sans-serif;
+    font-weight: 800;
     text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
   }
 
   .italic-regular {
-    font-family: var(--font-peridot), system-ui, sans-serif;
+    font-family: var(--font-host-grotesk), system-ui, sans-serif;
     font-weight: 400;
     font-style: italic;
   }
 
   .italic-semibold {
-    font-family: var(--font-peridot), system-ui, sans-serif;
+    font-family: var(--font-host-grotesk), system-ui, sans-serif;
     font-weight: 600;
     font-style: italic;
   }

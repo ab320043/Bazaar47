@@ -2,7 +2,7 @@ export default function TestPage() {
   return (
     <div className="min-h-screen p-8">
       <div className="container max-w-4xl">
-        <h1 className="font-period-narrow font-bold text-4xl text-rosewood mb-8">
+        <h1 className="font-host-grotesk-narrow font-bold text-4xl text-rosewood mb-8">
           Color Test - Bazaar 47
         </h1>
         
@@ -23,12 +23,12 @@ export default function TestPage() {
 
         {/* Typography */}
         <div className="space-y-4 mb-8">
-          <h2 className="font-period-narrow font-bold text-3xl">Typography Test</h2>
-          <p className="font-period text-base">Regular Body Text</p>
-          <p className="font-period italic">Regular Italic</p>
-          <p className="font-period font-semibold">Semibold</p>
-          <p className="font-period font-semibold italic">Semibold Italic</p>
-          <p className="font-period-narrow font-bold">Narrow Bold - Special Treatment</p>
+          <h2 className="font-host-grotesk-narrow font-bold text-3xl">Typography Test</h2>
+          <p className="font-host-grotesk text-base">Regular Body Text</p>
+          <p className="font-host-grotesk italic">Regular Italic</p>
+          <p className="font-host-grotesk font-semibold">Semibold</p>
+          <p className="font-host-grotesk font-semibold italic">Semibold Italic</p>
+          <p className="font-host-grotesk-narrow font-bold">Narrow Bold - Special Treatment</p>
         </div>
 
         {/* Buttons */}

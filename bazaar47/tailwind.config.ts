@@ -64,13 +64,14 @@ const config: Config = {
         poppy: '#96161A',
       },
       fontFamily: {
-        period: ['var(--font-peridot)', 'system-ui', 'sans-serif'],
-        'period-narrow': ['var(--font-peridot-narrow)', 'system-ui', 'sans-serif'],
+        'host-grotesk': ['var(--font-host-grotesk)', 'system-ui', 'sans-serif'],
       },
       fontWeight: {
         regular: '400',
+        medium: '500',
         semibold: '600',
         bold: '700',
+        extrabold: '800',
       },
       spacing: {
         '1': '4px',
