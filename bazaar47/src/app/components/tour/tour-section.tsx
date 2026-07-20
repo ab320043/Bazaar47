@@ -7,6 +7,8 @@ import { Clock } from 'lucide-react'
 import overlay from '@/assets/newAssets/overlay.png'
 import banner from '@/assets/newAssets/banner.png'
 
+import { tourData } from '@/data/tour-data'
+
 // Import tour city images
 import casselberry from '@/assets/casselberry.jpg'
 import MAD from '@/assets/MAD.jpg'
@@ -17,74 +19,74 @@ import howBazaar from '@/assets/howBazaar.jpg'
 
 import cardLocationIcon from '@/assets/newAssets/cardLocationIcon.png'
 
-const tourData = [
-  {
-    id: 'orlando',
-    city: 'Orlando',
-    date: 'Saturday, August 8',
-    time: '6-10pm',
-    venue: 'Casselberry Arts Center',
-    description: 'Kick off the Florida Tour at Casselberry Arts Center. A night of culture, community, and creative connection.',
-    price: 'RSVP',
-    badge: 'Free',
-    image: casselberry,
-  },
-  {
-    id: 'south-florida',
-    city: 'South Florida',
-    date: 'Saturday, September 12',
-    time: '6-11pm',
-    venue: 'MAD Arts',
-    description: "Experience the fusion of Palestinian heritage and South Florida's vibrant energy. A night to remember.",
-    price: 'Buy Pre-Sales',
-    badge: '$5-$10',
-    image: MAD,
-  },
-  {
-    id: 'jacksonville',
-    city: 'Jacksonville',
-    date: 'Saturday, October 7',
-    time: '5-9pm',
-    venue: 'Third Wednesday Art Walk',
-    description: 'Intimate gathering during the Art Walk with storytelling, traditional music, and community connection.',
-    price: 'RSVP',
-    badge: 'Free',
-    image: Jacks,
-  },
-  {
-    id: 'gainesville-fest',
-    city: 'Gainesville | The Fest',
-    date: 'Saturday, October 24',
-    time: '2-8pm',
-    venue: 'Downtown, Gainesville',
-    description: 'Join us during the FEST for an afternoon of culture, music, and community in the heart of Gainesville.',
-    price: 'RSVP',
-    badge: 'Free',
-    image: dtGnv,
-  },
-  {
-    id: 'tampa',
-    city: 'Tampa',
-    date: 'Saturday, November 21',
-    time: '5-10pm',
-    venue: 'CAMP Tampa',
-    description: 'A celebration of culture with food, music, and the warmth of community. Bring your family and friends.',
-    price: 'RSVP',
-    badge: 'Free',
-    image: Camp,
-  },
-  {
-    id: 'gainesville-finale',
-    city: 'Gainesville',
-    date: 'Saturday, December 5',
-    time: '5-10pm',
-    venue: 'Bazaar47',
-    description: 'Closing night where it all began. A heartfelt gathering under the stars to celebrate community and connection.',
-    price: 'RSVP',
-    badge: 'Free',
-    image: howBazaar,
-  },
-]
+// const tourData = [
+//   {
+//     id: 'orlando',
+//     city: 'Orlando',
+//     date: 'Saturday, August 8',
+//     time: '6-10pm',
+//     venue: 'Casselberry Arts Center',
+//     description: 'Kick off the Florida Tour at Casselberry Arts Center. A night of culture, community, and creative connection.',
+//     price: 'RSVP',
+//     badge: 'Free',
+//     image: casselberry,
+//   },
+//   {
+//     id: 'south-florida',
+//     city: 'South Florida',
+//     date: 'Saturday, September 12',
+//     time: '6-11pm',
+//     venue: 'MAD Arts',
+//     description: "Experience the fusion of Palestinian heritage and South Florida's vibrant energy. A night to remember.",
+//     price: 'Buy Pre-Sales',
+//     badge: '$5-$10',
+//     image: MAD,
+//   },
+//   {
+//     id: 'jacksonville',
+//     city: 'Jacksonville',
+//     date: 'Saturday, October 7',
+//     time: '5-9pm',
+//     venue: 'Third Wednesday Art Walk',
+//     description: 'Intimate gathering during the Art Walk with storytelling, traditional music, and community connection.',
+//     price: 'RSVP',
+//     badge: 'Free',
+//     image: Jacks,
+//   },
+//   {
+//     id: 'gainesville-fest',
+//     city: 'Gainesville | The Fest',
+//     date: 'Saturday, October 24',
+//     time: '2-8pm',
+//     venue: 'Downtown, Gainesville',
+//     description: 'Join us during the FEST for an afternoon of culture, music, and community in the heart of Gainesville.',
+//     price: 'RSVP',
+//     badge: 'Free',
+//     image: dtGnv,
+//   },
+//   {
+//     id: 'tampa',
+//     city: 'Tampa',
+//     date: 'Saturday, November 21',
+//     time: '5-10pm',
+//     venue: 'CAMP Tampa',
+//     description: 'A celebration of culture with food, music, and the warmth of community. Bring your family and friends.',
+//     price: 'RSVP',
+//     badge: 'Free',
+//     image: Camp,
+//   },
+//   {
+//     id: 'gainesville-finale',
+//     city: 'Gainesville',
+//     date: 'Saturday, December 5',
+//     time: '5-10pm',
+//     venue: 'Bazaar47',
+//     description: 'Closing night where it all began. A heartfelt gathering under the stars to celebrate community and connection.',
+//     price: 'RSVP',
+//     badge: 'Free',
+//     image: howBazaar,
+//   },
+// ]
 
 export function TourSection() {
   return (
