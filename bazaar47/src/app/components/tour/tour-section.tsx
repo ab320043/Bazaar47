@@ -10,14 +10,12 @@ import banner from '@/assets/newAssets/banner.png'
 // Import tour city images
 import casselberry from '@/assets/casselberry.jpg'
 import MAD from '@/assets/MAD.jpg'
-// import artWalk from '@/assets/artWalk.jpeg'
 import Jacks from '@/assets/newAssets/Jacks.png'
 import dtGnv from '@/assets/dtGnv.jpg'
 import Camp from '@/assets/Camp.jpg'
 import howBazaar from '@/assets/howBazaar.jpg'
 
 import cardLocationIcon from '@/assets/newAssets/cardLocationIcon.png'
-import cardClockIcon from '@/assets/newAssets/cardClockIcon.png'
 
 const tourData = [
   {
@@ -37,9 +35,9 @@ const tourData = [
     date: 'Saturday, September 12',
     time: '6-11pm',
     venue: 'MAD Arts',
-    description: 'Experience the fusion of Palestinian heritage and South Florida\'s vibrant energy. A night to remember.',
+    description: "Experience the fusion of Palestinian heritage and South Florida's vibrant energy. A night to remember.",
     price: 'Buy Pre-Sales',
-    badge: '$5-$10',  // ← Custom badge for South Florida
+    badge: '$5-$10',
     image: MAD,
   },
   {
@@ -106,18 +104,18 @@ export function TourSection() {
       </div>
 
       <div className="relative z-10 container mx-auto px-4 md:px-8 lg:px-12 py-16 md:py-20">
-        
+
         {/* ============================================
             HEADER - Tickets + Dates with Banner
             ============================================ */}
-        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-6 mb-12">
-          <div className="md:w-1/2">
-            <h2 className="font-host-grotesk font-bold text-[58px] leading-[108%] tracking-normal text-plaster mt-4">
+        <div className="flex flex-col items-center md:flex-row md:items-start md:justify-between gap-6 mb-12">
+          <div className="w-full md:w-1/2 text-center md:text-left">
+            <h2 className="font-host-grotesk font-bold text-[40px] md:text-[58px] leading-[108%] tracking-normal text-plaster mt-4">
               Tickets + Dates
             </h2>
           </div>
-          <div className="md:w-1/2 flex justify-end">
-            <div className="relative w-full max-w-30 h-auto" style={{ right: '20px', top: '6px' }}>
+          <div className="w-full md:w-1/2 flex justify-center md:justify-end">
+            <div className="relative w-full max-w-[150px] md:max-w-[180px] h-auto" style={{ right: '0px', top: '6px' }}>
               <Image
                 src={banner}
                 alt="Bazaar À La Carte"
@@ -129,9 +127,9 @@ export function TourSection() {
         </div>
 
         {/* ============================================
-            TOUR CARDS - 2x3 Grid
+            TOUR CARDS - Responsive Grid
             ============================================ */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
           {tourData.map((stop, index) => (
             <motion.div
               key={stop.id}
@@ -139,12 +137,12 @@ export function TourSection() {
               whileInView={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: index * 0.05 }}
               viewport={{ once: true }}
-              className="mx-auto w-full max-w-110 aspect-[0.76] rounded-[15px] border-2 border-[#341B1C] bg-plaster overflow-hidden"
+              className="mx-auto w-full rounded-[15px] border-2 border-[#341B1C] bg-plaster overflow-hidden flex flex-col"
             >
               {/* ============================================
-                  TOP HALF - Image (50%)
+                  TOP - Image (fixed aspect ratio, no crop)
                   ============================================ */}
-              <div className="relative h-1/2 w-full">
+              <div className="relative w-full aspect-[4/3] shrink-0">
                 <Image
                   src={stop.image}
                   alt={stop.city}
@@ -154,31 +152,27 @@ export function TourSection() {
               </div>
 
               {/* ============================================
-                  BOTTOM HALF - Content (50%)
+                  BOTTOM - Content (auto height, no clipping)
                   ============================================ */}
-              <div className="flex h-1/2 flex-col bg-plaster px-4 py-4">
-                
+              <div className="flex flex-col bg-plaster px-4 py-4 grow">
+
                 {/* City + Badge Row */}
-                <div className="flex items-center justify-between">
-                  <h3 className="font-host-grotesk text-[30px] font-bold text-[#341B1C] leading-none">
+                <div className="flex items-center justify-between gap-2">
+                  <h3 className="font-host-grotesk text-[24px] md:text-[30px] font-bold text-[#341B1C] leading-tight">
                     {stop.city}
                   </h3>
-                  <span className={`rounded-full px-4 py-2 text-[18px] font-bold leading-none ${
-                    stop.badge === '$5-$10' 
-                      ? 'bg-chartreuse text-[#295211]' 
-                      : 'bg-chartreuse text-[#295211]'
-                  }`}>
+                  <span className="shrink-0 rounded-full px-3 py-1.5 md:px-4 md:py-2 text-[14px] md:text-[18px] font-bold leading-none bg-chartreuse text-[#295211]">
                     {stop.badge}
                   </span>
                 </div>
 
                 {/* Date */}
-                <p className="mt-2 font-host-grotesk text-[18px] font-semibold text-[#341B1C]">
+                <p className="mt-2 font-host-grotesk text-[16px] md:text-[18px] font-semibold text-[#341B1C]">
                   {stop.date}
                 </p>
 
                 {/* Location + Time */}
-                <div className="mt-4 flex items-center gap-5 text-[#341B1C]">
+                <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-[#341B1C]">
                   <div className="flex items-center gap-2">
                     <Image src={cardLocationIcon} alt="Location" width={18} height={18} className="text-poppy" />
                     <span className="font-host-grotesk text-sm font-semibold">{stop.venue}</span>
@@ -190,19 +184,19 @@ export function TourSection() {
                 </div>
 
                 {/* Divider */}
-                <hr className="my-4 border-[#341B1C]/20" />
+                <hr className="my-3 md:my-4 border-[#341B1C]/20" />
 
                 {/* Description */}
-                <p className="font-host-grotesk text-[14px] font-normal leading-[100%] tracking-[0] text-[#341B1C]">
+                <p className="font-host-grotesk text-[14px] font-normal leading-[140%] tracking-[0] text-[#341B1C]">
                   {stop.description}
                 </p>
 
                 {/* Divider */}
-                <hr className="my-4 border-[#341B1C]/20" />
+                <hr className="my-3 md:my-4 border-[#341B1C]/20" />
 
                 {/* Button - Full Width */}
-                <Link href={`/tours/${stop.id}`} className="w-full">
-                  <button className="w-full rounded-2xl bg-[#341B1C] h-14 text-center font-host-grotesk text-[20px] font-semibold text-plaster transition hover:opacity-90">
+                <Link href={`/tours/${stop.id}`} className="w-full mt-auto">
+                  <button className="w-full rounded-2xl bg-[#341B1C] h-12 md:h-14 text-center font-host-grotesk text-[16px] md:text-[20px] font-semibold text-plaster transition hover:opacity-90">
                     {stop.price} →
                   </button>
                 </Link>

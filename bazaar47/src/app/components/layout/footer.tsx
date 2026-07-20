@@ -80,80 +80,81 @@ export function Footer() {
   return (
     <footer className="bg-[#341B1C] text-[#D5C9B1]">
       <div className="container mx-auto px-6 md:px-8 lg:px-12 py-12 md:py-16">
-        
+
         {/* ============================================
-            MAIN FOOTER - 6 Columns in One Row
+            MAIN FOOTER - Responsive Grid Layout
+            Mobile: 2 columns, stacked rows
+            Tablet: 3 columns
+            Desktop: 6 columns in one row
             ============================================ */}
-        <div className="flex flex-wrap lg:flex-nowrap items-start justify-between gap-8 md:gap-10 lg:gap-12">
-          
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-8 md:gap-10 lg:gap-8">
+
           {/* Column 1 - Logo */}
-          <div className="shrink-0 min-w-[100px]">
+          <div className="col-span-2 md:col-span-1 flex justify-center md:justify-start">
             <Link href="/">
               <Image
                 src={footerLogo}
                 alt="Bazaar 47"
                 width={128}
                 height={45}
-                className="w-[100px] md:w-[128px] h-auto hover:opacity-80 transition-opacity"
+                className="w-[120px] md:w-[128px] h-auto hover:opacity-80 transition-opacity"
                 priority
               />
             </Link>
           </div>
 
           {/* Column 2 - Quote */}
-          <div className="max-w-[200px] md:max-w-[230px] lg:max-w-[260px] shrink-0">
-            <p className="font-host-grotesk text-[16px] md:text-[18px] leading-[108%] text-[#D5C9B1]">
+          <div className="col-span-2 md:col-span-1">
+            <p className="font-host-grotesk text-[15px] md:text-[16px] text-center md:text-left lg:text-[18px] leading-[140%] text-[#D5C9B1]">
               A space for culture,
               <br />
               community, and connection.
             </p>
-            <p className="mt-4 md:mt-5 font-host-grotesk text-[16px] md:text-[18px] leading-[108%] text-[#D5C9B1]">
-              “The warmth of gathering is
+            <p className="mt-4 font-host-grotesk text-[15px] text-center md:text-[16px] md:text-left lg:text-[18px] leading-[140%] text-[#D5C9B1]">
+              The warmth of gathering is
               <br />
-              the color of home”
+              the color of home
             </p>
-            <p className="mt-3 md:mt-4 font-host-grotesk text-[16px] md:text-[18px] leading-[108%] text-[#D5C9B1]">
+            <p className="mt-2 font-host-grotesk text-[14px] text-center md:text-[15px] md:text-left text-[#D5C9B1]/70">
               —Mahmoud Darwish
             </p>
           </div>
 
           {/* Column 3 - Florida Logo */}
-          <div className="shrink-0" style={{ width: '150px' }}>
+          <div className="col-span-2 md:col-span-1 flex justify-center md:justify-start">
             <Image
               src={footerLogo2}
               alt="Florida Logo"
+              className="w-[120px] md:w-[220px] h-auto"
               priority
             />
           </div>
 
           {/* Column 4 - Explore */}
-          <div className="shrink-0">
-            <h4 className="font-host-grotesk font-semibold text-[16px] md:text-[18px] text-[#D5C9B1] mb-3 md:mb-4">
+          <div className="col-span-1">
+            <h4 className="font-host-grotesk font-semibold text-[15px] md:text-[16px] lg:text-[18px] text-[#D5C9B1] mb-3 md:mb-4">
               Explore
             </h4>
             <div className="flex flex-col gap-2 md:gap-3">
-              {/* About - scrolls to section */}
               <Link
                 href="/#about"
                 onClick={(e) => handleNavClick(e, 'about', '/#about')}
-                className="font-host-grotesk text-[14px] md:text-[16px] text-[#D5C9B1]/70 hover:text-[#D5C9B1] transition-colors cursor-pointer"
+                className="font-host-grotesk text-[13px] md:text-[14px] lg:text-[16px] text-[#D5C9B1]/70 hover:text-[#D5C9B1] transition-colors cursor-pointer"
               >
                 About
               </Link>
-              
-              {/* Tickets - scrolls to section */}
+
               <Link
                 href="/#tickets"
                 onClick={(e) => handleNavClick(e, 'tickets', '/#tickets')}
-                className="font-host-grotesk text-[14px] md:text-[16px] text-[#D5C9B1]/70 hover:text-[#D5C9B1] transition-colors cursor-pointer"
+                className="font-host-grotesk text-[13px] md:text-[14px] lg:text-[16px] text-[#D5C9B1]/70 hover:text-[#D5C9B1] transition-colors cursor-pointer"
               >
                 Tickets
               </Link>
-              
-              {/* Vendors - goes to page */}
+
               <Link 
                 href="/vendors" 
-                className="font-host-grotesk text-[14px] md:text-[16px] text-[#D5C9B1]/70 hover:text-[#D5C9B1] transition-colors"
+                className="font-host-grotesk text-[13px] md:text-[14px] lg:text-[16px] text-[#D5C9B1]/70 hover:text-[#D5C9B1] transition-colors"
               >
                 Vendors
               </Link>
@@ -161,26 +162,26 @@ export function Footer() {
           </div>
 
           {/* Column 5 - Contact */}
-          <div className="shrink-0 max-w-[180px] md:max-w-[210px]">
-            <h4 className="font-host-grotesk font-semibold text-[16px] md:text-[18px] text-[#D5C9B1] mb-3 md:mb-4">
+          <div className="col-span-1">
+            <h4 className="font-host-grotesk font-semibold text-[15px] md:text-[16px] lg:text-[18px] text-[#D5C9B1] mb-3 md:mb-4">
               Contact
             </h4>
             <div className="flex flex-col gap-2 md:gap-3">
               <div className="flex items-center gap-2 md:gap-3">
                 <MailIcon />
-                <span className="font-host-grotesk text-[14px] md:text-[16px] text-[#D5C9B1]/70">
+                <span className="font-host-grotesk text-[13px] md:text-[14px] lg:text-[16px] text-[#D5C9B1]/70">
                   info@bazaar47.com
                 </span>
               </div>
               <div className="flex items-center gap-2 md:gap-3">
                 <PhoneIcon />
-                <span className="font-host-grotesk text-[14px] md:text-[16px] text-[#D5C9B1]/70">
+                <span className="font-host-grotesk text-[13px] md:text-[14px] lg:text-[16px] text-[#D5C9B1]/70">
                   (352) 266-1267
                 </span>
               </div>
               <div className="flex items-start gap-2 md:gap-3">
                 <LocationIcon />
-                <span className="font-host-grotesk text-[14px] md:text-[16px] text-[#D5C9B1]/70 leading-[140%]">
+                <span className="font-host-grotesk text-[13px] md:text-[14px] lg:text-[16px] text-[#D5C9B1]/70 leading-[140%]">
                   60 SW 2nd Street
                   <br />
                   Gainesville, FL 32601
@@ -190,39 +191,36 @@ export function Footer() {
           </div>
 
           {/* Column 6 - Stay Connected */}
-          <div className="shrink-0 max-w-[200px] md:max-w-[230px]">
-            <h4 className="font-host-grotesk font-semibold text-[16px] md:text-[18px] text-[#D5C9B1] mb-3 md:mb-4">
+          <div className="col-span-2 md:col-span-1">
+            <h4 className="font-host-grotesk font-semibold text-[15px] md:text-[16px] lg:text-[18px] text-[#D5C9B1] mb-3 md:mb-4">
               Stay Connected
             </h4>
-            <p className="font-host-grotesk text-[14px] md:text-[16px] text-[#D5C9B1]/60 leading-[120%] mb-3 md:mb-4">
+            <p className="font-host-grotesk text-[13px] md:text-[14px] lg:text-[16px] text-[#D5C9B1]/60 leading-[140%] mb-3 md:mb-4">
               Follow us for updates on tours,
               events, and community gatherings.
             </p>
             <div className="flex flex-col gap-2">
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-                <div className="flex items-center gap-2">
-                  <InstagramIcon />
-                  <Link 
-                    href="https://instagram.com/bazaar47" 
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="font-host-grotesk text-[14px] md:text-[16px] text-[#D5C9B1]/70 hover:text-[#D5C9B1] transition-colors"
-                  >
-                    @bazaar47
-                  </Link>
-                </div>
-                                
-                <div className="flex items-center gap-2">
-                  <InstagramIcon />
-                  <Link 
-                    href="https://instagram.com/bigcaaf" 
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="font-host-grotesk text-[14px] md:text-[16px] text-[#D5C9B1]/70 hover:text-[#D5C9B1] transition-colors"
-                  >
-                    @bigcaaf
-                  </Link>
-                </div>
+              <div className="flex items-center gap-2">
+                <InstagramIcon />
+                <Link 
+                  href="https://instagram.com/bazaar47" 
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-host-grotesk text-[13px] md:text-[14px] lg:text-[16px] text-[#D5C9B1]/70 hover:text-[#D5C9B1] transition-colors"
+                >
+                  @bazaar47
+                </Link>
+              </div>
+              <div className="flex items-center gap-2">
+                <InstagramIcon />
+                <Link 
+                  href="https://instagram.com/bigcaaf" 
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-host-grotesk text-[13px] md:text-[14px] lg:text-[16px] text-[#D5C9B1]/70 hover:text-[#D5C9B1] transition-colors"
+                >
+                  @bigcaaf
+                </Link>
               </div>
             </div>
           </div>
@@ -232,7 +230,7 @@ export function Footer() {
         {/* ============================================
             BOTTOM COPYRIGHT
             ============================================ */}
-        <div className="mt-10 md:mt-12 pt-6 md:pt-8 border-t border-[#D5C9B1]/10">
+        <div className="mt-10 md:mt-12 pt-6 md:pt-8 border-t border-[#D5C9B1]/10 text-center md:text-left">
           <p className="font-host-grotesk text-[11px] md:text-[12px] text-[#D5C9B1]/50">
             © 2026 Bazaar 47. All rights reserved.
           </p>

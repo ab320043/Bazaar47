@@ -6,11 +6,12 @@ import Link from 'next/link'
 import { useState, useRef } from 'react'
 import { ArrowRight, ArrowLeft, X, CheckCircle, MapPin, Calendar, Clock, Users, Music, AlertCircle } from 'lucide-react'
 import VendorSplash from '@/assets/newAssets/VendorSplash.png'
-import banner from '@/assets/newAssets/banner.png'
+import floridaTourText from '@/assets/newAssets/floridaTourText.png'
 
 export default function VendorsPage() {
   const [showForm, setShowForm] = useState(false)
   const [formSubmitted, setFormSubmitted] = useState(false)
+  const [isExiting, setIsExiting] = useState(false)
   const [selectedCities, setSelectedCities] = useState<string[]>([])
   const [selectedBooth, setSelectedBooth] = useState('')
   const [formData, setFormData] = useState({
@@ -56,25 +57,38 @@ export default function VendorsPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    // Here you would send the form data to your backend
     console.log('Form submitted:', { ...formData, selectedCities, selectedBooth })
     setFormSubmitted(true)
-    // Scroll to top to show success message
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   const handleApplyClick = () => {
     setShowForm(true)
-    // Smooth scroll to form
     setTimeout(() => {
       document.getElementById('form-section')?.scrollIntoView({ behavior: 'smooth' })
     }, 100)
+  }
+
+  const handleBackToHome = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    e.preventDefault()
+    setIsExiting(true)
+    
+    // Wait for exit animation then navigate
+    setTimeout(() => {
+      window.location.href = '/'
+    }, 500)
   }
 
   const variants = {
     hidden: { opacity: 0, y: 20 },
     visible: { opacity: 1, y: 0 },
     exit: { opacity: 0, y: -20 }
+  }
+
+  const pageVariants = {
+    initial: { opacity: 0 },
+    animate: { opacity: 1 },
+    exit: { opacity: 0, transition: { duration: 0.4 } }
   }
 
   return (
@@ -96,16 +110,32 @@ export default function VendorsPage() {
       {/* ============================================
           MAIN CONTENT
           ============================================ */}
-      <div className="relative z-10 container mx-auto px-4 md:px-8 lg:px-12 min-h-screen">
-        
-        {/* Back to Home */}
+      <motion.div 
+        className="relative z-10 container mx-auto px-4 md:px-8 lg:px-12 min-h-screen"
+        initial="initial"
+        animate={isExiting ? "exit" : "animate"}
+        variants={pageVariants}
+        transition={{ duration: 0.5 }}
+      >
+        {/* Back to Home with smooth transition */}
         <div className="absolute top-6 left-6 md:top-8 md:left-8 z-20">
           <Link 
-            href="/" 
-            className="inline-flex items-center gap-2 text-grove/60 hover:text-grove transition-colors font-host-grotesk text-sm"
+            href="/"
+            onClick={handleBackToHome}
+            className="inline-flex items-center gap-2 text-grove/60 hover:text-grove transition-colors font-host-grotesk text-sm group"
           >
-            <ArrowLeft className="w-4 h-4" />
-            Back
+            <motion.span
+              whileHover={{ x: -4 }}
+              transition={{ duration: 0.2 }}
+            >
+              <ArrowLeft className="w-4 h-4" />
+            </motion.span>
+            <motion.span
+              whileHover={{ x: -2 }}
+              transition={{ duration: 0.2 }}
+            >
+              Back
+            </motion.span>
           </Link>
         </div>
 
@@ -131,7 +161,7 @@ export default function VendorsPage() {
                 className="mb-4 md:mb-6"
               >
                 <Image
-                  src={banner}
+                  src={floridaTourText}
                   alt="Bazaar À La Carte"
                   className="object-contain w-40 h-auto"
                   priority
@@ -544,22 +574,6 @@ export default function VendorsPage() {
                     </div>
                   </div>
 
-                  {/* Event Info */}
-                  {/* <div className="p-4 bg-rosewood/5 rounded-xl border border-rosewood/10 space-y-2">
-                    <p className="font-host-grotesk text-sm text-rosewood/60 flex items-center gap-2">
-                      <Calendar className="w-4 h-4" />
-                      <span className="font-semibold">Event Date:</span> Saturday, August 8th
-                    </p>
-                    <p className="font-host-grotesk text-sm text-rosewood/60 flex items-center gap-2">
-                      <Clock className="w-4 h-4" />
-                      <span className="font-semibold">Setup:</span> 4:00PM — <span className="font-semibold">Market:</span> 6:00PM - 10:00PM
-                    </p>
-                    <p className="font-host-grotesk text-sm text-rosewood/60 flex items-center gap-2">
-                      <MapPin className="w-4 h-4" />
-                      <span className="font-semibold">Location:</span> Casselberry Art House
-                    </p>
-                  </div> */}
-
                   {/* Submit Button */}
                   <button
                     type="submit"
@@ -636,7 +650,7 @@ export default function VendorsPage() {
             </motion.div>
           )}
         </AnimatePresence>
-      </div>
+      </motion.div>
     </section>
   )
 }
