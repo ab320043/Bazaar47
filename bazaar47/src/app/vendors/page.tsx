@@ -40,6 +40,9 @@ export default function VendorsPage() {
 
   const formRef = useRef<HTMLFormElement>(null)
 
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+
   const cities = ['Orlando', 'South Florida', 'Jacksonville', 'Gainesville', 'Tampa', 'Gainesville Finale']
 
   const handleCityToggle = (city: string) => {
@@ -55,12 +58,83 @@ export default function VendorsPage() {
     setFormData(prev => ({ ...prev, [name]: value }))
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    console.log('Form submitted:', { ...formData, selectedCities, selectedBooth })
-    setFormSubmitted(true)
-    window.scrollTo({ top: 0, behavior: 'smooth' })
+  const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault()
+  setIsSubmitting(true)
+
+  try {
+    const response = await fetch('https://formspree.io/f/xzdnaegk', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        fullName: formData.fullName,
+        preferredName: formData.preferredName,
+        pronouns: formData.pronouns,
+        city: formData.city,
+        businessName: formData.businessName,
+        phone: formData.phone,
+        email: formData.email,
+        instagram: formData.instagram,
+        instagramLink: formData.instagramLink,
+        products: formData.products,
+        pricePoints: formData.pricePoints,
+        bio: formData.bio,
+        vendorHighlight: formData.vendorHighlight,
+        photography: formData.photography,
+        promotion: formData.promotion,
+        boothOption: selectedBooth || formData.boothOption,
+        bringItems: formData.bringItems,
+        noiseSensitive: formData.noiseSensitive,
+        payFee: formData.payFee,
+        recommendVendors: formData.recommendVendors,
+        additionalInfo: formData.additionalInfo,
+        selectedCities: selectedCities,
+        _subject: `Vendor Application - ${formData.businessName || 'New Applicant'}`,
+      }),
+    })
+
+    if (response.ok) {
+      setFormSubmitted(true)
+      setFormData({
+        fullName: '',
+        preferredName: '',
+        pronouns: '',
+        city: '',
+        businessName: '',
+        phone: '',
+        email: '',
+        instagram: '',
+        instagramLink: '',
+        products: '',
+        pricePoints: '',
+        bio: '',
+        vendorHighlight: 'yes',
+        photography: 'yes',
+        promotion: 'yes',
+        boothOption: '',
+        bringItems: 'yes',
+        noiseSensitive: 'no',
+        payFee: 'yes',
+        recommendVendors: '',
+        additionalInfo: '',
+      })
+      setSelectedCities([])
+      setSelectedBooth('')
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    } else {
+      const errorData = await response.json()
+      console.error('Formspree error:', errorData)
+      alert('Something went wrong. Please try again or contact us directly.')
+    }
+  } catch (error) {
+    console.error('Submission error:', error)
+    alert('Network error. Please check your connection and try again.')
+  } finally {
+    setIsSubmitting(false)
   }
+}
 
   const handleApplyClick = () => {
     setShowForm(true)
@@ -577,10 +651,11 @@ export default function VendorsPage() {
                   {/* Submit Button */}
                   <button
                     type="submit"
-                    className="w-full bg-cypress hover:bg-cypress/90 text-plaster font-host-grotesk font-bold text-lg py-4 rounded-xl transition-all duration-300 flex items-center justify-center gap-3 hover:scale-[1.02]"
+                    disabled={isSubmitting}
+                    className="w-full bg-cypress hover:bg-cypress/90 text-plaster font-host-grotesk font-bold text-lg py-4 rounded-xl transition-all duration-300 flex items-center justify-center gap-3 hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Submit Application
-                    <ArrowRight className="w-5 h-5" />
+                    {isSubmitting ? 'Submitting...' : 'Submit Application'}
+                    {!isSubmitting && <ArrowRight className="w-5 h-5" />}
                   </button>
                 </form>
               </div>
@@ -639,14 +714,14 @@ export default function VendorsPage() {
                 </Link>
               </motion.div>
 
-              <motion.p
+              {/* <motion.p
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.6 }}
                 className="font-host-grotesk text-sm text-grove/30 mt-6"
               >
                 ✦ We will be in touch soon! ✦
-              </motion.p>
+              </motion.p> */}
             </motion.div>
           )}
         </AnimatePresence>
