@@ -28,7 +28,7 @@ export function AboutTourPromoRight() {
       >
         <span className="w-6 sm:w-8 h-px bg-chartreuse/60" />
         <span className="font-host-grotesk text-[10px] sm:text-xs text-chartreuse/60 uppercase tracking-[0.3em] font-bold">
-          Bazaar À La Carte
+          Bazaar Florida Tour 
         </span>
         <span className="w-6 sm:w-8 h-px bg-chartreuse/60" />
       </motion.div>
@@ -53,10 +53,13 @@ export function AboutTourPromoRight() {
         className="space-y-2 sm:space-y-3 max-w-xl mx-auto md:mx-0"
       >
         <p className="font-host-grotesk font-regular text-[14px] sm:text-[15px] md:text-[17px] leading-[120%] tracking-normal text-[#D5C9B1]">
-          <span className="font-bold text-chartreuse">Bazaar À La Carte</span>
+          <span className="font-bold text-chartreuse">A touring night market around the Sunshine State</span>
         </p>
         <p className="font-host-grotesk font-regular text-[14px] sm:text-[15px] md:text-[17px] leading-[120%] tracking-normal text-[#D5C9B1]">
-          Join us for a celebration of culture, connection, and the warmth of gathering. This is the beginning of a new chapter, and we want you to be part of it.
+          Following last year’s successful run around the Sunshine State, Gainesville’s beloved night market series, the Bazaar Florida Tour, is back on the road this summer, sharing its signature blend of artisan makers selling handmade goods, artistic and cultural performances, and interactive workshops and activities. The statewide event series highlighting local vendors and creatives in Orlando, Miami, Jacksonville and Tampa.
+        </p>
+        <p className="font-host-grotesk font-regular text-[14px] sm:text-[15px] md:text-[17px] leading-[120%] tracking-normal text-[#D5C9B1]">
+            “This platform is so experimental that it allows creatives to try something for the first time, experiment with it and showcase it to a very supportive, open community of people who are naturally drawn to these events.”
         </p>
       </motion.div>
 
@@ -66,7 +69,7 @@ export function AboutTourPromoRight() {
         whileInView={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.5 }}
         viewport={{ once: true }}
-        className="flex flex-wrap justify-center md:justify-start gap-3 sm:gap-4 mt-5 sm:mt-6 md:mt-8"
+        className="flex flex-wrap justify-center md:justify-start gap-8 sm:gap-8 mt-5 sm:mt-6 md:mt-8"
       >
         <button
           onClick={scrollToTour}

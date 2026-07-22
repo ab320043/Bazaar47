@@ -70,7 +70,7 @@ export function TourSection() {
                 {/* ============================================
                     TOP - Image (fixed aspect ratio, no crop)
                     ============================================ */}
-                <div className="relative w-full aspect-[4/3] shrink-0">
+                <div className="relative w-full aspect-4/3 shrink-0">
                   <Image
                     src={stop.image}
                     alt={stop.city}

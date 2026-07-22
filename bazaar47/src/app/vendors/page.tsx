@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useState, useRef } from 'react'
-import { ArrowRight, ArrowLeft, X, CheckCircle, MapPin, Calendar, Clock, Users, Music, AlertCircle } from 'lucide-react'
+import { ArrowRight, ArrowLeft, CheckCircle, AlertCircle } from 'lucide-react'
 import VendorSplash from '@/assets/newAssets/VendorSplash.png'
 import floridaTourText from '@/assets/newAssets/floridaTourText.png'
 
@@ -308,7 +308,7 @@ export default function VendorsPage() {
                     Bazaar À La Carte : Florida Tour
                   </p>
                   <div className="mt-4 p-4 bg-poppy/10 rounded-xl border border-poppy/20 flex items-start gap-3">
-                    <AlertCircle className="w-5 h-5 text-poppy flex-shrink-0 mt-0.5" />
+                    <AlertCircle className="w-5 h-5 text-poppy shrink-0 mt-0.5" />
                     <div>
                       <p className="font-host-grotesk font-bold text-poppy text-sm">
                         DEADLINE: Friday, July 24th at Midnight

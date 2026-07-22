@@ -3,6 +3,7 @@
 import { motion } from 'framer-motion'
 import Image from 'next/image'
 import Piece from '@/assets/newAssets/Piece.jpg'
+// import highwaySign from '@/assets/newAssets/highwaySign.png'
 import { AboutTourPromoRight } from './AboutTourPromoRight'
 
 export function AboutTourPromo() {
@@ -35,6 +36,7 @@ export function AboutTourPromo() {
               />
             </div>
           </motion.div>
+
 
           {/* RIGHT: Description + Buttons */}
           <AboutTourPromoRight />

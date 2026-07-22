@@ -176,7 +176,7 @@ export function Footer() {
               <div className="flex items-center gap-2 md:gap-3">
                 <MailIcon />
                 <span className="font-host-grotesk text-[13px] md:text-[14px] lg:text-[16px] text-[#D5C9B1]/70">
-                  info@bazaar47.com
+                  Laila@bazaar47.com
                 </span>
               </div>
               <div className="flex items-center gap-2 md:gap-3">

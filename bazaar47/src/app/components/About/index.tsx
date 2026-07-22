@@ -12,7 +12,7 @@ const originalDescriptionSentences = [
 
 export function About() {
   return (
-    <section className="w-full overflow-hidden bg-grove relative">
+    <section className="w-full overflow-hidden bg-plaster relative">
       
       {/* Title */}
       <AboutTitle />
