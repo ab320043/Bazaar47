@@ -19,8 +19,10 @@ const reemKufi = Reem_Kufi({
 })
 
 export const metadata: Metadata = {
-  title: 'Bazaar 47',
-  description: 'Where Palestinian heritage meets Florida warmth',
+  title: 'Bazaar47',
+  icons: {
+    icon: '/icons/favicon.ico',
+  },
 }
 
 export default function RootLayout({

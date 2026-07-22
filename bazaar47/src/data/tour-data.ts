@@ -1,9 +1,16 @@
 import casselberry from '@/assets/casselberry.jpg'
 import MAD from '@/assets/MAD.jpg'
-import Jacks from '@/assets/newAssets/Jacks.png'
-import dtGnv from '@/assets/dtGnv.jpg'
+// import Jacks from '@/assets/newAssets/Jacks.png'
+// import dtGnv from '@/assets/dtGnv.jpg'
 import Camp from '@/assets/Camp.jpg'
-import howBazaar from '@/assets/howBazaar.jpg'
+// import howBazaar from '@/assets/howBazaar.jpg'
+import GNV from '@/assets/newAssets/GNV.jpg'
+import jacks2 from '@/assets/newAssets/jacks2.jpeg'
+import FEST from '@/assets/newAssets/FEST.jpeg'
+
+
+
+
 import { StaticImageData } from 'next/image'
 
 
@@ -71,7 +78,7 @@ export const tourData: TourCity[] = [
     description: 'Intimate gathering during the Art Walk with storytelling, traditional music, and community connection.',
     price: 'RSVP',
     badge: 'Free',
-    image: Jacks,
+    image: jacks2,
     mapLink: 'https://maps.google.com/?q=Downtown+Jacksonville+Art+Walk',
     ticketLink: '#',
     venueDetails: 'The Third Wednesday Art Walk is a monthly event in Downtown Jacksonville that transforms the city streets into a vibrant arts and culture festival. Artists, musicians, and performers take over the streets.',
@@ -79,7 +86,7 @@ export const tourData: TourCity[] = [
   },
   {
     id: 'gainesville-fest',
-    city: 'Gainesville | The Fest',
+    city: 'Gainesville | The FEST',
     arabicCity: 'غينزفيل - المهرجان',
     date: 'Saturday, October 24',
     time: '2-8pm',
@@ -88,7 +95,7 @@ export const tourData: TourCity[] = [
     description: 'Join us during the FEST for an afternoon of culture, music, and community in the heart of Gainesville.',
     price: 'RSVP',
     badge: 'Free',
-    image: dtGnv,
+    image: FEST,
     mapLink: 'https://maps.google.com/?q=Downtown+Gainesville',
     ticketLink: 'https://thefestfl.com',
     venueDetails: 'The FEST is one of Gainesville\'s most anticipated annual events, bringing together artists, musicians, and creatives from across the region. Downtown Gainesville comes alive with art and culture.',
@@ -122,7 +129,7 @@ export const tourData: TourCity[] = [
     description: 'Closing night where it all began. A heartfelt gathering under the stars to celebrate community and connection.',
     price: 'RSVP',
     badge: 'Free',
-    image: howBazaar,
+    image: GNV,
     mapLink: 'https://maps.google.com/?q=60+SW+2nd+Street+Gainesville+FL',
     ticketLink: '#',
     venueDetails: 'Bazaar47 is the home base and community space where it all started. This closing night celebration brings the Florida Tour full circle with a special gathering at the heart of the community.',
