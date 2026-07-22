@@ -87,7 +87,7 @@ export function Footer() {
             Tablet: 3 columns
             Desktop: 6 columns in one row
             ============================================ */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-8 md:gap-10 lg:gap-8">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-x-4 md:gap-x-6 lg:gap-x-8 xl:gap-x-12 2xl:gap-x-16 gap-y-8 md:gap-y-10 lg:gap-y-8">
 
           {/* Column 1 - Logo */}
           <div className="col-span-2 md:col-span-1 flex justify-center md:justify-start">
@@ -103,31 +103,37 @@ export function Footer() {
             </Link>
           </div>
 
-          {/* Column 2 - Quote */}
+          {/* Column 2 - Quote - FIXED: Now displays as a single block with left-to-right on mobile */}
           <div className="col-span-2 md:col-span-1">
-            <p className="font-host-grotesk text-[15px] md:text-[16px] text-center md:text-left lg:text-[18px] leading-[140%] text-[#D5C9B1]">
-              A space for culture,
-              <br />
-              community, and connection.
-            </p>
-            <p className="mt-4 font-host-grotesk text-[15px] text-center md:text-[16px] md:text-left lg:text-[18px] leading-[140%] text-[#D5C9B1]">
-              The warmth of gathering is
-              <br />
-              the color of home
-            </p>
-            <p className="mt-2 font-host-grotesk text-[14px] text-center md:text-[15px] md:text-left text-[#D5C9B1]/70">
-              —Mahmoud Darwish
-            </p>
+            <div className="flex flex-col items-center md:items-start">
+              <p className="font-host-grotesk text-[15px] md:text-[16px] lg:text-[18px] leading-[140%] text-[#D5C9B1] text-center md:text-left">
+                A space for culture, community, and connection.
+              </p>
+              <div className="flex flex-col items-center md:items-start mt-1">
+                <p className="font-host-grotesk text-[15px] md:text-[16px] lg:text-[18px] leading-[140%] text-[#D5C9B1] text-center md:text-left">
+                  &ldquo;The warmth of gathering is the color of home&rdquo;
+                </p>
+                <p className="font-host-grotesk text-[14px] md:text-[15px] text-[#D5C9B1]/70 text-center md:text-left">
+                  —Mahmoud Darwish
+                </p>
+              </div>
+            </div>
           </div>
 
-          {/* Column 3 - Florida Logo */}
+          {/* Column 3 - Florida Logo - FIXED: Better responsive sizing and aspect ratio */}
           <div className="col-span-2 md:col-span-1 flex justify-center md:justify-start">
-            <Image
-              src={footerLogo2}
-              alt="Florida Logo"
-              className="w-[120px] md:w-[220px] h-auto"
-              priority
-            />
+            <div className="relative w-[140px] sm:w-[180px] md:w-[200px] lg:w-[220px] xl:w-[260px] 2xl:w-[300px]">
+              <Image
+                src={footerLogo2}
+                alt="Florida Logo"
+                width={300}
+                height={150}
+                className="w-full h-auto object-contain"
+                priority
+                quality={100}
+                sizes="(max-width: 640px) 140px, (max-width: 768px) 180px, (max-width: 1024px) 200px, (max-width: 1280px) 220px, (max-width: 1536px) 260px, 300px"
+              />
+            </div>
           </div>
 
           {/* Column 4 - Explore */}
@@ -203,7 +209,7 @@ export function Footer() {
               <div className="flex items-center gap-2">
                 <InstagramIcon />
                 <Link 
-                  href="https://instagram.com/bazaar47" 
+                  href="https://www.instagram.com/bazaar_47?igsh=MTlzZDBydnpvbXRscg==" 
                   target="_blank"
                   rel="noopener noreferrer"
                   className="font-host-grotesk text-[13px] md:text-[14px] lg:text-[16px] text-[#D5C9B1]/70 hover:text-[#D5C9B1] transition-colors"
@@ -214,7 +220,7 @@ export function Footer() {
               <div className="flex items-center gap-2">
                 <InstagramIcon />
                 <Link 
-                  href="https://instagram.com/bigcaaf" 
+                  href="https://www.instagram.com/bigcaaf?igsh=MTcwbmF4MWpwNmJ5aw==" 
                   target="_blank"
                   rel="noopener noreferrer"
                   className="font-host-grotesk text-[13px] md:text-[14px] lg:text-[16px] text-[#D5C9B1]/70 hover:text-[#D5C9B1] transition-colors"
