@@ -7,7 +7,7 @@ import { ArrowRight, Play, Volume2, VolumeX } from 'lucide-react'
 import { Reem_Kufi } from 'next/font/google'
 import { useState, useRef, useEffect } from 'react'
 import flyer1 from '@/assets/newAssets/flyer1.png'
-import shop from '@/assets/newAssets/shop.png'
+import Piece from '@/assets/newAssets/Piece.jpg'
 
 const reemKufi = Reem_Kufi({
   subsets: ['arabic'],
@@ -90,7 +90,7 @@ export function About() {
         </div>
 
         {/* ============================================
-            VIDEO SECTION - Unchanged
+            VIDEO SECTION
             ============================================ */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -133,22 +133,9 @@ export function About() {
         </motion.div>
 
         {/* ============================================
-            ORIGINAL DESCRIPTION - Shop image background with text overlay
+            ORIGINAL DESCRIPTION - SHORTER & CLEANER
             ============================================ */}
-        <div className="relative w-full overflow-hidden py-8 sm:py-10 md:py-14 lg:py-16">
-          
-          <div className="absolute inset-0 z-0">
-            <Image
-              src={shop}
-              alt="Bazaar47 Shop"
-              fill
-              className="object-cover"
-              priority
-            />
-            <div className="absolute inset-0 bg-[#341B1C]/50" />
-            <div className="absolute inset-0 bg-gradient-to-r from-[#341B1C]/60 via-[#341B1C]/30 to-transparent" />
-          </div>
-
+        <div className="relative w-full overflow-hidden py-6 sm:py-8 md:py-10 lg:py-12 bg-[#96161A]">
           <div className="relative z-10 container mx-auto px-4 sm:px-6 md:px-8 lg:px-12">
             <div className="max-w-4xl mx-0 w-full px-2 sm:px-0">
               {originalDescriptionSentences.map((sentence, index) => (
@@ -158,7 +145,7 @@ export function About() {
                   whileInView={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.6, delay: index * 0.3 }}
                   viewport={{ once: true, margin: '-30px' }}
-                  className="font-host-grotesk font-regular text-[14px] sm:text-[15px] md:text-[18px] lg:text-[20px] leading-[130%] sm:leading-[125%] md:leading-[120%] tracking-normal text-[#EFEADE] max-w-3xl mb-3 sm:mb-4 md:mb-5 drop-shadow-lg px-1"
+                  className="font-host-grotesk font-regular text-[14px] sm:text-[15px] md:text-[16px] lg:text-[17px] leading-[130%] sm:leading-[125%] md:leading-[120%] tracking-normal text-[#EFEADE] max-w-3xl mb-3 sm:mb-4 md:mb-5 drop-shadow-lg px-1"
                 >
                   {sentence}
                 </motion.p>
@@ -169,45 +156,45 @@ export function About() {
       </div>
 
       {/* ============================================
-          TOUR PROMO SECTION - Flyer (Plaster BG) + Description (Grove BG)
-          Mobile: Flyer full-bleed (no white space), Description below
+          TOUR PROMO SECTION - 50/50 Split
+          Left: Flyer (fills container completely, no gaps)
+          Right: Description + Buttons (Grove BG)
           ============================================ */}
       <div className="relative w-full">
         {/* Desktop: Split backgrounds */}
         <div className="hidden md:block absolute inset-0 md:right-1/2 bg-plaster" />
         <div className="hidden md:block absolute inset-0 md:left-1/2 bg-grove" />
 
-        <div className="relative z-10 container mx-auto px-4 sm:px-6 md:px-8 lg:px-12 py-8 sm:py-10 md:py-14">
+        <div className="relative z-10 container mx-auto px-4 sm:px-6 md:px-8 lg:px-12 py-0">
           
-          <div className="flex flex-col md:flex-row gap-0 md:gap-0 items-center md:items-stretch">
+          <div className="flex flex-col md:flex-row gap-0 items-stretch min-h-[400px] md:min-h-[500px]">
             
-            {/* LEFT: Flyer (45%) - Mobile: Full-bleed, no white space */}
+            {/* LEFT: Flyer (50%) - Fills container completely, flush left */}
             <motion.div
               initial={{ opacity: 0, x: -30 }}
               whileInView={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.7, delay: 0.2 }}
               viewport={{ once: true }}
-              className="w-full md:w-[45%] flex-shrink-0 bg-plaster md:bg-plaster flex items-center justify-center relative md:rounded-none"
+              className="w-full md:w-1/2 bg-plaster relative overflow-hidden -ml-4 sm:-ml-6 md:-ml-8 lg:-ml-18 md:ml-0 md:pl-0"
             >
-              {/* Mobile full-bleed - no container padding */}
-              <div className="relative w-screen md:w-full max-w-none md:max-w-[500px] mx-0 md:mx-auto -mx-4 sm:-mx-6 md:mx-0" style={{ aspectRatio: '3/4' }}>
+              <div className="relative w-full h-full min-h-[350px] md:min-h-[400px]">
                 <Image
-                  src={flyer1}
-                  alt="Bazaar À La Carte Florida Tour Flyer"
+                  src={Piece}
+                  alt="Bazaar À La Carte Florida Tour"
                   fill
-                  className="object-cover md:object-contain"
+                  className="object-cover"
                   priority
                 />
               </div>
             </motion.div>
 
-            {/* RIGHT: Description + Buttons (55%) - Grove BG - Mobile: Below flyer */}
+            {/* RIGHT: Description + Buttons (50%) - Grove BG */}
             <motion.div
               initial={{ opacity: 0, x: 30 }}
               whileInView={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.7, delay: 0.3 }}
               viewport={{ once: true }}
-              className="w-full md:w-[55%] bg-grove py-6 sm:py-8 md:py-12 px-5 sm:px-6 md:px-10 lg:px-12 flex flex-col justify-center text-center md:text-left rounded-2xl md:rounded-none mt-0 md:mt-0"
+              className="w-full md:w-1/2 bg-grove py-8 sm:py-10 md:py-12 px-6 sm:px-8 md:px-10 lg:px-12 flex flex-col justify-center text-center md:text-left"
             >
               {/* Tour Badge */}
               <motion.div
@@ -257,7 +244,7 @@ export function About() {
                 whileInView={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: 0.5 }}
                 viewport={{ once: true }}
-                className="flex flex-wrap justify-center md:justify-start gap-3 sm:gap-4 mt-5 sm:mt-6 md:mt-8"
+                className="flex flex-wrap justify-center md:justify-start gap-3 sm:gap-12 mt-5 sm:mt-6 md:mt-8"
               >
                 <button
                   onClick={() => {
