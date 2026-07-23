@@ -17,6 +17,7 @@ const cityOptions = [
     pricing: [
       { label: 'Indoor Booth', price: '$75', size: '6\'x6\'', note: 'No tent required' },
       { label: 'Outdoor Booth', price: '$60', size: '8\'x8\'', note: 'WE WILL PROVIDE OUTDOOR VENDOR STALLS' },
+      { label: 'No Preference', price: '$65', size: 'Flexible', note: 'Happy with indoor or outdoor! 🌟' },
     ],
     status: 'open',
   },
@@ -39,7 +40,7 @@ const cityOptions = [
       { label: 'Outdoor Booth', price: '$45', size: '10\'x10\'', note: 'External Application' },
     ],
     status: 'external',
-    externalLink: '#',
+    externalLink: 'https://www.eventeny.com/events/vendor/?id=53252',
   },
   {
     id: 'gainesville-fest',
@@ -52,6 +53,16 @@ const cityOptions = [
     status: 'open',
   },
   {
+    id: 'gulf-coast',
+    name: 'Gulf Coast',
+    date: 'Saturday, November 21',
+    venue: 'Gulf Coast',
+    pricing: [
+      { label: 'Outdoor Booth', price: '$TBD', size: 'TBD', note: 'Details coming soon' },
+    ],
+    status: 'open',
+  },
+  {
     id: 'gainesville-finale',
     name: 'Gainesville',
     date: 'Saturday, December 5',
@@ -60,16 +71,6 @@ const cityOptions = [
       { label: 'Outdoor Booth', price: '$40', size: '10\'x10\'', note: 'Closing night' },
     ],
     status: 'open',
-  },
-  {
-    id: 'tampa',
-    name: 'Tampa',
-    date: 'TBA',
-    venue: 'CAMP Tampa',
-    pricing: [
-      { label: 'TBA', price: 'TBA', size: 'TBA', note: 'Details coming soon' },
-    ],
-    status: 'tba',
   },
 ]
 
@@ -84,6 +85,7 @@ export default function VendorsPage() {
     fullName: '',
     preferredName: '',
     pronouns: '',
+    city: '', // ← Which city do you live in?
     businessName: '',
     phone: '',
     email: '',
@@ -101,8 +103,6 @@ export default function VendorsPage() {
     recommendVendors: '',
     additionalInfo: '',
   })
-
-  
 
   const formRef = useRef<HTMLFormElement>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -196,6 +196,7 @@ export default function VendorsPage() {
           fullName: '',
           preferredName: '',
           pronouns: '',
+          city: '',
           businessName: '',
           phone: '',
           email: '',
@@ -268,7 +269,6 @@ export default function VendorsPage() {
   }
 
   const canProceed = selectedCities.length > 0
-
 
   return (
     <section className="relative w-full min-h-screen overflow-hidden bg-chartreuse">
@@ -371,7 +371,7 @@ export default function VendorsPage() {
             </motion.div>
           )}
 
-          {/* CITY SELECTION VIEW - Simplified (only select cities, no pricing) */}
+          {/* CITY SELECTION VIEW */}
           {step === 'cities' && (
             <motion.div
               key="cities"
@@ -402,7 +402,6 @@ export default function VendorsPage() {
                 <div className="space-y-4">
                   {cityOptions.map((city) => {
                     const isSelected = selectedCities.includes(city.id)
-                    const isTampa = city.id === 'tampa'
                     const isJacksonville = city.id === 'jacksonville'
 
                     return (
@@ -414,8 +413,6 @@ export default function VendorsPage() {
                         className={`rounded-2xl border-2 p-5 transition-all duration-300 ${
                           isSelected
                             ? 'border-chartreuse bg-chartreuse/5'
-                            : isTampa
-                            ? 'border-rosewood/10 bg-rosewood/5 opacity-60'
                             : 'border-rosewood/10 hover:border-rosewood/30'
                         }`}
                       >
@@ -426,18 +423,18 @@ export default function VendorsPage() {
                               <button
                                 type="button"
                                 onClick={() => {
-                                  if (!isTampa && !isJacksonville) {
+                                  if (!isJacksonville) {
                                     handleCityToggle(city.id)
                                   }
                                 }}
                                 className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all flex-shrink-0 ${
                                   isSelected
                                     ? 'bg-chartreuse border-chartreuse'
-                                    : isTampa || isJacksonville
+                                    : isJacksonville
                                     ? 'border-rosewood/20 cursor-not-allowed'
                                     : 'border-rosewood/30 hover:border-rosewood/50'
                                 }`}
-                                disabled={isTampa || isJacksonville}
+                                disabled={isJacksonville}
                               >
                                 {isSelected && (
                                   <CheckCircle className="w-4 h-4 text-grove" strokeWidth={3} />
@@ -448,16 +445,6 @@ export default function VendorsPage() {
                                   <h4 className="font-host-grotesk font-bold text-lg text-rosewood">
                                     {city.name}
                                   </h4>
-                                  {isTampa && (
-                                    <span className="text-xs bg-rosewood/10 text-rosewood/50 px-2 py-0.5 rounded-full">
-                                      TBA
-                                    </span>
-                                  )}
-                                  {/* {isJacksonville && (
-                                    <span className="text-xs bg-chartreuse/20 text-chartreuse/70 px-2 py-0.5 rounded-full">
-                                      External App
-                                    </span>
-                                  )} */}
                                 </div>
                                 <div className="flex items-center gap-3 text-sm text-rosewood/50 mt-0.5">
                                   <span className="flex items-center gap-1">
@@ -480,21 +467,16 @@ export default function VendorsPage() {
                             <div className="bg-chartreuse/10 rounded-xl p-4 text-center">
                               <p className="font-host-grotesk text-sm text-rosewood/60">{city.pricing[0].note}</p>
                             </div>
-                            <button
-                              type="button"
+                            <a
+                              href={city.externalLink}
+                              target="_blank"
+                              rel="noopener noreferrer"
                               className="w-full mt-3 flex items-center justify-center gap-2 bg-cypress/10 hover:bg-cypress/20 text-cypress font-host-grotesk font-semibold text-sm py-2.5 rounded-xl transition-colors"
                             >
                               Apply via External Link
                               <ExternalLink className="w-3.5 h-3.5" />
-                            </button>
+                            </a>
                           </div>
-                        )}
-
-                        {/* Tampa TBA */}
-                        {isTampa && (
-                          <p className="mt-2 text-sm text-rosewood/40 italic">
-                            Details coming soon. Stay tuned!
-                          </p>
                         )}
                       </motion.div>
                     )
@@ -526,7 +508,7 @@ export default function VendorsPage() {
             </motion.div>
           )}
 
-          {/* FORM VIEW - With Booth Selection Per City */}
+          {/* FORM VIEW */}
           {step === 'form' && (
             <motion.div
               key="form"
@@ -561,7 +543,7 @@ export default function VendorsPage() {
                     {selectedCities.map(id => {
                       const city = cityOptions.find(c => c.id === id)
                       return (
-                        <span key={id} className="bg-chartreuse/10 text-osewood text-xs px-3 py-1 rounded-full font-host-grotesk font-semibold">
+                        <span key={id} className="bg-chartreuse/10 text-rosewood text-xs px-3 py-1 rounded-full font-host-grotesk font-semibold">
                           {city?.name}
                         </span>
                       )
@@ -582,7 +564,7 @@ export default function VendorsPage() {
 
                 <form ref={formRef} onSubmit={handleSubmit} className="space-y-8">
                   
-                  {/* BOOTH SELECTION PER CITY - New section in form */}
+                  {/* BOOTH SELECTION PER CITY */}
                   <div className="space-y-4">
                     <h3 className="font-host-grotesk font-semibold text-xl text-rosewood flex items-center gap-2">
                       <span className="text-chartreuse">✦</span>
@@ -595,7 +577,7 @@ export default function VendorsPage() {
                     <div className="space-y-4">
                       {selectedCities.map((cityId) => {
                         const city = cityOptions.find(c => c.id === cityId)
-                        if (!city || city.status === 'tba' || city.status === 'external') return null
+                        if (!city || city.status === 'external') return null
                         
                         return (
                           <div key={cityId} className="bg-plaster/30 rounded-xl p-4 border border-rosewood/10">
@@ -619,7 +601,7 @@ export default function VendorsPage() {
                                       <p className="font-host-grotesk font-semibold text-sm text-rosewood mb-2">
                                         {option.label}
                                       </p>
-                                      <p className="font-host-grotesk textsm font-bold text-rosewood/50 mb-2">
+                                      <p className="font-host-grotesk text-sm font-bold text-rosewood/50 mb-2">
                                         {option.size} · {option.price}
                                       </p>
                                     </div>
@@ -647,6 +629,22 @@ export default function VendorsPage() {
                       <span className="text-chartreuse">✦</span>
                       Your Information
                     </h3>
+
+                    {/* Which city do you live in? */}
+                    <div>
+                      <label className="font-host-grotesk font-semibold text-sm text-rosewood/80 block mb-1">
+                        Which city do you live in? <span className="text-poppy">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        name="city"
+                        value={formData.city}
+                        onChange={handleInputChange}
+                        required
+                        className="w-full px-4 py-3 bg-plaster/50 border border-rosewood/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-chartreuse/40 font-host-grotesk text-rosewood"
+                        placeholder="e.g. Gainesville, FL"
+                      />
+                    </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
