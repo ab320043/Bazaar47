@@ -30,7 +30,7 @@ export const metadata: Metadata = {
     siteName: 'Bazaar 47',
     images: [
       {
-        url: '/bazaar47/public/images/thumbnail.png',  // ← Your thumbnail image
+        url: '/images/thumbnail.png',  // ← Your thumbnail image
         width: 1200,
         height: 630,
         alt: 'Bazaar 47',
