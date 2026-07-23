@@ -38,6 +38,109 @@ export default function AdminDashboard() {
   
   const router = useRouter()
 
+  const handleExportCSV = () => {
+  // Get filtered data based on current filters
+  const dataToExport = filteredSubmissions.length > 0 ? filteredSubmissions : submissions
+  
+  if (dataToExport.length === 0) {
+    alert('No data to export')
+    return
+  }
+
+  // Define CSV headers
+  const headers = [
+    'Date',
+    'Type',
+    'Full Name',
+    'Business Name',
+    'Email',
+    'Phone',
+    'Instagram',
+    'City',
+    'Tickets',
+    'Event City',
+    'Zip Code',
+    'Products',
+    'Price Points',
+    'Bio',
+    'Preferred Name',
+    'Pronouns',
+    'Instagram Link',
+    'Selected Cities',
+    'Vendor Highlight',
+    'Photography',
+    'Promotion',
+    'Bring Items',
+    'Noise Sensitive',
+    'Pay Fee',
+    'Payment Method',
+    'Total Price',
+    'Additional Info',
+    'Recommend Vendors'
+  ]
+
+  // Build CSV rows
+  const rows = dataToExport.map(sub => {
+    const data = sub.data
+    return [
+      new Date(sub.timestamp).toLocaleString(),
+      sub.type,
+      String(data.fullName || ''),
+      String(data.businessName || ''),
+      String(data.email || ''),
+      String(data.phone || ''),
+      String(data.instagram || ''),
+      String(data.city || data.eventCity || getCityName(data) || ''),
+      String(data.tickets || ''),
+      String(data.eventCity || ''),
+      String(data.zipCode || ''),
+      String(data.products || ''),
+      String(data.pricePoints || ''),
+      String(data.bio || ''),
+      String(data.preferredName || ''),
+      String(data.pronouns || ''),
+      String(data.instagramLink || ''),
+      String(data.selectedCities ? JSON.stringify(data.selectedCities) : ''),
+      String(data.vendorHighlight || ''),
+      String(data.photography || ''),
+      String(data.promotion || ''),
+      String(data.bringItems || ''),
+      String(data.noiseSensitive || ''),
+      String(data.payFee || ''),
+      String(data.paymentMethod || ''),
+      String(data.totalPrice || ''),
+      String(data.additionalInfo || ''),
+      String(data.recommendVendors || '')
+    ]
+  })
+
+  // Create CSV content
+  const csvContent = [
+    headers.join(','),
+    ...rows.map(row => 
+      row.map(cell => {
+        // Escape quotes and wrap in quotes if contains comma or quote
+        const cellStr = String(cell)
+        if (cellStr.includes(',') || cellStr.includes('"') || cellStr.includes('\n')) {
+          return `"${cellStr.replace(/"/g, '""')}"`
+        }
+        return cellStr
+      }).join(',')
+    )
+  ].join('\n')
+
+  // Create and download file
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+  const link = document.createElement('a')
+  const url = URL.createObjectURL(blob)
+  link.href = url
+  link.setAttribute('download', `submissions-${new Date().toISOString().slice(0, 10)}.csv`)
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  URL.revokeObjectURL(url)
+}
+
   
 const getCityName = (data: Record<string, string | number | string[] | undefined>) => {
   // Check for selectedCities array (vendors can select multiple cities)
@@ -277,24 +380,30 @@ useEffect(() => {
           </div>
           <div className="flex gap-3">
             <button
-            
-              onClick={() => {
+                onClick={() => {
                 console.log('Refresh clicked')
                 fetchData()
                 }}
                 className="bg-white hover:bg-white/80 text-rosewood/60 px-4 py-2 rounded-xl font-host-grotesk font-semibold text-sm flex items-center gap-2 transition-all shadow-sm"
             >
-              <RefreshCw className="w-4 h-4" />
-              Refresh
+                <RefreshCw className="w-4 h-4" />
+                Refresh
             </button>
             <button
-              onClick={handleLogout}
-              className="bg-rosewood/10 hover:bg-rosewood/20 text-rosewood/60 px-4 py-2 rounded-xl font-host-grotesk font-semibold text-sm flex items-center gap-2 transition-all"
+                onClick={handleExportCSV}
+                className="bg-chartreuse hover:bg-chartreuse/90 text-grove px-4 py-2 rounded-xl font-host-grotesk font-semibold text-sm flex items-center gap-2 transition-all shadow-sm"
             >
-              <LogOut className="w-4 h-4" />
-              Logout
+                <Download className="w-4 h-4" />
+                Export CSV
             </button>
-          </div>
+            <button
+                onClick={handleLogout}
+                className="bg-rosewood/10 hover:bg-rosewood/20 text-rosewood/60 px-4 py-2 rounded-xl font-host-grotesk font-semibold text-sm flex items-center gap-2 transition-all"
+            >
+                <LogOut className="w-4 h-4" />
+                Logout
+            </button>
+            </div>
         </div>
 
         {/* Stats */}
