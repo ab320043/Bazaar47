@@ -38,6 +38,21 @@ export function CityRSVPForm({ city }: CityRSVPFormProps) {
     setCardDetails({ ...cardDetails, [e.target.name]: e.target.value })
   }
 
+  const saveToAdmin = async (data: Record<string, unknown>, type: 'vendor' | 'rsvp') => {
+  try {
+    const response = await fetch('/api/admin/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ data, type }),
+    })
+    if (!response.ok) {
+      console.error('Failed to save to admin')
+    }
+  } catch (error) {
+    console.error('Failed to save to admin:', error)
+  }
+}
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsSubmitting(true)
@@ -62,6 +77,15 @@ export function CityRSVPForm({ city }: CityRSVPFormProps) {
       })
 
       if (response.ok) {
+        await saveToAdmin({
+          ...formData,
+          eventCity: city.city,     
+          eventDisplayName: city.city,      // This should be "Gainesville | The FEST" or "Gainesville"
+          venue: city.venue,              // Send venue to help differentiate
+          date: city.date,                // Send date to help differentiate
+          eventId: city.id,               // Send the unique ID
+          userCity: formData.city,
+        }, 'rsvp')
         setIsSuccess(true)
         setFormData({ fullName: '', email: '', city: '', instagram: '', zipCode: '', tickets: '1' })
         setCardDetails({ cardNumber: '', expiry: '', cvc: '' })

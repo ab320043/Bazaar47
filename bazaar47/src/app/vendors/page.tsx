@@ -102,6 +102,8 @@ export default function VendorsPage() {
     additionalInfo: '',
   })
 
+  
+
   const formRef = useRef<HTMLFormElement>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [formSubmitted, setFormSubmitted] = useState(false)
@@ -138,6 +140,21 @@ export default function VendorsPage() {
     setFormData(prev => ({ ...prev, [name]: value }))
   }
 
+  const saveToAdmin = async (data: Record<string, unknown>, type: 'vendor' | 'rsvp') => {
+  try {
+    const response = await fetch('/api/admin/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ data, type }),
+    })
+    if (!response.ok) {
+      console.error('Failed to save to admin')
+    }
+  } catch (error) {
+    console.error('Failed to save to admin:', error)
+  }
+}
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsSubmitting(true)
@@ -163,6 +180,16 @@ export default function VendorsPage() {
       })
 
       if (response.ok) {
+        await saveToAdmin({
+        ...formData,
+        selectedCities: selectedCities.map(id => {
+          const city = cityOptions.find(c => c.id === id)
+          return {
+            city: city?.name,
+            pricing: selectedPricing[id] || 'Not specified',
+          }
+        }),
+      }, 'vendor')
         setFormSubmitted(true)
         setStep('success')
         setFormData({
@@ -241,6 +268,7 @@ export default function VendorsPage() {
   }
 
   const canProceed = selectedCities.length > 0
+
 
   return (
     <section className="relative w-full min-h-screen overflow-hidden bg-chartreuse">

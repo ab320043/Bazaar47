@@ -15,7 +15,6 @@ import heroCenterLogoDesktop from "@/assets/newAssets/heroCenterLogoDesktop.png"
 import MobileBgSplash from "@/assets/newAssets/MobileBgSplash.png"
 
 export function Hero() {
-  const nextSectionRef = useRef<HTMLDivElement>(null)
   const [isMobile, setIsMobile] = useState(false)
   const [windowWidth, setWindowWidth] = useState(0)
 
@@ -32,9 +31,10 @@ export function Hero() {
     return () => window.removeEventListener('resize', checkSize)
   }, [])
 
-  const scrollToNextSection = () => {
-    if (nextSectionRef.current) {
-      nextSectionRef.current.scrollIntoView({ behavior: 'smooth' })
+  const scrollToTickets = () => {
+    const ticketsSection = document.getElementById('tickets')
+    if (ticketsSection) {
+      ticketsSection.scrollIntoView({ behavior: 'smooth' })
     }
   }
 
@@ -166,7 +166,6 @@ export function Hero() {
 
       {/* ============================================
           TOP TEXT - EST. 2026 / GAINESVILLE, FLORIDA
-          RESPONSIVE WITH FIXED POSITION
           ============================================ */}
       <div 
         className="absolute z-20 text-center w-full"
@@ -202,7 +201,7 @@ export function Hero() {
       </div>
 
       {/* ============================================
-          BOTTOM BUTTON - RESPONSIVE WITH FIXED POSITION
+          BOTTOM BUTTON - Scrolls to Tickets Section
           ============================================ */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
@@ -220,7 +219,7 @@ export function Hero() {
         }}
       >
         <Button
-          onClick={scrollToNextSection}
+          onClick={scrollToTickets}
           className="bg-[#6A2630] hover:bg-henna/80 text-plaster transition-all duration-300 flex items-center justify-center gap-3 shadow-lg hover:shadow-xl font-host-grotesk font-semibold w-full"
           style={{
             height: Math.min(50, Math.max(40, windowWidth * 0.035)),
@@ -243,8 +242,6 @@ export function Hero() {
         </Button>
       </motion.div>
 
-      {/* Hidden div for next section reference */}
-      <div ref={nextSectionRef} className="absolute bottom-0" />
     </section>
   )
 }
