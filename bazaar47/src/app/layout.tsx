@@ -23,6 +23,22 @@ export const metadata: Metadata = {
   icons: {
     icon: '/icons/favicon.ico',
   },
+  openGraph: {
+    title: 'Bazaar 47',
+    description: 'Where Palestinian heritage meets Florida warmth — shop, tours, and community gatherings.',
+    url: 'https://bazaar47.com',
+    siteName: 'Bazaar 47',
+    images: [
+      {
+        url: '/bazaar47/public/images/thumbnail.png',  // ← Your thumbnail image
+        width: 1200,
+        height: 630,
+        alt: 'Bazaar 47',
+      },
+    ],
+    locale: 'en_US',
+    type: 'website',
+  },
 }
 
 export default function RootLayout({
