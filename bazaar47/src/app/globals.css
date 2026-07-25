@@ -13,9 +13,10 @@
   --color-chartreuse: #CCD145;
   --color-olive: #C4C687;
   --color-petal: #FFDBE1;
-  --color-grove: #202912;
+  --color-grove: #202812;
   --color-rosewood: #341B1C;
   --color-poppy: #96161A;
+  --color--pomegranate: #C71E23
 
   /* Semantic Color Tokens (Light Theme) */
   --color-background: var(--color-plaster);

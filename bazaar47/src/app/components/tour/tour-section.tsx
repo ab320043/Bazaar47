@@ -121,7 +121,7 @@ export function TourSection() {
                   {/* Button - Full Width */}
                   <div className="w-full mt-auto">
                     <Link href={`/tours/${stop.id}`} className="w-full">
-                      <button className="w-full rounded-2xl bg-[#341B1C] h-12 md:h-14 text-center font-host-grotesk text-[16px] md:text-[20px] font-semibold text-plaster transition hover:opacity-90">
+                      <button className="w-full rounded-2xl bg-rosewood hover:bg-[#CCD145] h-12 md:h-14 text-center font-host-grotesk text-[16px] md:text-[20px] font-semibold text-plaster hover:text-grove transition-all duration-300 hover:scale-[1.02]">
                         {stop.price} →
                       </button>
                     </Link>

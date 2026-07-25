@@ -4,6 +4,7 @@ import { motion } from 'framer-motion'
 import Link from 'next/link'
 import { ArrowRight, Calendar, MapPin, Users, Paintbrush, ExternalLink } from 'lucide-react'
 import { SectionContainer } from '@/app/components/ui/section-container'
+import frame1 from '@/assets/newAssets/frame1.svg'
 
 export function ExhibitionSection() {
   return (
@@ -109,26 +110,28 @@ export function ExhibitionSection() {
 
             {/* Deadline & Apply */}
             <div className="bg-rosewood/5 rounded-2xl p-6 border border-rosewood/10">
-              <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between mb-4">
                 <h3 className="font-host-grotesk font-bold text-lg text-rosewood">
-                  Deadline
+                Deadline
                 </h3>
                 <span className="font-host-grotesk font-bold text-poppy text-sm bg-poppy/10 px-3 py-1 rounded-full">
-                  July 31
+                July 31
                 </span>
-              </div>
-              <Link
+            </div>
+            
+            <Link
                 href="https://forms.gle/fAVdsCWa6c73HnF47"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-full bg-cypress hover:bg-cypress/90 text-plaster font-host-grotesk font-bold text-base py-3 rounded-xl transition-all duration-300 flex items-center justify-center gap-3 hover:scale-[1.02]"
-              >
+                className="w-full bg-[#FFB0BC] hover:bg-[#CCD145] text-grove hover:text-grove font-host-grotesk font-bold text-base py-3 rounded-xl transition-all duration-300 flex items-center justify-center gap-3 hover:scale-[1.02]"
+            >
                 Submit Your Art
                 <ExternalLink className="w-4 h-4" />
-              </Link>
-              <p className="text-center font-host-grotesk text-sm text-[#6A2630]/40 mt-3">
+            </Link>
+            
+            <p className="text-center font-host-grotesk text-sm text-[#6A2630]/40 mt-3">
                 Questions? <span className="text-rosewood/60">info@bazaar47.com</span>
-              </p>
+            </p>
             </div>
           </motion.div>
         </div>

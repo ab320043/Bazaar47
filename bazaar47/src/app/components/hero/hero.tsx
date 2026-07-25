@@ -220,7 +220,7 @@ export function Hero() {
       >
         <Button
           onClick={scrollToTickets}
-          className="bg-[#6A2630] hover:bg-henna/80 text-plaster transition-all duration-300 flex items-center justify-center gap-3 shadow-lg hover:shadow-xl font-host-grotesk font-semibold w-full"
+          className="bg-[#341B1C] hover:bg-[#CCD145] text-plaster hover:text-grove transition-all duration-300 flex items-center justify-center gap-3 shadow-lg hover:shadow-xl font-host-grotesk font-semibold w-full group relative overflow-hidden"
           style={{
             height: Math.min(50, Math.max(40, windowWidth * 0.035)),
             borderRadius: '20px',
@@ -232,13 +232,18 @@ export function Hero() {
             paddingRight: Math.min(16, Math.max(10, windowWidth * 0.015))
           }}
         >
+          {/* Shimmer effect on hover */}
+          <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/20 to-transparent" />
+          
+          {/* Scale effect on the arrow */}
           <span style={{ 
             fontSize: Math.min(18, Math.max(14, windowWidth * 0.0125)),
-            whiteSpace: 'nowrap'
+            whiteSpace: 'nowrap',
+            transition: 'transform 0.3s ease'
           }}>
             About Bazaar Florida Tour
           </span>
-          <ArrowRight className="w-4 h-4 font-bold group-hover:translate-x-1 transition-transform duration-300 flex-shrink-0" />
+          <ArrowRight className="w-4 h-4 font-bold transition-all duration-300 group-hover:translate-x-2 group-hover:scale-125 flex-shrink-0" />
         </Button>
       </motion.div>
 

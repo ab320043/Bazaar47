@@ -343,7 +343,7 @@ export function CityRSVPForm({ city }: CityRSVPFormProps) {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4">
                 <div>
                   <label className="font-host-grotesk font-semibold text-sm text-[#6A2630] block mb-1">
                     Instagram
@@ -381,7 +381,7 @@ export function CityRSVPForm({ city }: CityRSVPFormProps) {
 
             {/* Payment or Free RSVP */}
             {isPaidEvent ? (
-              <div className="space-y-3">
+              <div className="space-y-3 pt-8">
                 {isLoadingPayment ? (
                   <div className="bg-white/50 rounded-xl p-6 text-center">
                     <p className="font-host-grotesk text-[#6A2630]/60">Loading payment...</p>
@@ -400,7 +400,7 @@ export function CityRSVPForm({ city }: CityRSVPFormProps) {
                 ) : (
                   <button
                     onClick={fetchPaymentIntent}
-                    className="w-full bg-[#6A2630] hover:bg-[#6A2630]/90 text-plaster font-host-grotesk font-bold text-base py-3 rounded-xl transition-all duration-300 hover:scale-[1.02] flex items-center justify-center gap-2"
+                    className="w-full bg-[#341B1C] hover:bg-[#CCD145] text-plaster hover:text-grove font-host-grotesk font-bold text-base py-3 rounded-xl transition-all duration-300 hover:scale-[1.02] flex items-center justify-center gap-2"
                   >
                     Proceed to Payment
                     <CreditCard className="w-4 h-4" />
@@ -411,14 +411,16 @@ export function CityRSVPForm({ city }: CityRSVPFormProps) {
                 )}
               </div>
             ) : (
-              <button
-                onClick={handleFreeRSVP}
-                disabled={isSubmitting}
-                className="w-full bg-[#6A2630] hover:bg-[#6A2630]/90 text-plaster font-host-grotesk font-bold text-base py-3 rounded-xl transition-all duration-300 hover:scale-[1.02] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isSubmitting ? 'Processing...' : 'RSVP Now'}
-                <Send className="w-4 h-4 sm:w-5 sm:h-5" />
-              </button>
+              <div className="pt-8">
+                <button
+                  onClick={handleFreeRSVP}
+                  disabled={isSubmitting}
+                  className="w-full bg-[#341B1C] hover:bg-[#CCD145] text-plaster hover:text-grove font-host-grotesk font-bold text-base py-3 rounded-xl transition-all duration-300 hover:scale-[1.02] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isSubmitting ? 'Processing...' : 'RSVP Now'}
+                  <Send className="w-4 h-4 sm:w-5 sm:h-5" />
+                </button>
+              </div>
             )}
           </div>
         )}
