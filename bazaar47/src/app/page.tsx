@@ -4,6 +4,7 @@ import { Hero } from '@/app/components/hero/hero'
 import { TourSection } from '@/app/components/tour/tour-section'
 // import { About } from '@/app/components/About/about'
 import { About } from '@/app/components/About/index'
+import { ExhibitionSection } from './components/exhibition/exhibition-section'
 
 export default function HomePage() {
   return (
@@ -15,6 +16,8 @@ export default function HomePage() {
       <section id="tickets">   
         <TourSection />
       </section>
+      {/* Temporary Exhibition Section - Will be removed after event */}
+      <ExhibitionSection />
     </>
   )
 }
