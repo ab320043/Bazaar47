@@ -101,7 +101,7 @@ export function ExhibitionSection() {
                 Theme
               </h3>
               <p className="font-host-grotesk text-sm text-rosewood/70 leading-relaxed italic">
-                &ldquo;Florida as a place, experience, memory, contradiction, and point of view.&rdquo;
+                &ldquo;Explore Florida thorugh place, memory, identity, culture, contradiction, environment, and imagination.&rdquo;
               </p>
               <p className="font-host-grotesk text-md font-semibold text-[#6A2630] mt-3">
                 Open to all visual mediums. Up to 2 submissions per artist. Free to apply.
