@@ -22,7 +22,7 @@ type SortOrder = 'asc' | 'desc'
 export default function AdminDashboard() {
   const [submissions, setSubmissions] = useState<Submission[]>([])
   const [loading, setLoading] = useState(true)
-  const [filter, setFilter] = useState<'all' | 'vendor' | 'rsvp'>('all')
+  const [filter, setFilter] = useState<'all' | 'vendor' | 'rsvp' | 'soft-opening'>('all')
   const [cityFilter, setCityFilter] = useState<string>('all')
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedSubmission, setSelectedSubmission] = useState<Submission | null>(null)
@@ -32,6 +32,7 @@ export default function AdminDashboard() {
     total: 0,
     vendors: 0,
     rsvps: 0,
+    softOpening: 0,
     cities: {} as Record<string, number>
   })
   const [cityDetails, setCityDetails] = useState<Record<string, { name: string, email: string, tickets: number }[]>>({})
@@ -172,6 +173,8 @@ const getCityName = (data: Record<string, string | number | string[] | undefined
 const calculateStats = useCallback((data: Submission[]) => {
   const vendors = data.filter(s => s.type === 'vendor')
   const rsvps = data.filter(s => s.type === 'rsvp')
+  const softOpening = data.filter(s => s.data?.eventType === 'soft-opening')
+
   
   const cityCount: Record<string, number> = {}
   const cityDetailsData: Record<string, { name: string, email: string, tickets: number }[]> = {}
@@ -212,6 +215,7 @@ const calculateStats = useCallback((data: Submission[]) => {
     total: data.length,
     vendors: vendors.length,
     rsvps: rsvps.length,
+    softOpening: softOpening.length,
     cities: cityCount
   })
   setCityDetails(cityDetailsData)
@@ -294,11 +298,15 @@ useEffect(() => {
 
   const getFilteredAndSorted = () => {
     let filtered = submissions
-    
+
     if (filter !== 'all') {
-      filtered = filtered.filter(s => s.type === filter)
+      if (filter === 'soft-opening') {
+        filtered = filtered.filter(s => s.type === 'rsvp' && s.data?.eventType === 'soft-opening')
+      } else {
+        filtered = filtered.filter(s => s.type === filter)
+      }
     }
-    
+
     if (cityFilter !== 'all') {
       filtered = filtered.filter(s => getCityName(s.data) === cityFilter)
     }
@@ -356,6 +364,7 @@ useEffect(() => {
   const filteredSubmissions = getFilteredAndSorted()
   const cityStats = Object.entries(stats.cities).sort((a, b) => b[1] - a[1])
   const cityOptions = Object.keys(stats.cities).sort()
+
 
   if (loading) {
     return (
@@ -529,6 +538,14 @@ useEffect(() => {
               }`}
             >
               RSVPs ({stats.rsvps})
+            </button>
+            <button
+              onClick={() => setFilter('soft-opening')}
+              className={`px-4 py-2 rounded-xl font-host-grotesk font-semibold text-sm transition-all ${
+                filter === 'soft-opening' ? 'bg-chartreuse text-grove' : 'bg-white text-rosewood/60 hover:bg-white/80'
+              }`}
+            >
+              🎉 Soft Opening ({submissions.filter(s => s.data?.eventType === 'soft-opening').length})
             </button>
           </div>
           
