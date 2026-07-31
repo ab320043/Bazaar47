@@ -15,9 +15,9 @@ const cityOptions = [
     date: 'Saturday, August 8',
     venue: 'Casselberry Arts Center',
     pricing: [
-      { label: 'Indoor Booth', price: '$75', size: '6\'x6\'', note: 'No tent required' },
+      // { label: 'Indoor Booth', price: '$75', size: '6\'x6\'', note: 'No tent required' },
       { label: 'Outdoor Booth', price: '$60', size: '8\'x8\'', note: 'WE WILL PROVIDE OUTDOOR VENDOR STALLS' },
-      { label: 'No Preference', price: '$65', size: 'Flexible', note: 'Happy with indoor or outdoor! 🌟' },
+      // { label: 'No Preference', price: '$65', size: 'Flexible', note: 'Happy with indoor or outdoor! 🌟' },
     ],
     status: 'open',
   },
@@ -34,7 +34,7 @@ const cityOptions = [
   {
     id: 'jacksonville',
     name: 'Jacksonville',
-    date: 'Saturday, October 7',
+    date: 'Wednesday, October 7',
     venue: 'Third Wednesday Art Walk',
     pricing: [
       { label: 'Outdoor Booth', price: '$45', size: '10\'x10\'', note: 'External Application' },

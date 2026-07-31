@@ -71,7 +71,7 @@ export const tourData: TourCity[] = [
     id: 'jacksonville',
     city: 'Jacksonville',
     arabicCity: 'جاكسونفيل',
-    date: 'Saturday, October 7',
+    date: 'Wednesday, October 7',
     time: '5-9pm',
     venue: 'Third Wednesday Art Walk',
     address: 'Downtown Jacksonville',
