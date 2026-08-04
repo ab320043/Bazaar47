@@ -4,7 +4,11 @@ import { motion } from 'framer-motion'
 import { useState } from 'react'
 import { ChevronLeft, ChevronRight, Calendar, MapPin, Music, Clock, Star } from 'lucide-react'
 import { tourEvents } from './calendar-data'
+import Image from 'next/image'
 import type { TourEvent } from '@/app/components/calendar-events/types'
+
+
+import overlay from '@/assets/newAssets/overlay.png'
 
 export function CalendarSection() {
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth())
@@ -51,6 +55,18 @@ export function CalendarSection() {
       id="calendar"
       className="relative w-full overflow-hidden bg-poppy py-20 md:py-28 lg:py-32"
     >
+        {/* ============================================
+                  OVERLAY LAYER
+                  ============================================ */}
+              <div className="absolute inset-0 opacity-30">
+                <Image
+                  src={overlay}
+                  alt=""
+                  fill
+                  className="object-cover"
+                  priority
+                />
+              </div>
       {/* Decorative elements */}
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-0 left-0 w-72 h-72 bg-henna/10 rounded-full blur-3xl" />
