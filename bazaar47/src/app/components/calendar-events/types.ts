@@ -7,15 +7,9 @@ export interface Artist {
   website: string
   time: string
   duration?: string
-  /**
-   * Full, literal Tailwind classnames (not built with template strings).
-   * Tailwind's scanner only picks up class *tokens* it can see as plain
-   * text in a source file — if we built these as `bg-${color}` at runtime
-   * the CSS for them would never get generated. Keeping them literal here
-   * means this file itself is what makes Tailwind generate the classes.
-   */
   cardBg: string
   overlayGradient: string
+  ticketUrl: string
 }
 
 export interface TourEvent {

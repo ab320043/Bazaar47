@@ -9,18 +9,17 @@ export const eventFlyer = eventFlyerImg
 /**
  * Display order = left → right in the collage.
  * Run of show: Opener → Lennon Cripe / RuslanSilvr → RuslanSilvr / Lennon Cripe → AntoneNow (headliner)
- * Edit freely — add/remove artists, swap images, rewrite bios. The
- * EventsSection component just maps over this array.
  */
 export const artists: Artist[] = [
   {
     name: 'LENNON CRIPE',
     image: LennonCripe,
-    bio: `Florida-based artist known for his "Gulf-Pop!" genre — a blend of reggae, grunge, punk, hip-hop and pop, shaped by his upbringing between Bradenton, Florida and Viña del Mar, Chile. His music reflects a personal journey through struggle, including a period of homelessness, before he built his own path in production.`,
+    bio: `Florida-based artist known for his "Gulf-Pop!" genre — a blend of reggae, grunge, punk, hip-hop and pop, shaped by his upbringing between Bradenton, Florida and Viña del Mar, Chile. His music reflects a personal journey through struggle, before he built his own path in production.`,
     website: 'lennoncripe.com',
     time: '9:00 PM',
     cardBg: 'bg-cypress',
     overlayGradient: 'from-cypress via-cypress/80 to-cypress/10',
+    ticketUrl: '/tickets/UpcomingShows',
   },
   {
     name: 'RUSLANSILVR',
@@ -30,6 +29,7 @@ export const artists: Artist[] = [
     time: '9:45 PM',
     cardBg: 'bg-pomegranate',
     overlayGradient: 'from-pomegranate via-pomegranate/80 to-pomegranate/10',
+    ticketUrl: '/tickets/UpcomingShows',
   },
   {
     name: 'ANTONENOW',
@@ -39,5 +39,6 @@ export const artists: Artist[] = [
     time: '10:35 PM',
     cardBg: 'bg-henna',
     overlayGradient: 'from-henna via-henna/80 to-henna/10',
+    ticketUrl: '/tickets/UpcomingShows',
   },
 ]

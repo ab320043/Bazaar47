@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+  apiVersion: '2026-06-24.dahlia' as Stripe.StripeConfig['apiVersion'],
+})
+
 export async function POST(request: NextRequest) {
   try {
-    // 1. Check if Stripe secret key is set
+    // Check if Stripe secret key is set
     if (!process.env.STRIPE_SECRET_KEY) {
       console.error('STRIPE_SECRET_KEY is not set in environment variables')
       return NextResponse.json(
@@ -12,18 +16,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // 2. Initialize Stripe
-    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-      apiVersion: '2026-06-24.dahlia',
-    })
-
-    // 3. Parse request body
+    // Parse request body
     const body = await request.json()
     console.log('Received request body:', body)
 
-    const { amount, city, email, fullName } = body
+    const { amount, city, email, fullName, eventId, eventName } = body
 
-    // 4. Validate amount
+    // Validate amount
     if (!amount || amount <= 0) {
       return NextResponse.json(
         { error: 'Invalid amount. Amount must be greater than 0.' },
@@ -31,17 +30,18 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // 5. Create the PaymentIntent
+    // Create the PaymentIntent with dynamic event details
     const paymentIntent = await stripe.paymentIntents.create({
       amount: Math.round(amount * 100), // Convert to cents and ensure integer
       currency: 'usd',
       receipt_email: email || undefined,
       metadata: {
         city: city || 'Unknown',
-        event: 'Bazaar À La Carte - South Florida',
+        eventId: eventId || 'unknown',
+        event: eventName || 'Bazaar47 Event',
         customer_name: fullName || 'Guest',
       },
-      description: `Tickets for ${city || 'South Florida'} - Bazaar À La Carte`,
+      description: `Tickets for ${eventName || 'Event'} - Bazaar47`,
     })
 
     console.log('PaymentIntent created:', paymentIntent.id)
@@ -52,7 +52,6 @@ export async function POST(request: NextRequest) {
   } catch (error: unknown) {
     console.error('Payment intent error:', error)
     
-    // Return a more specific error message
     const errorMessage =
       error instanceof Error ? error.message : 'Failed to create payment intent'
     return NextResponse.json(
