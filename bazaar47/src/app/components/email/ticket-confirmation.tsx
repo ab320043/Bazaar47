@@ -47,7 +47,7 @@ export function TicketConfirmation({
           margin: '0',
           fontFamily: 'serif',
         }}>
-          BAZAAR 47
+          Bazaar47
         </h1>
         <p style={{
           color: '#CCD145',

@@ -174,7 +174,7 @@ export default function VendorsPage() {
               pricing: selectedPricing[id] || 'Not specified',
             }
           }),
-          paymentDeadline: 'Friday, July 31, 2026',
+          paymentDeadline: 'August 8th, 2026',
           _subject: `Vendor Application - ${formData.businessName || 'New Applicant'}`,
         }),
       })
@@ -549,7 +549,7 @@ export default function VendorsPage() {
                       )
                     })}
                   </div>
-                  <div className="mt-4 p-4 bg-poppy/10 rounded-xl border border-poppy/20 flex items-start gap-3">
+                  {/* <div className="mt-4 p-4 bg-poppy/10 rounded-xl border border-poppy/20 flex items-start gap-3">
                     <AlertCircle className="w-5 h-5 text-poppy shrink-0 mt-0.5" />
                     <div>
                       <p className="font-host-grotesk font-bold text-poppy text-sm">
@@ -559,7 +559,7 @@ export default function VendorsPage() {
                         Limited spots available! Apply ASAP.
                       </p>
                     </div>
-                  </div>
+                  </div> */}
                 </div>
 
                 <form ref={formRef} onSubmit={handleSubmit} className="space-y-8">
@@ -869,7 +869,7 @@ export default function VendorsPage() {
                           <p className="font-host-grotesk text-sm text-rosewood/60">
                             <span className="font-medium text-rosewood">Payment Deadline:</span>{' '}
                             <span className="text-rosewood font-semibold">
-                              Friday, July 31, 2026
+                              August 8th, 2026
                             </span>
                           </p>
                         </div>
