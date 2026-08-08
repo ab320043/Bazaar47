@@ -1,13 +1,15 @@
-// Map form city values to display names
+
 export const cityMap: Record<string, string> = {
   'orlando': 'Orlando',
   'south-florida': 'South Florida',
+  'south florida': 'South Florida',
   'jacksonville': 'Jacksonville',
   'gainesville-fest': 'Gainesville | The FEST',
+  'gainesville | the fest': 'Gainesville | The FEST',
   'gainesville-finale': 'Gainesville',
-  'tampa': 'Tampa (TBA)',
-  'orlando, fl': 'Orlando',
-  'south florida': 'South Florida',
+  'gulf-coast': 'Gulf Coast',
+  'gulf coast': 'Gulf Coast',
+  'tampa': 'Gulf Coast',
   // Add more mappings as needed
 }
 

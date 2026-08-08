@@ -47,32 +47,44 @@ export default function StatisticsPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const router = useRouter()
 
+  // Whitelist of your 6 real tour stops — must match the `city` field in
+  // tourData exactly. Anything outside this list is not a live tour event.
+  const VALID_TOUR_CITIES = [
+    'Orlando',
+    'South Florida',
+    'Jacksonville',
+    'Gainesville | The FEST',
+    'Gulf Coast',
+    'Gainesville',
+  ]
+
   // City capacity mapping - adjust these numbers as needed
+  // (removed the old 'Tampa': 180 entry — your tourData's Tampa stop is
+  // actually named "Gulf Coast", so that key never matched anything real)
   const cityCapacities: Record<string, number> = {
     'Orlando': 100,
     'South Florida': 200,
     'Jacksonville': 120,
     'Gainesville | The FEST': 150,
-    'Gainesville': 100,
-    'Tampa': 180,
     'Gulf Coast': 180,
+    'Gainesville': 100,
   }
 
   const getCityName = useCallback((data: Record<string, string | number | string[] | undefined>): string => {
     const selectedCities = data.selectedCities as Array<{ city?: string; name?: string } | string> | undefined
     if (selectedCities && Array.isArray(selectedCities) && selectedCities.length > 0) {
-      const cityNames = selectedCities.map((c) =>
-        typeof c === 'string' ? c : c.city || c.name || 'Unknown'
-      )
-      return cityNames.join(', ')
+      const cityNames = selectedCities
+        .map((c) => (typeof c === 'string' ? c : c.city || c.name || ''))
+        .filter((c) => VALID_TOUR_CITIES.includes(c))
+      if (cityNames.length > 0) return cityNames.join(', ')
     }
-    if (data.eventCity) {
+    if (data.eventCity && VALID_TOUR_CITIES.includes(String(data.eventCity))) {
       return String(data.eventCity)
     }
-    if (data.city) {
-      return String(data.city)
-    }
-    return 'Unknown'
+    // Deliberately NOT falling back to data.city anymore — that field is the
+    // submitter's own home address, not a tour event, and was the cause of
+    // random cities showing up in these stats.
+    return 'Unmatched'
   }, [])
 
   const calculateStats = useCallback((data: Submission[]): EventStats => {
@@ -85,7 +97,7 @@ export default function StatisticsPage() {
     
     data.forEach(s => {
       const city = getCityName(s.data)
-      uniqueCities.add(city)
+      if (city !== 'Unmatched') uniqueCities.add(city)
       if (s.type === 'rsvp' && s.data.tickets) {
         totalTickets += parseInt(String(s.data.tickets)) || 0
       }

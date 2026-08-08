@@ -71,12 +71,12 @@ function CheckoutForm({
           body: JSON.stringify({
             data: {
               ...formData,
+              tickets: ticketCount, // clamped number, matches what was actually charged
               eventCity: city.city,
               eventDisplayName: city.city,
               venue: city.venue,
               date: city.date,
               eventId: city.id,
-              userCity: formData.city,
               paymentStatus: 'paid',
               totalPrice: `$${ticketCount * 10}`,
             },
@@ -142,7 +142,25 @@ export function CityRSVPForm({ city }: CityRSVPFormProps) {
   const isPaidEvent = city.id === 'south-florida'
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value })
+    const { name, value } = e.target
+
+    if (name === 'tickets') {
+      // Allow the field to be cleared while typing, but block anything
+      // that isn't a whole number 1-10 once it resolves to a real value.
+      // This is what was letting typed values like "99999" straight through
+      // (the min/max attributes on the input alone do nothing here).
+      if (value !== '') {
+        const num = parseInt(value, 10)
+        if (!Number.isInteger(num) || num < 1 || num > 10) return
+      }
+      // Ticket count changed — any already-created Stripe PaymentIntent was
+      // priced for the OLD quantity and won't update itself. Clear it so a
+      // correctly-priced one gets created next, instead of silently
+      // charging the wrong amount while the UI shows the new total.
+      if (clientSecret) setClientSecret(null)
+    }
+
+    setFormData({ ...formData, [name]: value })
   }
 
   const fetchPaymentIntent = async () => {
@@ -194,13 +212,23 @@ export function CityRSVPForm({ city }: CityRSVPFormProps) {
     setTimeout(() => setPaymentError(''), 5000)
   }
 
-  const getTicketPrice = () => {
-    const qty = parseInt(formData.tickets || '1')
-    return `$${qty * 10}`
-  }
-
   const handleFreeRSVP = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    // Belt-and-suspenders check before we even hit the network — required
+    // attributes on the inputs don't do anything since these fields aren't
+    // inside a native <form>, so this is currently the ONLY thing stopping
+    // a blank submission.
+    if (!formData.fullName.trim() || !formData.email.trim() || !formData.city.trim() || !formData.zipCode.trim()) {
+      alert('Please fill in all required fields.')
+      return
+    }
+    const ticketNum = parseInt(formData.tickets, 10)
+    if (!Number.isInteger(ticketNum) || ticketNum < 1 || ticketNum > 10) {
+      alert('Tickets must be a whole number between 1 and 10.')
+      return
+    }
+
     setIsSubmitting(true)
     try {
       const response = await fetch('/api/admin/save', {
@@ -209,12 +237,12 @@ export function CityRSVPForm({ city }: CityRSVPFormProps) {
         body: JSON.stringify({
           data: {
             ...formData,
+            tickets: ticketNum, // send a real, clamped number, not raw text
             eventCity: city.city,
             eventDisplayName: city.city,
             venue: city.venue,
             date: city.date,
             eventId: city.id,
-            userCity: formData.city,
           },
           type: 'rsvp',
         }),
@@ -223,7 +251,8 @@ export function CityRSVPForm({ city }: CityRSVPFormProps) {
         setIsSuccess(true)
         setFormData({ fullName: '', email: '', city: '', instagram: '', zipCode: '', tickets: '1' })
       } else {
-        alert('Something went wrong. Please try again.')
+        const err = await response.json().catch(() => null)
+        alert(err?.error || 'Something went wrong. Please try again.')
       }
     } catch (error) {
       alert('Something went wrong. Please try again.')
@@ -399,7 +428,14 @@ export function CityRSVPForm({ city }: CityRSVPFormProps) {
                   </Elements>
                 ) : (
                   <button
-                    onClick={fetchPaymentIntent}
+                    onClick={() => {
+                      if (!formData.fullName.trim() || !formData.email.trim()) {
+                        setPaymentError('Please enter your name and email first.')
+                        setTimeout(() => setPaymentError(''), 5000)
+                        return
+                      }
+                      fetchPaymentIntent()
+                    }}
                     className="w-full bg-[#341B1C] hover:bg-[#CCD145] text-plaster hover:text-grove font-host-grotesk font-bold text-base py-3 rounded-xl transition-all duration-300 hover:scale-[1.02] flex items-center justify-center gap-2"
                   >
                     Proceed to Payment
