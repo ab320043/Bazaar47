@@ -82,7 +82,7 @@ function EventCard({ event, index }: { event: Event; index: number }) {
 export function EventsListing() {
   return (
     <section id="events" className="relative w-full bg-sand-dune py-16 md:py-20">
-      <div className="absolute inset-0 opacity-10 pointer-events-none">
+      <div className="absolute inset-0 opacity-30 pointer-events-none">
         <Image
           src={overlay}
           alt=""
