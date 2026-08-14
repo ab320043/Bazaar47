@@ -1,3 +1,4 @@
+// app/api/send-ticket-email/route.ts
 import { NextRequest, NextResponse } from 'next/server'
 import { Resend } from 'resend'
 import { TicketConfirmation } from '@/app/components/email/ticket-confirmation'
@@ -38,16 +39,21 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    const isFree = totalPrice === '$0 (Free RSVP)'
+    const subject = isFree 
+      ? `🎉 RSVP Confirmed: ${eventName} - Bazaar47`
+      : `🎫 Your Tickets for ${eventName} - Bazaar47`
+
     console.log('📧 Attempting to send email:')
     console.log('  - From: Bazaar47 <info@bazaar47.com>')
     console.log('  - To:', email)
-    console.log('  - Subject: 🎫 Your Tickets for', eventName)
-    console.log('  - Order:', orderNumber)
+    console.log('  - Subject:', subject)
+    console.log('  - Order/RSVP:', orderNumber)
 
     const { data, error } = await resend.emails.send({
       from: 'Bazaar47 <info@bazaar47.com>',
       to: [email],
-      subject: `🎫 Your Tickets for ${eventName} - Bazaar47`,
+      subject: subject,
       react: TicketConfirmation({
         name: name || 'Guest',
         email: email,
@@ -58,18 +64,19 @@ export async function POST(request: NextRequest) {
         eventTime: eventTime || 'TBA',
         eventLocation: eventLocation || 'TBA',
         orderNumber: orderNumber || 'N/A',
-        paymentMethod: paymentMethod || 'Credit Card',
+        paymentMethod: paymentMethod || isFree ? 'Free RSVP' : 'Credit Card',
       }),
-      text: `Thank you ${name}! Your tickets for ${eventName} have been confirmed.\n\nOrder #${orderNumber}\nTickets: ${ticketCount}\nTotal: ${totalPrice}\n\nDate: ${eventDate} at ${eventTime}\nLocation: ${eventLocation}\n\nPlease present this email at the door for entry.\n\n✦ Bazaar47 • 60 SW 2nd Street, Gainesville, FL`,
-      // 🔥 FIX: Clean up tags to only use ASCII letters, numbers, underscores, or dashes
+      text: isFree
+        ? `Thank you ${name}! Your RSVP for ${eventName} has been confirmed.\n\nRSVP #${orderNumber}\nGuests: ${ticketCount}\n\nDate: ${eventDate} at ${eventTime}\nLocation: ${eventLocation}\n\nWe can't wait to see you!\n\n✦ Bazaar47 • 60 SW 2nd Street, Gainesville, FL`
+        : `Thank you ${name}! Your tickets for ${eventName} have been confirmed.\n\nOrder #${orderNumber}\nTickets: ${ticketCount}\nTotal: ${totalPrice}\n\nDate: ${eventDate} at ${eventTime}\nLocation: ${eventLocation}\n\nPlease present this email at the door for entry.\n\n✦ Bazaar47 • 60 SW 2nd Street, Gainesville, FL`,
       tags: [
         { 
           name: 'category', 
-          value: 'ticket-confirmation'  // Changed from 'ticket_confirmation' (underscores are fine, but dashes are safer)
+          value: isFree ? 'rsvp-confirmation' : 'ticket-confirmation'
         },
         { 
           name: 'event-type', 
-          value: 'bazaar-event'  // Simple ASCII value
+          value: 'bazaar-event'
         },
       ],
     })
@@ -95,7 +102,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ 
       success: true, 
-      message: 'Confirmation email sent',
+      message: isFree ? 'RSVP confirmation email sent' : 'Confirmation email sent',
       emailId: data?.id 
     })
   } catch (error) {

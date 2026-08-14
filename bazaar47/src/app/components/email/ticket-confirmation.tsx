@@ -1,3 +1,4 @@
+// app/components/email/ticket-confirmation.tsx
 import * as React from 'react'
 
 interface TicketConfirmationProps {
@@ -25,6 +26,8 @@ export function TicketConfirmation({
   orderNumber,
   paymentMethod,
 }: TicketConfirmationProps) {
+  const isFree = totalPrice === '$0 (Free RSVP)'
+  
   return (
     <div style={{
       fontFamily: 'host-grotesk, sans-serif',
@@ -55,7 +58,7 @@ export function TicketConfirmation({
           margin: '5px 0 0',
           letterSpacing: '2px',
         }}>
-          Ticket Confirmation
+          {isFree ? 'RSVP Confirmation' : 'Ticket Confirmation'}
         </p>
       </div>
 
@@ -78,7 +81,10 @@ export function TicketConfirmation({
           fontSize: '14px',
           margin: '0 0 20px',
         }}>
-          Your tickets for {eventName} have been confirmed.
+          {isFree 
+            ? `Your RSVP for ${eventName} has been confirmed.`
+            : `Your tickets for ${eventName} have been confirmed.`
+          }
         </p>
 
         <div style={{
@@ -93,7 +99,7 @@ export function TicketConfirmation({
             margin: '0 0 10px',
             fontWeight: 'bold',
           }}>
-            Order Summary
+            {isFree ? 'RSVP Summary' : 'Order Summary'}
           </h3>
           <table style={{ width: '100%', fontSize: '14px' }}>
             <tbody>
@@ -114,7 +120,7 @@ export function TicketConfirmation({
                 <td style={{ color: '#341B1C', textAlign: 'right' }}>{eventLocation}</td>
               </tr>
               <tr>
-                <td style={{ color: '#6A2630', padding: '4px 0' }}>Tickets</td>
+                <td style={{ color: '#6A2630', padding: '4px 0' }}>Guests</td>
                 <td style={{ color: '#341B1C', textAlign: 'right' }}>{ticketCount}</td>
               </tr>
               <tr>
@@ -122,9 +128,22 @@ export function TicketConfirmation({
                 <td style={{ color: '#341B1C', textAlign: 'right' }}>{paymentMethod}</td>
               </tr>
               <tr>
-                <td style={{ color: '#6A2630', padding: '4px 0', borderTop: '2px solid #D5C9B1', paddingTop: '10px' }}>Total</td>
-                <td style={{ color: '#A62630', fontWeight: 'bold', textAlign: 'right', borderTop: '2px solid #D5C9B1', paddingTop: '10px' }}>
-                  {totalPrice}
+                <td style={{ 
+                  color: '#6A2630', 
+                  padding: '4px 0', 
+                  borderTop: '2px solid #D5C9B1', 
+                  paddingTop: '10px' 
+                }}>
+                  Total
+                </td>
+                <td style={{ 
+                  color: isFree ? '#6A2630' : '#A62630',
+                  fontWeight: 'bold', 
+                  textAlign: 'right', 
+                  borderTop: '2px solid #D5C9B1', 
+                  paddingTop: '10px' 
+                }}>
+                  {isFree ? '🎉 FREE RSVP' : totalPrice}
                 </td>
               </tr>
             </tbody>
@@ -132,7 +151,7 @@ export function TicketConfirmation({
         </div>
 
         <div style={{
-          backgroundColor: '#CCD145',
+          backgroundColor: isFree ? '#CCD145' : '#CCD145',
           padding: '15px',
           borderRadius: '8px',
           textAlign: 'center',
@@ -144,14 +163,17 @@ export function TicketConfirmation({
             fontWeight: 'bold',
             margin: '0',
           }}>
-            Order #{orderNumber}
+            {isFree ? `RSVP #${orderNumber}` : `Order #${orderNumber}`}
           </p>
           <p style={{
             color: '#202912',
             fontSize: '12px',
             margin: '5px 0 0',
           }}>
-            Please present this email at the door
+            {isFree 
+              ? 'See you at the event!'
+              : 'Please present this email at the door'
+            }
           </p>
         </div>
 

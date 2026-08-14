@@ -1,3 +1,4 @@
+// app/tickets/UpcomingShows/events.ts
 export interface EventConfig {
   id: string
   name: string
@@ -13,8 +14,8 @@ export interface EventConfig {
 
 export const UPCOMING_EVENTS: EventConfig[] = [
   {
-    id: 'august-17-2026',
-    name: 'AntonNow, Ruslansilvr, Lennon Cripe',
+    id: 'bazaar47',
+    name: 'Lennon Cripe · RuslanSilvr · AntoneNow',
     date: 'August 17th, 2026',
     time: '7:00 PM',
     location: '60 SW 2nd St',
@@ -24,19 +25,18 @@ export const UPCOMING_EVENTS: EventConfig[] = [
     doorPrice: 20,
     description: 'Join us for an unforgettable evening of culture and community'
   },
-  // Add more events here in the future:
-  // {
-  //   id: 'orlando-2026',
-  //   name: 'Bazaar Summer Festival',
-  //   date: 'August 15, 2026',
-  //   time: '6:00 PM',
-  //   location: '123 Main St',
-  //   city: 'Orlando',
-  //   state: 'FL',
-  //   price: 20,
-  //   doorPrice: 25,
-  //   description: 'Summer celebration of Palestinian culture'
-  // },
+  {
+    id: 'block-party',
+    name: 'The Big Bazaar Block Party',
+    date: 'August 22nd, 2026',
+    time: '9:00 PM',
+    location: '60 SW 2nd St',
+    city: 'Gainesville',
+    state: 'FL',
+    price: 0,
+    doorPrice: 0,
+    description: 'Grand opening celebration - Free entry! RSVP now.'
+  },
 ]
 
 export function getEventById(id: string): EventConfig | undefined {

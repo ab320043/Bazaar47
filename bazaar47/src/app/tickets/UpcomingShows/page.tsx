@@ -1,3 +1,4 @@
+// app/tickets/UpcomingShows/page.tsx (updated handleSubmit section)
 'use client'
 
 import { motion } from 'framer-motion'
@@ -90,7 +91,6 @@ function CheckoutForm({
       })
 
       if (error) {
-        // This only runs if there's an immediate error (rare with redirect)
         console.error('❌ Payment error:', error)
         sessionStorage.removeItem('pendingOrder')
         onError(error.message || 'Payment failed')
@@ -159,6 +159,9 @@ export default function UpcomingShowsPage() {
   const [clientSecret, setClientSecret] = useState<string | null>(null)
   const [isLoadingPayment, setIsLoadingPayment] = useState(false)
   const [showPayment, setShowPayment] = useState(false)
+
+  // Check if event is free
+  const isFreeEvent = selectedEvent.price === 0
 
   // Process pending order when returning from Stripe payment
   useEffect(() => {
@@ -300,6 +303,94 @@ export default function UpcomingShowsPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
+    // If it's a free event, handle RSVP directly
+    if (isFreeEvent) {
+      setIsLoadingPayment(true)
+      
+      try {
+        const orderNumber = `RSVP-${Date.now().toString(36).toUpperCase()}`
+        
+        const orderData = {
+          fullName: formData.fullName,
+          email: formData.email,
+          phone: formData.phone,
+          tickets: formData.tickets,
+          city: city || selectedEvent.city,
+          eventId: selectedEvent.id,
+          eventName: selectedEvent.name,
+          eventDate: selectedEvent.date,
+          eventTime: selectedEvent.time,
+          eventLocation: `${selectedEvent.location}, ${selectedEvent.city}, ${selectedEvent.state}`,
+          total: 0,
+          timestamp: new Date().toISOString(),
+        }
+        
+        // Save RSVP to admin
+        console.log('📊 Saving RSVP to admin...')
+        const adminResponse = await fetch('/api/admin/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            data: {
+              fullName: orderData.fullName,
+              email: orderData.email,
+              phone: orderData.phone,
+              tickets: orderData.tickets,
+              city: orderData.city,
+              eventId: orderData.eventId,
+              eventName: orderData.eventName,
+              eventDate: orderData.eventDate,
+              eventTime: orderData.eventTime,
+              eventLocation: orderData.eventLocation,
+              orderNumber,
+              pricePaid: '$0 (Free RSVP)',
+              ticketCount: parseInt(orderData.tickets),
+              paymentStatus: 'free',
+              timestamp: orderData.timestamp,
+            },
+            type: 'rsvp',
+          }),
+        })
+        console.log('  Admin save response:', adminResponse.status)
+        
+        // 📧 Send RSVP confirmation email
+        console.log('📧 Sending RSVP confirmation email to:', orderData.email)
+        const emailResponse = await fetch('/api/send-ticket-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: orderData.fullName,
+            email: orderData.email,
+            ticketCount: parseInt(orderData.tickets),
+            totalPrice: '$0 (Free RSVP)',
+            eventName: orderData.eventName,
+            eventDate: orderData.eventDate,
+            eventTime: orderData.eventTime,
+            eventLocation: orderData.eventLocation,
+            orderNumber,
+            paymentMethod: 'Free RSVP',
+          }),
+        })
+
+        const emailResult = await emailResponse.json()
+        console.log('📧 Email API response:', emailResult)
+
+        if (emailResponse.ok) {
+          console.log('✅ RSVP confirmed and email sent successfully!')
+        } else {
+          console.error('❌ Email sending failed:', emailResult)
+        }
+        
+        handleSuccess()
+      } catch (error) {
+        console.error('❌ Failed to save RSVP:', error)
+        setPaymentError('Failed to save RSVP')
+      } finally {
+        setIsLoadingPayment(false)
+      }
+      return
+    }
+    
     if (!showPayment) {
       await fetchPaymentIntent()
     }
@@ -321,14 +412,22 @@ export default function UpcomingShowsPage() {
         />
       </div>
 
-      {/* Back to Home */}
-      <div className="absolute top-6 left-6 md:top-8 md:left-8 z-20">
-        <Link 
+      {/* Back buttons */}
+      <div className="absolute top-6 left-6 md:top-8 md:left-8 z-20 flex flex-col sm:flex-row gap-2">
+        {/* <Link 
           href="/"
           className="inline-flex items-center gap-2 text-rosewood/60 hover:text-rosewood transition-colors font-host-grotesk text-sm group bg-plaster/80 backdrop-blur-sm px-4 py-2 rounded-full shadow-sm border border-rosewood/10"
         >
           <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
           Back to Home
+        </Link> */}
+        <Link 
+          href="/#events"
+          scroll={true}
+          className="inline-flex items-center gap-2 text-rosewood/60 hover:text-rosewood transition-colors font-host-grotesk text-sm group bg-plaster/80 backdrop-blur-sm px-4 py-2 rounded-full shadow-sm border border-rosewood/10"
+        >
+          <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+          Back to Events
         </Link>
       </div>
 
@@ -346,13 +445,13 @@ export default function UpcomingShowsPage() {
               <span className="w-12 h-px bg-rosewood/30" />
               <span className="font-host-grotesk text-xs text-rosewood/60 uppercase tracking-[0.3em] font-bold flex items-center gap-2">
                 <Ticket className="w-3 h-3" />
-                Upcoming Shows
+                {isFreeEvent ? 'RSVP' : 'Upcoming Shows'}
                 <Ticket className="w-3 h-3" />
               </span>
               <span className="w-12 h-px bg-rosewood/30" />
             </div>
             <h1 className="font-host-grotesk-narrow font-bold text-4xl md:text-5xl lg:text-6xl text-rosewood leading-tight">
-              Get Your Tickets
+              {isFreeEvent ? 'RSVP Now' : 'Get Your Tickets'}
             </h1>
             <p className="font-host-grotesk text-lg text-rosewood/50 mt-3">
               {selectedEvent.description}
@@ -406,25 +505,39 @@ export default function UpcomingShowsPage() {
             </div>
           </motion.div>
 
-          {/* Pricing Info */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.15 }}
-            className="bg-rosewood/5 border border-rosewood/10 rounded-2xl p-4 md:p-5 mb-8 text-center"
-          >
-            <div className="flex items-center justify-center gap-6 flex-wrap">
-              <span className="font-host-grotesk text-sm text-rosewood/60">
-                🎟️ Presale: <span className="font-bold text-rosewood">${selectedEvent.price}</span>
+          {/* Pricing Info - Show different for free events */}
+          {!isFreeEvent ? (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.15 }}
+              className="bg-rosewood/5 border border-rosewood/10 rounded-2xl p-4 md:p-5 mb-8 text-center"
+            >
+              <div className="flex items-center justify-center gap-6 flex-wrap">
+                <span className="font-host-grotesk text-sm text-rosewood/60">
+                  🎟️ Presale: <span className="font-bold text-rosewood">${selectedEvent.price}</span>
+                </span>
+                <span className="w-px h-6 bg-rosewood/10 hidden sm:block" />
+                <span className="font-host-grotesk text-sm text-rosewood/60">
+                  💵 At the Door: <span className="font-bold text-rosewood">${selectedEvent.doorPrice}</span>
+                </span>
+              </div>
+            </motion.div>
+          ) : (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.15 }}
+              className="bg-chartreuse/20 border-2 border-chartreuse/30 rounded-2xl p-4 md:p-5 mb-8 text-center"
+            >
+              <span className="font-host-grotesk font-bold text-henna text-lg flex items-center justify-center gap-2">
+                <Sparkles className="w-5 h-5" />
+                🎉 This is a FREE event! RSVP now to secure your spot.
               </span>
-              <span className="w-px h-6 bg-rosewood/10 hidden sm:block" />
-              <span className="font-host-grotesk text-sm text-rosewood/60">
-                💵 At the Door: <span className="font-bold text-rosewood">${selectedEvent.doorPrice}</span>
-              </span>
-            </div>
-          </motion.div>
+            </motion.div>
+          )}
 
-          {/* Ticket Form */}
+          {/* Ticket/RSVP Form */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -436,8 +549,12 @@ export default function UpcomingShowsPage() {
             <div className="relative z-10">
               <div className="flex items-center gap-2 mb-6">
                 <Users className="w-5 h-5 text-rosewood" />
-                <h3 className="font-host-grotesk font-bold text-xl text-rosewood">Book Tickets</h3>
-                <span className="ml-auto font-host-grotesk text-xs text-rosewood/30">Secure your spot</span>
+                <h3 className="font-host-grotesk font-bold text-xl text-rosewood">
+                  {isFreeEvent ? 'RSVP' : 'Book Tickets'}
+                </h3>
+                <span className="ml-auto font-host-grotesk text-xs text-rosewood/30">
+                  {isFreeEvent ? 'Secure your spot' : 'Secure your spot'}
+                </span>
               </div>
 
               {isSuccess ? (
@@ -445,18 +562,22 @@ export default function UpcomingShowsPage() {
                   <div className="bg-chartreuse/20 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
                     <Sparkles className="w-10 h-10 text-chartreuse" />
                   </div>
-                  <h2 className="font-host-grotesk font-bold text-2xl text-rosewood">Tickets Confirmed! 🎉</h2>
-                  <p className="font-host-grotesk text-rosewood/60 mt-2">Check your email for the confirmation.</p>
-                  <p className="font-host-grotesk text-xs text-rosewood/30 mt-4">Excited to see you at {selectedEvent.name}!</p>
-                  <button
-                    onClick={() => {
-                      setIsSuccess(false)
-                      setClientSecret(null)
-                    }}
-                    className="mt-6 text-chartreuse font-bold text-sm hover:underline transition-colors"
+                  <h2 className="font-host-grotesk font-bold text-2xl text-rosewood">
+                    {isFreeEvent ? 'RSVP Confirmed! 🎉' : 'Tickets Confirmed! 🎉'}
+                  </h2>
+                  <p className="font-host-grotesk text-rosewood/60 mt-2">
+                    {isFreeEvent ? 'See you at the Block Party!' : 'Check your email for the confirmation.'}
+                  </p>
+                  <p className="font-host-grotesk text-xs text-rosewood/30 mt-4">
+                    {isFreeEvent ? 'Excited to see you at ' : 'Excited to see you at '}{selectedEvent.name}!
+                  </p>
+                  <Link
+                    href="/#events"
+                    scroll={true}
+                    className="mt-6 inline-block text-chartreuse font-bold text-sm hover:underline transition-colors"
                   >
-                    Buy more tickets
-                  </button>
+                    ← Back to Events
+                  </Link>
                 </div>
               ) : (
                 <form onSubmit={handleSubmit} className="space-y-5">
@@ -530,7 +651,7 @@ export default function UpcomingShowsPage() {
                     </div>
                     <div>
                       <label className="font-host-grotesk font-semibold text-sm text-rosewood/80 block mb-1.5">
-                        Tickets <span className="text-poppy">*</span>
+                        {isFreeEvent ? 'Guests' : 'Tickets'} <span className="text-poppy">*</span>
                       </label>
                       <div className="flex items-center gap-3">
                         <button
@@ -570,48 +691,64 @@ export default function UpcomingShowsPage() {
                     </div>
                   </div>
 
-                  {/* Payment Section */}
-                  {!showPayment ? (
+                  {/* Payment Section - Only show for paid events */}
+                  {!isFreeEvent && (
+                    <>
+                      {!showPayment ? (
+                        <button
+                          type="submit"
+                          disabled={isLoadingPayment}
+                          className="w-full bg-rosewood hover:bg-chartreuse text-plaster hover:text-grove font-host-grotesk font-bold text-base py-3.5 rounded-xl transition-all duration-300 hover:scale-[1.02] flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {isLoadingPayment ? 'Loading...' : `Proceed to Payment — $${totalPrice}`}
+                          <CreditCard className="w-4 h-4" />
+                        </button>
+                      ) : clientSecret ? (
+                        <div className="space-y-4">
+                          <Elements 
+                            stripe={stripePromise} 
+                            options={{
+                              clientSecret,
+                              appearance: {
+                                theme: 'stripe' as const,
+                              },
+                            }}
+                            key={clientSecret}
+                          >
+                            <CheckoutForm
+                              onSuccess={handleSuccess}
+                              onError={handleError}
+                              formData={formData}
+                              event={selectedEvent}
+                              city={city}
+                            />
+                          </Elements>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowPayment(false)
+                              setClientSecret(null)
+                            }}
+                            className="w-full text-rosewood/60 hover:text-rosewood font-host-grotesk text-sm transition-colors"
+                          >
+                            ← Back to edit details
+                          </button>
+                        </div>
+                      ) : null}
+                    </>
+                  )}
+
+                  {/* Free Event RSVP Button */}
+                  {isFreeEvent && (
                     <button
                       type="submit"
                       disabled={isLoadingPayment}
-                      className="w-full bg-rosewood hover:bg-chartreuse text-plaster hover:text-grove font-host-grotesk font-bold text-base py-3.5 rounded-xl transition-all duration-300 hover:scale-[1.02] flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full bg-chartreuse hover:bg-plaster text-henna hover:text-henna font-host-grotesk font-bold text-base py-3.5 rounded-xl transition-all duration-300 hover:scale-[1.02] flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
                     >
-                      {isLoadingPayment ? 'Loading...' : `Proceed to Payment — $${totalPrice}`}
-                      <CreditCard className="w-4 h-4" />
+                      <Users className="w-5 h-5" />
+                      {isLoadingPayment ? 'Submitting...' : 'RSVP Free'}
                     </button>
-                  ) : clientSecret ? (
-                    <div className="space-y-4">
-                      <Elements 
-                        stripe={stripePromise} 
-                        options={{
-                          clientSecret,
-                          appearance: {
-                            theme: 'stripe' as const,
-                          },
-                        }}
-                        key={clientSecret}
-                      >
-                        <CheckoutForm
-                          onSuccess={handleSuccess}
-                          onError={handleError}
-                          formData={formData}
-                          event={selectedEvent}
-                          city={city}
-                        />
-                      </Elements>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowPayment(false)
-                          setClientSecret(null)
-                        }}
-                        className="w-full text-rosewood/60 hover:text-rosewood font-host-grotesk text-sm transition-colors"
-                      >
-                        ← Back to edit details
-                      </button>
-                    </div>
-                  ) : null}
+                  )}
                   
                   {paymentError && (
                     <p className="text-poppy text-sm font-host-grotesk text-center">{paymentError}</p>
@@ -628,7 +765,7 @@ export default function UpcomingShowsPage() {
             transition={{ duration: 0.6, delay: 0.4 }}
             className="text-center font-host-grotesk text-xs text-rosewood/20 mt-8"
           >
-            ✦ Secure payment powered by Stripe ✦
+            {isFreeEvent ? '✦ Free RSVP · Limited capacity ✦' : '✦ Secure payment powered by Stripe ✦'}
           </motion.p>
         </motion.div>
       </div>

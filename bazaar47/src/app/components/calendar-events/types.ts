@@ -1,3 +1,4 @@
+// types.ts
 import type { StaticImageData } from 'next/image'
 
 export interface Artist {
@@ -23,4 +24,22 @@ export interface TourEvent {
   tour: string
   /** Highlights this date on the calendar as the flagship show */
   isFeatured?: boolean
+}
+
+// NEW: Simplified Event interface
+export interface Event {
+  id: string
+  title: string
+  subtitle?: string
+  date: string
+  time: string
+  location: string
+  description: string
+  flyerImage: StaticImageData
+  ticketUrl?: string
+  rsvpUrl?: string
+  isFree?: boolean
+  slug: string // for routing
+  highlights?: string[]
+  status?: 'upcoming' | 'past' | 'sold-out'
 }

@@ -72,4 +72,13 @@ export const tourEvents: TourEvent[] = [
     tour: 'Bazaar A La Carte Tour',
     isFeatured: true,
   },
+  {
+    date: 22,
+    month: 8,
+    year: 2026,
+    title: 'The Big Bazaar Block Party',
+    location: '60 SW 2nd Street, Gainesville, FL',
+    time: '9:00 PM - 1:00 AM',
+    tour: 'Grand Opening Celebration',
+  },
 ]
