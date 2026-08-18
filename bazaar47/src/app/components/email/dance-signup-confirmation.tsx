@@ -1,13 +1,13 @@
-
+// app/components/email/dance-confirmation.tsx
 import * as React from 'react'
 
 interface DanceSignupConfirmationProps {
   firstName: string
   lastName: string
   dancerName: string
-  instagram: string
+  email: string
+  instagram?: string
   city: string
-  eventName: string
   eventDate: string
   eventTime: string
   eventLocation: string
@@ -18,224 +18,320 @@ export function DanceSignupConfirmation({
   firstName,
   lastName,
   dancerName,
+  email,
   instagram,
   city,
-  eventName,
   eventDate,
   eventTime,
   eventLocation,
   signupNumber,
 }: DanceSignupConfirmationProps) {
-  const displayName = dancerName || firstName
-
   return (
-    <Html>
-      <Head />
-      <Preview>You&apos;re confirmed for the Bazaar47 Dance Battle 🔥</Preview>
-      <Body style={styles.body}>
-        <Container style={styles.container}>
-          {/* Header band */}
-          <Section style={styles.headerBand}>
-            <Text style={styles.headerEyebrow}>BLOCK PARTY EXCLUSIVE</Text>
-            <Heading style={styles.headerTitle}>Dance Battle</Heading>
-          </Section>
+    <div style={{
+      fontFamily: 'host-grotesk, sans-serif',
+      maxWidth: '600px',
+      margin: '0 auto',
+      padding: '20px',
+      backgroundColor: '#EFEADE',
+    }}>
+      {/* Header */}
+      <div style={{
+        backgroundColor: '#341B1C',
+        padding: '30px',
+        textAlign: 'center',
+        borderRadius: '12px 12px 0 0',
+        position: 'relative',
+        overflow: 'hidden',
+      }}>
+        {/* Decorative glow */}
+        <div style={{
+          position: 'absolute',
+          top: '-50%',
+          right: '-20%',
+          width: '200px',
+          height: '200px',
+          background: 'rgba(204, 209, 69, 0.1)',
+          borderRadius: '50%',
+          filter: 'blur(60px)',
+        }} />
+        <div style={{
+          position: 'absolute',
+          bottom: '-50%',
+          left: '-20%',
+          width: '200px',
+          height: '200px',
+          background: 'rgba(204, 209, 69, 0.1)',
+          borderRadius: '50%',
+          filter: 'blur(60px)',
+        }} />
+        
+        <h1 style={{
+          color: '#EFEADE',
+          fontSize: '28px',
+          fontWeight: 'bold',
+          margin: '0',
+          fontFamily: 'serif',
+          position: 'relative',
+          zIndex: 1,
+        }}>
+          Bazaar47
+        </h1>
+        <p style={{
+          color: '#CCD145',
+          fontSize: '14px',
+          margin: '5px 0 0',
+          letterSpacing: '2px',
+          position: 'relative',
+          zIndex: 1,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '8px',
+        }}>
+          <span>🔥</span>
+          Dance Battle Confirmation
+          <span>🔥</span>
+        </p>
+      </div>
 
-          {/* Body */}
-          <Section style={styles.content}>
-            <Text style={styles.greeting}>You&apos;re in, {displayName}! 🔥</Text>
-            <Text style={styles.paragraph}>
-              Your spot in the {eventName} is locked in. Keep an eye on your
-              inbox — battle order goes out closer to the date.
-            </Text>
+      {/* Body */}
+      <div style={{
+        backgroundColor: '#FFFFFF',
+        padding: '30px',
+        borderRadius: '0 0 12px 12px',
+        border: '1px solid #D5C9B1',
+      }}>
+        <h2 style={{
+          color: '#341B1C',
+          fontSize: '22px',
+          margin: '0 0 5px',
+        }}>
+          You are In the Dance Battle, {dancerName || `${firstName} ${lastName}`}! 🎤
+        </h2>
+        <p style={{
+          color: '#6A2630',
+          fontSize: '14px',
+          margin: '0 0 20px',
+        }}>
+          Your spot in the Red Bull Dance Your Style Showcase has been confirmed.
+        </p>
 
-            <Hr style={styles.hr} />
+        {/* Sign-up Details */}
+        <div style={{
+          backgroundColor: '#F5F0E8',
+          padding: '20px',
+          borderRadius: '8px',
+          marginBottom: '20px',
+          border: '1px solid #CCD145',
+        }}>
+          <h3 style={{
+            color: '#341B1C',
+            fontSize: '16px',
+            margin: '0 0 10px',
+            fontWeight: 'bold',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+          }}>
+            <span style={{ fontSize: '18px' }}>🏆</span>
+            Battle Sign-Up Details
+          </h3>
+          <table style={{ width: '100%', fontSize: '14px' }}>
+            <tbody>
+              <tr>
+                <td style={{ color: '#6A2630', padding: '4px 0' }}>Dancer Name</td>
+                <td style={{ color: '#341B1C', fontWeight: 'bold', textAlign: 'right' }}>
+                  {dancerName}
+                </td>
+              </tr>
+              <tr>
+                <td style={{ color: '#6A2630', padding: '4px 0' }}>Full Name</td>
+                <td style={{ color: '#341B1C', textAlign: 'right' }}>{`${firstName} ${lastName}`}</td>
+              </tr>
+              <tr>
+                <td style={{ color: '#6A2630', padding: '4px 0' }}>City</td>
+                <td style={{ color: '#341B1C', textAlign: 'right' }}>{city || 'TBA'}</td>
+              </tr>
+              <tr>
+                <td style={{ color: '#6A2630', padding: '4px 0' }}>Sign-Up #</td>
+                <td style={{ color: '#341B1C', textAlign: 'right', fontFamily: 'monospace' }}>
+                  {signupNumber}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
 
-            {/* Pass details */}
-            <Section style={styles.passCard}>
-              <Text style={styles.passLabel}>DANCE BATTLE PASS</Text>
-              <Text style={styles.passSerial}>{signupNumber}</Text>
+        {/* Event Details */}
+        <div style={{
+          backgroundColor: '#F5F0E8',
+          padding: '20px',
+          borderRadius: '8px',
+          marginBottom: '20px',
+        }}>
+          <h3 style={{
+            color: '#341B1C',
+            fontSize: '16px',
+            margin: '0 0 10px',
+            fontWeight: 'bold',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+          }}>
+            <span style={{ fontSize: '18px' }}>📍</span>
+            Event Details
+          </h3>
+          <table style={{ width: '100%', fontSize: '14px' }}>
+            <tbody>
+              <tr>
+                <td style={{ color: '#6A2630', padding: '4px 0' }}>Event</td>
+                <td style={{ color: '#341B1C', fontWeight: 'bold', textAlign: 'right' }}>
+                  The Big Bazaar Block Party
+                </td>
+              </tr>
+              <tr>
+                <td style={{ color: '#6A2630', padding: '4px 0' }}>Date</td>
+                <td style={{ color: '#341B1C', textAlign: 'right' }}>{eventDate}</td>
+              </tr>
+              <tr>
+                <td style={{ color: '#6A2630', padding: '4px 0' }}>Time</td>
+                <td style={{ color: '#341B1C', textAlign: 'right' }}>{eventTime}</td>
+              </tr>
+              <tr>
+                <td style={{ color: '#6A2630', padding: '4px 0' }}>Location</td>
+                <td style={{ color: '#341B1C', textAlign: 'right' }}>{eventLocation}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
 
-              <Row style={styles.detailRow}>
-                <Column>
-                  <Text style={styles.detailLabelOnDark}>Dancer</Text>
-                  <Text style={styles.detailValueOnDark}>{displayName}</Text>
-                </Column>
-                <Column>
-                  <Text style={styles.detailLabelOnDark}>Name on file</Text>
-                  <Text style={styles.detailValueOnDark}>
-                    {firstName} {lastName}
-                  </Text>
-                </Column>
-              </Row>
+        {/* Prize & Showcase Info */}
+        <div style={{
+          backgroundColor: '#CCD145',
+          padding: '20px',
+          borderRadius: '8px',
+          textAlign: 'center',
+          marginBottom: '20px',
+          border: '2px solid #A62630',
+        }}>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '12px',
+            marginBottom: '8px',
+          }}>
+            <span style={{ fontSize: '28px' }}>👑</span>
+            <span style={{
+              color: '#A62630',
+              fontSize: '24px',
+              fontWeight: 'bold',
+              fontFamily: 'serif',
+            }}>
+              $200
+            </span>
+            <span style={{
+              color: '#202912',
+              fontSize: '16px',
+              fontWeight: 'bold',
+            }}>
+              Cash Prize
+            </span>
+          </div>
+          <p style={{
+            color: '#202912',
+            fontSize: '13px',
+            margin: '0',
+            fontWeight: '600',
+          }}>
+            Red Bull Dance Your Style Showcase
+          </p>
+          <p style={{
+            color: '#202912',
+            fontSize: '11px',
+            margin: '4px 0 0',
+            opacity: 0.7,
+          }}>
+            Winner takes all · Battle order announced at check-in
+          </p>
+        </div>
 
-              <Row style={styles.detailRow}>
-                <Column>
-                  <Text style={styles.detailLabelOnDark}>From</Text>
-                  <Text style={styles.detailValueOnDark}>{city}</Text>
-                </Column>
-                <Column>
-                  <Text style={styles.detailLabelOnDark}>Instagram</Text>
-                  <Text style={styles.detailValueOnDark}>{instagram || '—'}</Text>
-                </Column>
-              </Row>
-            </Section>
+        {/* Check-in Info */}
+        <div style={{
+          backgroundColor: '#F5F0E8',
+          padding: '15px',
+          borderRadius: '8px',
+          marginBottom: '20px',
+          border: '1px dashed #6A2630',
+        }}>
+          <p style={{
+            color: '#341B1C',
+            fontSize: '13px',
+            margin: '0',
+            textAlign: 'center',
+          }}>
+            ⏰ <strong>Check-in:</strong> 8:30 PM at the main stage
+          </p>
+          <p style={{
+            color: '#6A2630',
+            fontSize: '12px',
+            margin: '4px 0 0',
+            textAlign: 'center',
+          }}>
+            Please arrive early to confirm your spot
+          </p>
+        </div>
 
-            <Hr style={styles.hr} />
+        <div style={{
+          backgroundColor: '#341B1C',
+          padding: '15px',
+          borderRadius: '8px',
+          textAlign: 'center',
+          marginBottom: '20px',
+        }}>
+          <p style={{
+            color: '#CCD145',
+            fontSize: '12px',
+            fontWeight: 'bold',
+            margin: '0',
+            letterSpacing: '1px',
+          }}>
+            🎵 DANCE BATTLE PASS 🎵
+          </p>
+          <p style={{
+            color: '#EFEADE',
+            fontSize: '11px',
+            margin: '4px 0 0',
+            opacity: 0.6,
+          }}>
+            {signupNumber} · GNV · 2026
+          </p>
+        </div>
 
-            {/* Event info */}
-            <Section>
-              <Row style={styles.detailRow}>
-                <Column>
-                  <Text style={styles.detailLabel}>Date</Text>
-                  <Text style={styles.detailValue}>{eventDate}</Text>
-                </Column>
-                <Column>
-                  <Text style={styles.detailLabel}>Time</Text>
-                  <Text style={styles.detailValue}>{eventTime}</Text>
-                </Column>
-              </Row>
-              <Text style={styles.detailLabel}>Location</Text>
-              <Text style={styles.detailValue}>{eventLocation}</Text>
-            </Section>
+        <p style={{
+          color: '#6A2630',
+          fontSize: '12px',
+          textAlign: 'center',
+          margin: '20px 0 0',
+        }}>
+          ✦ Bazaar47 • A space for culture, community, and connection. ✦
+        </p>
+      </div>
 
-            <Text style={styles.footerNote}>
-              ✦ Free to enter · Open sign-up ✦
-            </Text>
-          </Section>
-
-          <Section style={styles.footer}>
-            <Text style={styles.footerText}>
-              Bazaar47 · 60 SW 2nd Street, Gainesville, FL
-            </Text>
-          </Section>
-        </Container>
-      </Body>
-    </Html>
+      {/* Footer */}
+      <div style={{
+        textAlign: 'center',
+        padding: '20px',
+        fontSize: '12px',
+        color: '#D5C9B1',
+      }}>
+        <p style={{ margin: '0' }}>
+          Questions? Contact us at info@bazaar47.com
+        </p>
+        <p style={{ margin: '5px 0 0' }}>
+          © 2026 Bazaar47 • 60 SW 2nd Street, Gainesville, FL
+        </p>
+      </div>
+    </div>
   )
-}
-
-export default DanceSignupConfirmation
-
-const styles: Record<string, React.CSSProperties> = {
-  body: {
-    backgroundColor: colors.sandDune,
-    fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif',
-    margin: 0,
-    padding: '32px 0',
-  },
-  container: {
-    backgroundColor: colors.plaster,
-    borderRadius: '16px',
-    overflow: 'hidden',
-    maxWidth: '480px',
-    margin: '0 auto',
-  },
-  headerBand: {
-    backgroundColor: colors.henna,
-    padding: '32px 32px 28px',
-    textAlign: 'center' as const,
-  },
-  headerEyebrow: {
-    color: colors.plaster,
-    opacity: 0.7,
-    fontSize: '11px',
-    letterSpacing: '3px',
-    fontWeight: 700,
-    margin: '0 0 8px',
-  },
-  headerTitle: {
-    color: colors.plaster,
-    fontSize: '34px',
-    fontWeight: 800,
-    margin: 0,
-    lineHeight: 1,
-  },
-  content: {
-    padding: '32px',
-  },
-  greeting: {
-    color: colors.henna,
-    fontSize: '20px',
-    fontWeight: 700,
-    margin: '0 0 8px',
-  },
-  paragraph: {
-    color: '#3A2A22',
-    fontSize: '14px',
-    lineHeight: '22px',
-    margin: '0 0 16px',
-  },
-  hr: {
-    borderColor: 'rgba(91,42,31,0.12)',
-    margin: '20px 0',
-  },
-  passCard: {
-    backgroundColor: colors.henna,
-    borderRadius: '12px',
-    padding: '20px',
-  },
-  passLabel: {
-    color: colors.plaster,
-    opacity: 0.5,
-    fontSize: '10px',
-    letterSpacing: '3px',
-    fontWeight: 800,
-    margin: '0 0 2px',
-  },
-  passSerial: {
-    color: colors.chartreuse,
-    fontSize: '13px',
-    fontWeight: 700,
-    letterSpacing: '1px',
-    margin: '0 0 16px',
-  },
-  detailRow: {
-    marginBottom: '12px',
-  },
-  detailLabel: {
-    color: colors.henna,
-    opacity: 0.5,
-    fontSize: '10px',
-    letterSpacing: '1.5px',
-    textTransform: 'uppercase' as const,
-    margin: '0 0 2px',
-  },
-  detailValue: {
-    color: colors.henna,
-    fontSize: '14px',
-    fontWeight: 700,
-    margin: 0,
-  },
-  detailLabelOnDark: {
-    color: colors.plaster,
-    opacity: 0.5,
-    fontSize: '10px',
-    letterSpacing: '1.5px',
-    textTransform: 'uppercase' as const,
-    margin: '0 0 2px',
-  },
-  detailValueOnDark: {
-    color: colors.plaster,
-    fontSize: '14px',
-    fontWeight: 700,
-    margin: 0,
-  },
-  footerNote: {
-    textAlign: 'center' as const,
-    color: '#3A2A22',
-    opacity: 0.4,
-    fontSize: '11px',
-    marginTop: '24px',
-  },
-  footer: {
-    backgroundColor: colors.sandDune,
-    padding: '16px 32px',
-    textAlign: 'center' as const,
-  },
-  footerText: {
-    color: colors.henna,
-    opacity: 0.6,
-    fontSize: '11px',
-    margin: 0,
-  },
 }
