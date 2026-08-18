@@ -4,13 +4,14 @@
 import { motion } from 'framer-motion'
 import Image from 'next/image'
 import Link from 'next/link'
-import { Calendar, MapPin, Clock, ArrowRight, Music } from 'lucide-react'
+import { Calendar, MapPin, Clock, ArrowRight, Music, Flame } from 'lucide-react'
 import { events, type Event } from './events-config'
 import overlay from '@/assets/newAssets/overlay.png'
 
 function EventCard({ event, index }: { event: Event; index: number }) {
   const isBazaar47 = event.id === 'bazaar47'
-  
+  const isBlockParty = event.id === 'block-party'
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 30 }}
@@ -62,8 +63,8 @@ function EventCard({ event, index }: { event: Event; index: number }) {
             </p>
           </div>
 
-          {/* Action Button */}
-          <div className="mt-6 pt-6 border-t border-plaster/10">
+          {/* Action Buttons */}
+          <div className="mt-6 pt-6 border-t border-plaster/10 flex flex-wrap gap-3">
             <Link
               href={`/tickets/UpcomingShows?event=${event.id}`}
               className="inline-flex items-center gap-2 font-host-grotesk font-bold text-henna bg-plaster hover:bg-sand-dune px-6 py-3 rounded-xl transition-all duration-300 hover:scale-[1.03] text-sm"
@@ -72,6 +73,18 @@ function EventCard({ event, index }: { event: Event; index: number }) {
               {isBazaar47 ? 'Get Tickets' : 'RSVP Now'}
               <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
             </Link>
+
+            {/* Dance Battle sign-up only shows on the Block Party card */}
+            {isBlockParty && (
+              <Link
+                href="/events/block-party/dance-signup"
+                className="inline-flex items-center gap-2 font-host-grotesk font-bold text-henna bg-chartreuse hover:bg-plaster px-6 py-3 rounded-xl transition-all duration-300 hover:scale-[1.03] text-sm"
+              >
+                <Flame className="w-4 h-4" />
+                Dance Battle Sign-Up
+                <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+              </Link>
+            )}
           </div>
         </div>
       </div>
