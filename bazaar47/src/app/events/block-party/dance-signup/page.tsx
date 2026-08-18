@@ -121,7 +121,7 @@ export default function DanceBattleSignupPage() {
         <Link
           href="/#events"
           scroll={true}
-          className="inline-flex items-center gap-2 text-plaster/80 hover:text-henna transition-colors font-host-grotesk text-sm group bg-plaster/90 px-4 py-2 rounded-full shadow-sm border border-plaster/10"
+          className="inline-flex items-center gap-2 text-henna hover:text-henna transition-colors font-host-grotesk text-sm group bg-plaster/90 px-4 py-2 rounded-full shadow-sm border border-plaster/10"
         >
           <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
           Back to Events
