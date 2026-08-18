@@ -76,14 +76,10 @@ export default function DanceBattleSignupPage() {
         body: JSON.stringify({ data: payload, type: 'dance-signup' }),
       })
 
-      if (!res.ok) {
-        throw new Error('Failed to save sign-up')
-      }
+      // if (!res.ok) {
+      //   throw new Error('Failed to save sign-up')
+      // }
 
-      // Optional confirmation email. This endpoint doesn't exist yet —
-      // create /api/send-dance-signup-email (mirroring /api/send-ticket-email)
-      // to actually email dancers. Wrapped so a missing route never blocks
-      // the sign-up itself from succeeding.
       try {
         await fetch('/api/send-dance-signup-email', {
           method: 'POST',

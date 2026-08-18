@@ -76,22 +76,6 @@ export function DanceSignupConfirmation({
         }}>
           Bazaar47
         </h1>
-        <p style={{
-          color: '#CCD145',
-          fontSize: '14px',
-          margin: '5px 0 0',
-          letterSpacing: '2px',
-          position: 'relative',
-          zIndex: 1,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: '8px',
-        }}>
-          <span>🔥</span>
-          Dance Battle Confirmation
-          <span>🔥</span>
-        </p>
       </div>
 
       {/* Body */}
@@ -133,7 +117,6 @@ export function DanceSignupConfirmation({
             alignItems: 'center',
             gap: '8px',
           }}>
-            <span style={{ fontSize: '18px' }}>🏆</span>
             Battle Sign-Up Details
           </h3>
           <table style={{ width: '100%', fontSize: '14px' }}>
@@ -178,7 +161,6 @@ export function DanceSignupConfirmation({
             alignItems: 'center',
             gap: '8px',
           }}>
-            <span style={{ fontSize: '18px' }}>📍</span>
             Event Details
           </h3>
           <table style={{ width: '100%', fontSize: '14px' }}>
@@ -204,84 +186,7 @@ export function DanceSignupConfirmation({
             </tbody>
           </table>
         </div>
-
-        {/* Prize & Showcase Info */}
-        <div style={{
-          backgroundColor: '#CCD145',
-          padding: '20px',
-          borderRadius: '8px',
-          textAlign: 'center',
-          marginBottom: '20px',
-          border: '2px solid #A62630',
-        }}>
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '12px',
-            marginBottom: '8px',
-          }}>
-            <span style={{ fontSize: '28px' }}>👑</span>
-            <span style={{
-              color: '#A62630',
-              fontSize: '24px',
-              fontWeight: 'bold',
-              fontFamily: 'serif',
-            }}>
-              $200
-            </span>
-            <span style={{
-              color: '#202912',
-              fontSize: '16px',
-              fontWeight: 'bold',
-            }}>
-              Cash Prize
-            </span>
-          </div>
-          <p style={{
-            color: '#202912',
-            fontSize: '13px',
-            margin: '0',
-            fontWeight: '600',
-          }}>
-            Red Bull Dance Your Style Showcase
-          </p>
-          <p style={{
-            color: '#202912',
-            fontSize: '11px',
-            margin: '4px 0 0',
-            opacity: 0.7,
-          }}>
-            Winner takes all · Battle order announced at check-in
-          </p>
-        </div>
-
-        {/* Check-in Info */}
-        <div style={{
-          backgroundColor: '#F5F0E8',
-          padding: '15px',
-          borderRadius: '8px',
-          marginBottom: '20px',
-          border: '1px dashed #6A2630',
-        }}>
-          <p style={{
-            color: '#341B1C',
-            fontSize: '13px',
-            margin: '0',
-            textAlign: 'center',
-          }}>
-            ⏰ <strong>Check-in:</strong> 8:30 PM at the main stage
-          </p>
-          <p style={{
-            color: '#6A2630',
-            fontSize: '12px',
-            margin: '4px 0 0',
-            textAlign: 'center',
-          }}>
-            Please arrive early to confirm your spot
-          </p>
-        </div>
-
+       
         <div style={{
           backgroundColor: '#341B1C',
           padding: '15px',
@@ -296,7 +201,7 @@ export function DanceSignupConfirmation({
             margin: '0',
             letterSpacing: '1px',
           }}>
-            🎵 DANCE BATTLE PASS 🎵
+            Artist Pass
           </p>
           <p style={{
             color: '#EFEADE',
