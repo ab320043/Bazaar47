@@ -3,6 +3,7 @@ import { getEventById } from '@/data/events'
 import { getSubmissions } from '@/lib/storage'
 import { getEventStats } from '@/lib/utils/events'
 import { isVendorData, isRSVPData, type Submission } from '@/types'
+// ✅ Import VALID_TOUR_CITIES from lib/utils
 import { VALID_TOUR_CITIES } from '@/lib/utils'
 
 export async function GET(
@@ -13,7 +14,10 @@ export async function GET(
     const event = getEventById(params.eventId)
     
     if (!event) {
-      return NextResponse.json({ error: 'Event not found' }, { status: 404 })
+      return NextResponse.json(
+        { error: 'Event not found' },
+        { status: 404 }
+      )
     }
     
     const submissions = await getSubmissions() as Submission[]
@@ -26,7 +30,7 @@ export async function GET(
     const cityBreakdown: Record<string, { vendors: number; rsvps: number; tickets: number }> = {}
     
     if (event.type === 'tour') {
-      // Initialize with all tour cities
+      // ✅ Initialize with all tour cities from VALID_TOUR_CITIES
       VALID_TOUR_CITIES.forEach((city: string) => {
         cityBreakdown[city] = { vendors: 0, rsvps: 0, tickets: 0 }
       })
@@ -41,7 +45,6 @@ export async function GET(
             }
           }
         } else if (s.type === 'vendor' && isVendorData(s.data)) {
-          // Count vendors for each city they selected
           const cities = s.data.selectedCities || []
           cities.forEach((city: string) => {
             if (city && cityBreakdown[city]) {
@@ -69,18 +72,27 @@ export async function GET(
     
     return NextResponse.json({
       event,
-      stats,
+      stats: {
+        total: eventSubmissions.length,
+        vendors: vendors.length,
+        rsvps: rsvps.length,
+        danceSignups: danceSignups.length,
+        tickets: stats?.tickets || 0,
+      },
       cityBreakdown,
       breakdown: {
         vendors,
         rsvps,
         danceSignups,
       },
-      capacity: event.capacity,
-      fillRate: event.capacity ? Math.round((stats.tickets / event.capacity) * 100) : 0,
+      capacity: event.capacity || 0,
+      fillRate: event.capacity ? Math.round(((stats?.tickets || 0) / event.capacity) * 100) : 0,
     })
   } catch (error) {
     console.error('Error fetching stats:', error)
-    return NextResponse.json({ error: 'Failed to fetch stats' }, { status: 500 })
+    return NextResponse.json(
+      { error: 'Failed to fetch stats' },
+      { status: 500 }
+    )
   }
 }
