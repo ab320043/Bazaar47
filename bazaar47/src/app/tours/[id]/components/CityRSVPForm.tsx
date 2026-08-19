@@ -3,7 +3,6 @@
 import { motion } from 'framer-motion'
 import { Send, CreditCard, Ticket, Lock } from 'lucide-react'
 import { useState, useEffect } from 'react'
-import { TourCity } from '@/data/tour-data'
 import { loadStripe } from '@stripe/stripe-js'
 import {
   Elements,
@@ -12,8 +11,11 @@ import {
   useElements,
 } from '@stripe/react-stripe-js'
 
+// ✅ Import from events.ts instead of tour-data.ts
+import { getEventBySlug, type EventDefinition } from '@/data/events'
+
 interface CityRSVPFormProps {
-  city: TourCity
+  city: EventDefinition  // ✅ Use EventDefinition instead of TourCity
 }
 
 interface CityRSVPFormData {
@@ -36,7 +38,7 @@ function CheckoutForm({
   formData,
   clientSecret,
 }: { 
-  city: TourCity, 
+  city: EventDefinition, 
   ticketCount: number, 
   onSuccess: () => void, 
   onError: (message: string) => void,
@@ -58,25 +60,27 @@ function CheckoutForm({
         elements,
         clientSecret,
         confirmParams: {
-          return_url: `${window.location.origin}/tours/${city.id}`,
+          return_url: `${window.location.origin}/tours/${city.slug}`,
         },
       })
 
       if (error) {
         onError(error.message || 'Payment failed')
       } else {
-        await fetch('/api/admin/save', {
+        // ✅ Use the new submissions endpoint
+        await fetch('/api/admin/submissions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             data: {
               ...formData,
-              tickets: ticketCount, // clamped number, matches what was actually charged
-              eventCity: city.city,
-              eventDisplayName: city.city,
-              venue: city.venue,
+              tickets: ticketCount,
+              eventCity: city.city || city.name,
+              eventDisplayName: city.name,
+              venue: city.location,
               date: city.date,
-              eventId: city.id,
+              eventId: city.id,  // ✅ Use the event ID from events.ts
+              eventSlug: city.slug,
               paymentStatus: 'paid',
               totalPrice: `$${ticketCount * 10}`,
             },
@@ -139,24 +143,17 @@ export function CityRSVPForm({ city }: CityRSVPFormProps) {
   const [clientSecret, setClientSecret] = useState<string | null>(null)
   const [isLoadingPayment, setIsLoadingPayment] = useState(false)
 
-  const isPaidEvent = city.id === 'south-florida'
+  // ✅ Check if this is a paid event (South Florida is the only paid one)
+  const isPaidEvent = city.slug === 'south-florida'
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
 
     if (name === 'tickets') {
-      // Allow the field to be cleared while typing, but block anything
-      // that isn't a whole number 1-10 once it resolves to a real value.
-      // This is what was letting typed values like "99999" straight through
-      // (the min/max attributes on the input alone do nothing here).
       if (value !== '') {
         const num = parseInt(value, 10)
         if (!Number.isInteger(num) || num < 1 || num > 10) return
       }
-      // Ticket count changed — any already-created Stripe PaymentIntent was
-      // priced for the OLD quantity and won't update itself. Clear it so a
-      // correctly-priced one gets created next, instead of silently
-      // charging the wrong amount while the UI shows the new total.
       if (clientSecret) setClientSecret(null)
     }
 
@@ -173,7 +170,7 @@ export function CityRSVPForm({ city }: CityRSVPFormProps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           amount: parseInt(formData.tickets || '1') * 10,
-          city: city.city,
+          city: city.city || city.name,
           email: formData.email || 'guest@bazaar47.com',
           fullName: formData.fullName || 'Guest',
         }),
@@ -215,10 +212,6 @@ export function CityRSVPForm({ city }: CityRSVPFormProps) {
   const handleFreeRSVP = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    // Belt-and-suspenders check before we even hit the network — required
-    // attributes on the inputs don't do anything since these fields aren't
-    // inside a native <form>, so this is currently the ONLY thing stopping
-    // a blank submission.
     if (!formData.fullName.trim() || !formData.email.trim() || !formData.city.trim() || !formData.zipCode.trim()) {
       alert('Please fill in all required fields.')
       return
@@ -231,18 +224,20 @@ export function CityRSVPForm({ city }: CityRSVPFormProps) {
 
     setIsSubmitting(true)
     try {
-      const response = await fetch('/api/admin/save', {
+      // ✅ Use the new submissions endpoint
+      const response = await fetch('/api/admin/submissions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           data: {
             ...formData,
-            tickets: ticketNum, // send a real, clamped number, not raw text
-            eventCity: city.city,
-            eventDisplayName: city.city,
-            venue: city.venue,
+            tickets: ticketNum,
+            eventCity: city.city || city.name,
+            eventDisplayName: city.name,
+            venue: city.location,
             date: city.date,
-            eventId: city.id,
+            eventId: city.id,  // ✅ Use the event ID
+            eventSlug: city.slug,
           },
           type: 'rsvp',
         }),
@@ -261,6 +256,9 @@ export function CityRSVPForm({ city }: CityRSVPFormProps) {
     }
   }
 
+  // ✅ Get display name
+  const displayName = city.city || city.name
+
   return (
     <motion.div
       initial={{ opacity: 0, x: 30 }}
@@ -271,7 +269,7 @@ export function CityRSVPForm({ city }: CityRSVPFormProps) {
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="font-host-grotesk font-bold text-2xl sm:text-3xl md:text-4xl text-[#6A2630]">
-            {isPaidEvent ? 'Buy Tickets' : 'RSVP'} for {city.city}
+            {isPaidEvent ? 'Buy Tickets' : 'RSVP'} for {displayName}
           </h2>
           {isPaidEvent && (
             <span className="text-sm font-host-grotesk font-bold text-chartreuse bg-chartreuse/10 px-3 py-1 rounded-full">
@@ -287,8 +285,8 @@ export function CityRSVPForm({ city }: CityRSVPFormProps) {
             </p>
             <p className="font-host-grotesk text-sm text-[#6A2630]/60 mt-2">
               {isPaidEvent 
-                ? `Your tickets for ${city.city} have been confirmed! Check your email for details.`
-                : `We'll see you at ${city.city}! Check your email for details.`
+                ? `Your tickets for ${displayName} have been confirmed! Check your email for details.`
+                : `We'll see you at ${displayName}! Check your email for details.`
               }
             </p>
             <button 
@@ -303,7 +301,7 @@ export function CityRSVPForm({ city }: CityRSVPFormProps) {
           </div>
         ) : (
           <div suppressHydrationWarning>
-            {/* Shared form fields */}
+            {/* Form fields - same as before */}
             <div className="space-y-4">
               <div>
                 <label className="font-host-grotesk font-semibold text-sm text-[#6A2630] block mb-1">

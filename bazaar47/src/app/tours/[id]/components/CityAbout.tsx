@@ -1,10 +1,11 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { TourCity } from '@/data/tour-data'
+// ✅ Import from events.ts instead of tour-data.ts
+import type { EventDefinition } from '@/data/events'
 
 interface CityAboutProps {
-  city: TourCity
+  city: EventDefinition  // ✅ Use EventDefinition instead of TourCity
 }
 
 export function CityAbout({ city }: CityAboutProps) {

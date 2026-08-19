@@ -3,7 +3,8 @@
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
-import { tourData } from '@/data/tour-data'
+// ✅ Import from events.ts instead of tour-data.ts
+import { getEventBySlug, getTourCities } from '@/data/events'
 import overlay from '@/assets/newAssets/overlay.png'
 import { CityHero } from './components/CityHero'
 import { CityAbout } from './components/CityAbout'
@@ -14,7 +15,8 @@ export default function TourCityPage() {
   const params = useParams()
   const cityId = params.id as string
   
-  const city = tourData.find(t => t.id === cityId)
+  // ✅ Get city from events.ts using slug
+  const city = getEventBySlug(cityId)
 
   if (!city) {
     return (
@@ -28,6 +30,9 @@ export default function TourCityPage() {
       </div>
     )
   }
+
+  // ✅ Get display name
+  const displayName = city.city || city.name
 
   return (
     <section className="relative w-full min-h-screen overflow-hidden bg-[#341B1C]">
@@ -63,7 +68,7 @@ export default function TourCityPage() {
           </div>
 
           {/* Share Section */}
-          <CityShare cityName={city.city} />
+          <CityShare cityName={displayName} />
           
         </div>
       </div>

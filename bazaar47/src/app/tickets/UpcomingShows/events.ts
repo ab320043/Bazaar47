@@ -14,18 +14,6 @@ export interface EventConfig {
 
 export const UPCOMING_EVENTS: EventConfig[] = [
   {
-    id: 'bazaar47',
-    name: 'Lennon Cripe · RuslanSilvr · AntoneNow',
-    date: 'August 17th, 2026',
-    time: '7:00 PM',
-    location: '60 SW 2nd St',
-    city: 'Gainesville',
-    state: 'FL',
-    price: 15,
-    doorPrice: 20,
-    description: 'Join us for an unforgettable evening of culture and community'
-  },
-  {
     id: 'block-party',
     name: 'The Big Bazaar Block Party',
     date: 'August 22nd, 2026',

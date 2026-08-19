@@ -4,22 +4,28 @@ import { motion } from 'framer-motion'
 import Image from 'next/image'
 import Link from 'next/link'
 import { ArrowLeft, MapPin, Clock, Calendar } from 'lucide-react'
-import { TourCity } from '@/data/tour-data'
+// ✅ Import from events.ts instead of tour-data.ts
+import type { EventDefinition } from '@/data/events'
 
 interface CityHeroProps {
-  city: TourCity
+  city: EventDefinition  // ✅ Use EventDefinition instead of TourCity
 }
 
 export function CityHero({ city }: CityHeroProps) {
+  // ✅ Get display name (city or name fallback)
+  const displayName = city.city || city.name
+  
   return (
     <div className="relative w-full h-[45vh] sm:h-[50vh] md:h-[55vh] min-h-[300px] md:min-h-[350px] overflow-hidden">
-      <Image
-        src={city.image}
-        alt={city.city}
-        fill
-        className="object-cover"
-        priority
-      />
+      {city.image && (
+        <Image
+          src={city.image}
+          alt={displayName}
+          fill
+          className="object-cover"
+          priority
+        />
+      )}
       <div className="absolute inset-0 bg-gradient-to-t from-[#341B1C] via-[#341B1C]/40 to-transparent" />
       
       <div className="absolute top-4 left-4 md:top-6 md:left-6 z-20">
@@ -40,7 +46,7 @@ export function CityHero({ city }: CityHeroProps) {
             transition={{ duration: 0.6 }}
             className="font-host-grotesk font-bold text-3xl sm:text-4xl md:text-6xl lg:text-7xl text-[#EFEADE] leading-tight"
           >
-            {city.city}
+            {displayName}
           </motion.h1>
           
           <motion.div
@@ -51,7 +57,7 @@ export function CityHero({ city }: CityHeroProps) {
           >
             <span className="flex items-center gap-1 sm:gap-2">
               <Calendar className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5" />
-              {city.date}
+              {city.dateDisplay || city.date}
             </span>
             <span className="hidden sm:inline text-[#D5C9B1]/30">•</span>
             <span className="flex items-center gap-1 sm:gap-2">
@@ -61,9 +67,23 @@ export function CityHero({ city }: CityHeroProps) {
             <span className="hidden sm:inline text-[#D5C9B1]/30">•</span>
             <span className="flex items-center gap-1 sm:gap-2">
               <MapPin className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5" />
-              {city.venue}
+              {city.location}
             </span>
           </motion.div>
+
+          {/* ✅ Show status badge for completed events */}
+          {city.status === 'completed' && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.2 }}
+              className="mt-3"
+            >
+              <span className="inline-block bg-rosewood/40 text-[#D5C9B1] text-xs sm:text-sm font-semibold px-3 py-1 rounded-full">
+                ✅ This event has passed
+              </span>
+            </motion.div>
+          )}
         </div>
       </div>
     </div>

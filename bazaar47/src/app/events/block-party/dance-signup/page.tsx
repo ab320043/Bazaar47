@@ -1,3 +1,4 @@
+// dancer sign up form
 // app/events/block-party/dance-signup/page.tsx
 'use client'
 
@@ -70,10 +71,17 @@ export default function DanceBattleSignupPage() {
       }
 
       // Persist the entry the same way tickets/RSVPs are saved.
-      const res = await fetch('/api/admin/save', {
+     const res = await fetch('/api/admin/submissions', {  // ← Changed from /api/admin/save
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ data: payload, type: 'dance-signup' }),
+        body: JSON.stringify({ 
+          data: {
+            ...payload,
+            eventId: 'block-party',  // ← This is the key!
+            eventSlug: 'block-party',
+          }, 
+          type: 'dance-signup' 
+        }),
       })
 
       // if (!res.ok) {

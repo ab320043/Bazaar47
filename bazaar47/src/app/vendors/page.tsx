@@ -4,10 +4,11 @@ import { motion, AnimatePresence } from 'framer-motion'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useState, useRef } from 'react'
-import { ArrowRight, ArrowLeft, CheckCircle, AlertCircle, MapPin, Calendar, ExternalLink } from 'lucide-react'
+import { ArrowRight, ArrowLeft, CheckCircle, MapPin, Calendar, ExternalLink, Clock } from 'lucide-react'
 import VendorSplash from '@/assets/newAssets/VendorSplash.png'
 import floridaTourText from '@/assets/newAssets/floridaTourText.png'
 
+// City options with Orlando marked as completed
 const cityOptions = [
   {
     id: 'orlando',
@@ -15,11 +16,9 @@ const cityOptions = [
     date: 'Saturday, August 8',
     venue: 'Casselberry Arts Center',
     pricing: [
-      // { label: 'Indoor Booth', price: '$75', size: '6\'x6\'', note: 'No tent required' },
       { label: 'Outdoor Booth', price: '$60', size: '8\'x8\'', note: 'WE WILL PROVIDE OUTDOOR VENDOR STALLS' },
-      // { label: 'No Preference', price: '$65', size: 'Flexible', note: 'Happy with indoor or outdoor! 🌟' },
     ],
-    status: 'open',
+    status: 'completed', //done, mark as needed for future events
   },
   {
     id: 'south-florida',
@@ -75,7 +74,6 @@ const cityOptions = [
 ]
 
 export default function VendorsPage() {
-  // Step 1: Show city selection
   const [step, setStep] = useState<'landing' | 'cities' | 'form' | 'success'>('landing')
   const [selectedCities, setSelectedCities] = useState<string[]>([])
   const [selectedPricing, setSelectedPricing] = useState<Record<string, string>>({})
@@ -85,7 +83,7 @@ export default function VendorsPage() {
     fullName: '',
     preferredName: '',
     pronouns: '',
-    city: '', // ← Which city do you live in?
+    city: '',
     businessName: '',
     phone: '',
     email: '',
@@ -108,12 +106,11 @@ export default function VendorsPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [formSubmitted, setFormSubmitted] = useState(false)
 
-  const getPaymentDeadlineForCities = () => {
-    if (selectedCities.length === 0) return 'Please select a city'
-    return 'Friday, July 31, 2026'
-  }
-
   const handleCityToggle = (cityId: string) => {
+    const city = cityOptions.find(c => c.id === cityId)
+    // Don't allow toggling completed cities
+    if (city?.status === 'completed') return
+    
     setSelectedCities(prev =>
       prev.includes(cityId)
         ? prev.filter(c => c !== cityId)
@@ -129,6 +126,9 @@ export default function VendorsPage() {
   }
 
   const handlePricingSelect = (cityId: string, pricingLabel: string) => {
+    const city = cityOptions.find(c => c.id === cityId)
+    if (city?.status === 'completed') return
+    
     setSelectedPricing(prev => ({
       ...prev,
       [cityId]: pricingLabel,
@@ -141,19 +141,19 @@ export default function VendorsPage() {
   }
 
   const saveToAdmin = async (data: Record<string, unknown>, type: 'vendor' | 'rsvp') => {
-  try {
-    const response = await fetch('/api/admin/save', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ data, type }),
-    })
-    if (!response.ok) {
-      console.error('Failed to save to admin')
+    try {
+      const response = await fetch('/api/admin/submissions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data, type }),
+      })
+      if (!response.ok) {
+        console.error('Failed to save to admin')
+      }
+    } catch (error) {
+      console.error('Failed to save to admin:', error)
     }
-  } catch (error) {
-    console.error('Failed to save to admin:', error)
   }
-}
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -181,15 +181,27 @@ export default function VendorsPage() {
 
       if (response.ok) {
         await saveToAdmin({
-        ...formData,
-        selectedCities: selectedCities.map(id => {
-          const city = cityOptions.find(c => c.id === id)
-          return {
-            city: city?.name,
-            pricing: selectedPricing[id] || 'Not specified',
-          }
-        }),
-      }, 'vendor')
+          ...formData,
+          selectedCities: selectedCities.map(id => {
+            const city = cityOptions.find(c => c.id === id)
+            return {
+              city: city?.name,
+              pricing: selectedPricing[id] || 'Not specified',
+            }
+          }),
+          eventIds: selectedCities.map(id => {
+            // Map city ID to event ID
+            const cityMap: Record<string, string> = {
+              'orlando': 'orlando-tour',
+              'south-florida': 'south-florida-tour',
+              'jacksonville': 'jacksonville-tour',
+              'gainesville-fest': 'gainesville-fest-tour',
+              'gulf-coast': 'gulf-coast-tour',
+              'gainesville-finale': 'gainesville-finale-tour',
+            }
+            return cityMap[id]
+          }).filter(Boolean),
+        }, 'vendor')
         setFormSubmitted(true)
         setStep('success')
         setFormData({
@@ -402,7 +414,9 @@ export default function VendorsPage() {
                 <div className="space-y-4">
                   {cityOptions.map((city) => {
                     const isSelected = selectedCities.includes(city.id)
-                    const isJacksonville = city.id === 'jacksonville'
+                    const isCompleted = city.status === 'completed'
+                    const isExternal = city.status === 'external'
+                    const isDisabled = isCompleted || isExternal
 
                     return (
                       <motion.div
@@ -413,6 +427,8 @@ export default function VendorsPage() {
                         className={`rounded-2xl border-2 p-5 transition-all duration-300 ${
                           isSelected
                             ? 'border-chartreuse bg-chartreuse/5'
+                            : isCompleted
+                            ? 'border-rosewood/20 bg-rosewood/5 opacity-70'
                             : 'border-rosewood/10 hover:border-rosewood/30'
                         }`}
                       >
@@ -422,19 +438,15 @@ export default function VendorsPage() {
                             <div className="flex items-center gap-3">
                               <button
                                 type="button"
-                                onClick={() => {
-                                  if (!isJacksonville) {
-                                    handleCityToggle(city.id)
-                                  }
-                                }}
+                                onClick={() => handleCityToggle(city.id)}
+                                disabled={isDisabled}
                                 className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all flex-shrink-0 ${
                                   isSelected
                                     ? 'bg-chartreuse border-chartreuse'
-                                    : isJacksonville
+                                    : isDisabled
                                     ? 'border-rosewood/20 cursor-not-allowed'
                                     : 'border-rosewood/30 hover:border-rosewood/50'
                                 }`}
-                                disabled={isJacksonville}
                               >
                                 {isSelected && (
                                   <CheckCircle className="w-4 h-4 text-grove" strokeWidth={3} />
@@ -445,6 +457,13 @@ export default function VendorsPage() {
                                   <h4 className="font-host-grotesk font-bold text-lg text-rosewood">
                                     {city.name}
                                   </h4>
+                                  {/* Completed Badge - NEW */}
+                                  {isCompleted && (
+                                    <span className="flex items-center gap-1 bg-poppy/10 text-poppy text-xs px-2 py-0.5 rounded-full font-host-grotesk font-semibold">
+                                      <Clock className="w-3 h-3" />
+                                      Completed
+                                    </span>
+                                  )}
                                 </div>
                                 <div className="flex items-center gap-3 text-sm text-rosewood/50 mt-0.5">
                                   <span className="flex items-center gap-1">
@@ -461,8 +480,19 @@ export default function VendorsPage() {
                           </div>
                         </div>
 
+                        {/* Completed City Message - NEW */}
+                        {isCompleted && (
+                          <div className="mt-4 pt-4 border-t border-rosewood/10">
+                            <div className="bg-poppy/10 rounded-xl p-4 text-center">
+                              <p className="font-host-grotesk text-sm text-rosewood/60">
+                                ✅ This event has already passed. You can still view details, but applications are closed.
+                              </p>
+                            </div>
+                          </div>
+                        )}
+
                         {/* Jacksonville - External link */}
-                        {isJacksonville && (
+                        {isExternal && (
                           <div className="mt-4 pt-4 border-t border-rosewood/10">
                             <div className="bg-chartreuse/10 rounded-xl p-4 text-center">
                               <p className="font-host-grotesk text-sm text-rosewood/60">{city.pricing[0].note}</p>
@@ -508,7 +538,7 @@ export default function VendorsPage() {
             </motion.div>
           )}
 
-          {/* FORM VIEW */}
+          {/* FORM VIEW - Same as before */}
           {step === 'form' && (
             <motion.div
               key="form"
@@ -549,17 +579,6 @@ export default function VendorsPage() {
                       )
                     })}
                   </div>
-                  {/* <div className="mt-4 p-4 bg-poppy/10 rounded-xl border border-poppy/20 flex items-start gap-3">
-                    <AlertCircle className="w-5 h-5 text-poppy shrink-0 mt-0.5" />
-                    <div>
-                      <p className="font-host-grotesk font-bold text-poppy text-sm">
-                        DEADLINE: Friday, July 24th at Midnight
-                      </p>
-                      <p className="font-host-grotesk text-poppy/70 text-sm">
-                        Limited spots available! Apply ASAP.
-                      </p>
-                    </div>
-                  </div> */}
                 </div>
 
                 <form ref={formRef} onSubmit={handleSubmit} className="space-y-8">
@@ -577,7 +596,7 @@ export default function VendorsPage() {
                     <div className="space-y-4">
                       {selectedCities.map((cityId) => {
                         const city = cityOptions.find(c => c.id === cityId)
-                        if (!city || city.status === 'external') return null
+                        if (!city || city.status === 'external' || city.status === 'completed') return null
                         
                         return (
                           <div key={cityId} className="bg-plaster/30 rounded-xl p-4 border border-rosewood/10">
@@ -623,14 +642,13 @@ export default function VendorsPage() {
                     </div>
                   </div>
 
-                  {/* PERSONAL INFORMATION */}
+                  {/* PERSONAL INFORMATION - Same as before */}
                   <div className="space-y-4 pt-4 border-t border-rosewood/10">
                     <h3 className="font-host-grotesk font-semibold text-xl text-rosewood flex items-center gap-2">
                       <span className="text-chartreuse">✦</span>
                       Your Information
                     </h3>
 
-                    {/* Which city do you live in? */}
                     <div>
                       <label className="font-host-grotesk font-semibold text-sm text-rosewood/80 block mb-1">
                         Which city do you live in? <span className="text-poppy">*</span>
@@ -770,7 +788,7 @@ export default function VendorsPage() {
                     </div>
                   </div>
 
-                  {/* VENDOR DETAILS */}
+                  {/* VENDOR DETAILS - Same as before */}
                   <div className="space-y-4 pt-4 border-t border-rosewood/10">
                     <h3 className="font-host-grotesk font-semibold text-xl text-rosewood flex items-center gap-2">
                       <span className="text-chartreuse">✦</span>
@@ -823,7 +841,7 @@ export default function VendorsPage() {
                     </div>
                   </div>
 
-                  {/* QUICK QUESTIONS */}
+                  {/* QUICK QUESTIONS - Same as before */}
                   <div className="space-y-4 pt-4 border-t border-rosewood/10">
                     <h3 className="font-host-grotesk font-semibold text-xl text-rosewood flex items-center gap-2">
                       <span className="text-chartreuse">✦</span>
@@ -893,7 +911,7 @@ export default function VendorsPage() {
                     </div>
                   </div>
 
-                  {/* ADDITIONAL INFO */}
+                  {/* ADDITIONAL INFO - Same as before */}
                   <div className="space-y-4 pt-4 border-t border-rosewood/10">
                     <h3 className="font-host-grotesk font-semibold text-xl text-rosewood flex items-center gap-2">
                       <span className="text-chartreuse">✦</span>
@@ -942,7 +960,7 @@ export default function VendorsPage() {
             </motion.div>
           )}
 
-          {/* SUCCESS VIEW */}
+          {/* SUCCESS VIEW - Same as before */}
           {step === 'success' && (
             <motion.div
               key="success"

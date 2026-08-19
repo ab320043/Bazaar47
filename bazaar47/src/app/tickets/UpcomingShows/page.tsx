@@ -1,4 +1,5 @@
-// app/tickets/UpcomingShows/page.tsx (updated handleSubmit section)
+// This file is the general form i want to use for any event with ability to add more fields if needed, this i'm using for the block party event upcoming
+// app/tickets/UpcomingShows/page.tsx
 'use client'
 
 import { motion } from 'framer-motion'
@@ -179,7 +180,7 @@ export default function UpcomingShowsPage() {
           
           // Save to admin
           console.log('📊 Saving to admin...')
-          const adminResponse = await fetch('/api/admin/save', {
+          const adminResponse = await fetch('/api/admin/submissions', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -189,11 +190,11 @@ export default function UpcomingShowsPage() {
                 phone: orderData.phone,
                 tickets: orderData.tickets,
                 city: orderData.city,
-                eventId: orderData.eventId,
-                eventName: orderData.eventName,
-                eventDate: orderData.eventDate,
-                eventTime: orderData.eventTime,
-                eventLocation: orderData.eventLocation,
+                eventId: selectedEvent.id,
+                eventName: selectedEvent.name,
+                eventDate: selectedEvent.date,
+                eventTime: selectedEvent.time,
+                eventLocation: selectedEvent.location,
                 orderNumber,
                 pricePaid: `$${orderData.total}`,
                 ticketCount: parseInt(orderData.tickets),
@@ -327,7 +328,7 @@ export default function UpcomingShowsPage() {
         
         // Save RSVP to admin
         console.log('📊 Saving RSVP to admin...')
-        const adminResponse = await fetch('/api/admin/save', {
+        const adminResponse = await fetch('/api/admin/submissions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
