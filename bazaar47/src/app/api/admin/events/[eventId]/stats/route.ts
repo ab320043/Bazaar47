@@ -3,15 +3,18 @@ import { getEventById } from '@/data/events'
 import { getSubmissions } from '@/lib/storage'
 import { getEventStats } from '@/lib/utils/events'
 import { isVendorData, isRSVPData, type Submission } from '@/types'
-// ✅ Import VALID_TOUR_CITIES from lib/utils
 import { VALID_TOUR_CITIES } from '@/lib/utils'
 
+// ✅ FIX: params is now a Promise in Next.js 15+
 export async function GET(
   request: NextRequest,
-  { params }: { params: { eventId: string } }
+  { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
-    const event = getEventById(params.eventId)
+    // ✅ Await the params
+    const { eventId } = await params
+    
+    const event = getEventById(eventId)
     
     if (!event) {
       return NextResponse.json(
@@ -22,15 +25,14 @@ export async function GET(
     
     const submissions = await getSubmissions() as Submission[]
     const eventSubmissions = submissions.filter(
-      (s: Submission) => s.eventId === params.eventId
+      (s: Submission) => s.eventId === eventId
     )
-    const stats = getEventStats(submissions, params.eventId)
+    const stats = getEventStats(submissions, eventId)
     
     // City breakdown (for tour events)
     const cityBreakdown: Record<string, { vendors: number; rsvps: number; tickets: number }> = {}
     
     if (event.type === 'tour') {
-      // ✅ Initialize with all tour cities from VALID_TOUR_CITIES
       VALID_TOUR_CITIES.forEach((city: string) => {
         cityBreakdown[city] = { vendors: 0, rsvps: 0, tickets: 0 }
       })

@@ -29,6 +29,9 @@ export async function GET(request: Request) {
     return NextResponse.json({ events: eventsWithStats })
   } catch (error) {
     console.error('Error fetching events:', error)
-    return NextResponse.json({ error: 'Failed to fetch events' }, { status: 500 })
+    return NextResponse.json(
+      { error: 'Failed to fetch events' },
+      { status: 500 }
+    )
   }
 }
