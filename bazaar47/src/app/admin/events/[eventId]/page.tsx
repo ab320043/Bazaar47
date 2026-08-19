@@ -6,7 +6,8 @@ import Link from 'next/link'
 import { 
   ArrowLeft, Calendar, MapPin, Users, Ticket, 
   Building2, Download, RefreshCw, BarChart3,
-  List, Users2, Music2
+  List, Users2, Music2, Search, Edit, Trash2,
+  X, CheckCircle, Clock, AlertCircle
 } from 'lucide-react'
 
 // ============================================
@@ -82,20 +83,19 @@ interface EventDetail {
 interface OverviewTabProps {
   event: EventData
   stats: EventStats
-  cityBreakdown: CityBreakdown
   breakdown: BreakdownData
-  fillRate: number
-  capacity: number
 }
 
 interface SubmissionsTabProps {
   submissions: SubmissionData[]
+  onDelete: (id: string) => void
+  onEdit: (submission: SubmissionData) => void
+  onRefresh: () => void
 }
 
 interface StatsTabProps {
   event: EventData
   stats: EventStats
-  cityBreakdown: CityBreakdown
   breakdown: BreakdownData
 }
 
@@ -112,6 +112,10 @@ export default function EventDetailPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<'overview' | 'submissions' | 'stats'>('overview')
+  const [searchTerm, setSearchTerm] = useState('')
+  const [submissionTypeFilter, setSubmissionTypeFilter] = useState<string>('all')
+  const [editingSubmission, setEditingSubmission] = useState<SubmissionData | null>(null)
+  const [showEditModal, setShowEditModal] = useState(false)
 
   const fetchEventData = useCallback(async () => {
     setLoading(true)
@@ -131,7 +135,6 @@ export default function EventDetailPage() {
       
       const result = await response.json()
       
-      // ✅ Check if result has the expected structure
       if (!result || !result.event) {
         setError('Invalid data received from server')
         setLoading(false)
@@ -148,7 +151,6 @@ export default function EventDetailPage() {
   }, [eventId])
 
   useEffect(() => {
-    // Defer the fetch so its state updates happen after the effect completes.
     const timeoutId = window.setTimeout(() => {
       fetchEventData()
     }, 0)
@@ -156,7 +158,116 @@ export default function EventDetailPage() {
     return () => window.clearTimeout(timeoutId)
   }, [fetchEventData])
 
-  // ✅ Loading state
+  const handleDeleteSubmission = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this submission?')) return
+    
+    try {
+      const response = await fetch('/api/admin/submissions', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      })
+      
+      if (response.ok) {
+        await fetchEventData()
+      } else {
+        alert('Failed to delete submission')
+      }
+    } catch (error) {
+      console.error('Delete error:', error)
+      alert('Failed to delete submission')
+    }
+  }
+
+  const handleEditSubmission = (submission: SubmissionData) => {
+    setEditingSubmission(submission)
+    setShowEditModal(true)
+  }
+
+  const handleSaveEdit = async (updatedData: Record<string, unknown>) => {
+    if (!editingSubmission) return
+    
+    try {
+      const response = await fetch('/api/admin/submissions', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          id: editingSubmission.id,
+          data: updatedData 
+        }),
+      })
+      
+      if (response.ok) {
+        setShowEditModal(false)
+        setEditingSubmission(null)
+        await fetchEventData()
+      } else {
+        alert('Failed to update submission')
+      }
+    } catch (error) {
+      console.error('Update error:', error)
+      alert('Failed to update submission')
+    }
+  }
+
+  const handleExportCSV = () => {
+    if (!data || !data.submissions || data.submissions.length === 0) {
+      alert('No submissions to export')
+      return
+    }
+
+    // Build CSV
+    const headers = ['Type', 'Name', 'Email', 'Tickets', 'Business', 'City', 'Date']
+    const rows = data.submissions.map(s => [
+      s.type,
+      s.data.fullName || s.data.businessName || s.data.dancerName || 'N/A',
+      s.data.email || '',
+      s.data.tickets || '',
+      s.data.businessName || '',
+      s.data.city || s.data.eventCity || '',
+      new Date(s.timestamp).toLocaleDateString()
+    ])
+
+    const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n')
+    const blob = new Blob([csv], { type: 'text/csv' })
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${data.event.name}-submissions-${new Date().toISOString().slice(0,10)}.csv`
+    a.click()
+    window.URL.revokeObjectURL(url)
+  }
+
+  // Filter submissions
+  const getFilteredSubmissions = () => {
+    if (!data) return []
+    
+    let filtered = data.submissions
+    
+    // Search filter
+    if (searchTerm) {
+      const search = searchTerm.toLowerCase()
+      filtered = filtered.filter(s => {
+        const searchable = [
+          s.data.fullName,
+          s.data.businessName,
+          s.data.email,
+          s.data.dancerName,
+          s.data.city,
+          s.data.eventCity,
+        ].filter(Boolean).join(' ').toLowerCase()
+        return searchable.includes(search)
+      })
+    }
+    
+    // Type filter
+    if (submissionTypeFilter !== 'all') {
+      filtered = filtered.filter(s => s.type === submissionTypeFilter)
+    }
+    
+    return filtered
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-plaster">
@@ -165,7 +276,6 @@ export default function EventDetailPage() {
     )
   }
 
-  // ✅ Error state
   if (error) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-plaster p-4">
@@ -181,7 +291,6 @@ export default function EventDetailPage() {
     )
   }
 
-  // ✅ No data state
   if (!data || !data.event) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-plaster p-4">
@@ -197,6 +306,10 @@ export default function EventDetailPage() {
   }
 
   const { event, stats, submissions, cityBreakdown, breakdown, capacity, fillRate } = data
+  const filteredSubmissions = getFilteredSubmissions()
+
+  // Get unique submission types for filter
+  const submissionTypes = ['all', ...new Set(submissions.map(s => s.type))]
 
   return (
     <div className="min-h-screen bg-plaster p-4 md:p-6 lg:p-10">
@@ -223,18 +336,14 @@ export default function EventDetailPage() {
                 <MapPin className="w-4 h-4" />
                 {event.location || 'TBD'}
               </span>
-              {capacity && (
-                <span className="flex items-center gap-1">
-                  <Users className="w-4 h-4" />
-                  {stats?.tickets || 0}/{capacity} tickets
-                </span>
-              )}
               <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
                 event.status === 'active' 
                   ? 'bg-chartreuse/10 text-chartreuse' 
                   : event.status === 'completed'
                   ? 'bg-rosewood/10 text-rosewood/50'
-                  : 'bg-hippie/10 text-hippie'
+                  : event.status === 'upcoming'
+                  ? 'bg-pomegranate/10 text-pomegranate'
+                  : 'bg-grove/10 text-grove'
               }`}>
                 {event.status ? event.status.charAt(0).toUpperCase() + event.status.slice(1) : 'Unknown'}
               </span>
@@ -249,9 +358,7 @@ export default function EventDetailPage() {
               Refresh
             </button>
             <button
-              onClick={() => {
-                // Export CSV logic
-              }}
+              onClick={handleExportCSV}
               className="bg-chartreuse hover:bg-chartreuse/90 text-grove px-4 py-2 rounded-xl font-host-grotesk font-semibold text-sm flex items-center gap-2 transition-all shadow-sm"
             >
               <Download className="w-4 h-4" />
@@ -260,7 +367,7 @@ export default function EventDetailPage() {
           </div>
         </div>
 
-        {/* Stats Overview Cards */}
+        {/* Stats Overview Cards - No ticket count display */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           <div className="bg-white rounded-xl p-4 border border-rosewood/5 shadow-sm">
             <p className="font-host-grotesk text-xs text-rosewood/40">Total Submissions</p>
@@ -282,12 +389,6 @@ export default function EventDetailPage() {
             <div className="bg-white rounded-xl p-4 border border-rosewood/5 shadow-sm">
               <p className="font-host-grotesk text-xs text-rosewood/40">Dance Signups</p>
               <p className="font-host-grotesk text-2xl font-bold text-rosewood">{stats?.danceSignups || 0}</p>
-            </div>
-          )}
-          {capacity && (
-            <div className="bg-white rounded-xl p-4 border border-rosewood/5 shadow-sm">
-              <p className="font-host-grotesk text-xs text-rosewood/40">Fill Rate</p>
-              <p className="font-host-grotesk text-2xl font-bold text-rosewood">{fillRate || 0}%</p>
             </div>
           )}
         </div>
@@ -314,7 +415,7 @@ export default function EventDetailPage() {
             }`}
           >
             <List className="w-4 h-4 inline mr-1" />
-            Submissions ({submissions?.length || 0})
+            Submissions ({filteredSubmissions.length})
           </button>
           <button
             onClick={() => setActiveTab('stats')}
@@ -335,63 +436,85 @@ export default function EventDetailPage() {
             <OverviewTab 
               event={event} 
               stats={stats} 
-              cityBreakdown={cityBreakdown || {}}
-              breakdown={breakdown || { vendors: [], rsvps: [], danceSignups: [] }}
-              fillRate={fillRate || 0}
-              capacity={capacity || 0}
+              breakdown={breakdown}
             />
           )}
           {activeTab === 'submissions' && (
-            <SubmissionsTab submissions={submissions || []} />
+            <SubmissionsTab 
+              submissions={filteredSubmissions}
+              onDelete={handleDeleteSubmission}
+              onEdit={handleEditSubmission}
+              onRefresh={fetchEventData}
+            />
           )}
           {activeTab === 'stats' && (
             <StatsTab 
               event={event}
               stats={stats}
-              cityBreakdown={cityBreakdown || {}}
-              breakdown={breakdown || { vendors: [], rsvps: [], danceSignups: [] }}
+              breakdown={breakdown}
             />
           )}
         </div>
       </div>
+
+      {/* Edit Modal */}
+      {showEditModal && editingSubmission && (
+        <EditModal
+          submission={editingSubmission}
+          onSave={handleSaveEdit}
+          onClose={() => {
+            setShowEditModal(false)
+            setEditingSubmission(null)
+          }}
+        />
+      )}
     </div>
   )
 }
 
 // ============================================
-// OVERVIEW TAB
+// OVERVIEW TAB - No City Breakdown
 // ============================================
 
 function OverviewTab({ 
   event, 
   stats, 
-  cityBreakdown, 
-  breakdown, 
-  fillRate, 
-  capacity 
+  breakdown 
 }: OverviewTabProps) {
   return (
     <div className="space-y-6">
-      {/* City Breakdown - For Tour Events */}
-      {event.type === 'tour' && cityBreakdown && Object.keys(cityBreakdown).length > 0 && (
-        <div className="bg-white rounded-2xl p-6 border border-rosewood/5 shadow-sm">
-          <h3 className="font-host-grotesk font-bold text-lg text-rosewood mb-4">
-            City Breakdown
-          </h3>
-          <div className="space-y-3">
-            {Object.entries(cityBreakdown).map(([city, data]) => (
-              <div key={city} className="flex items-center justify-between p-3 bg-plaster/30 rounded-xl">
-                <span className="font-host-grotesk font-semibold text-rosewood">{city}</span>
-                <div className="flex gap-4 text-sm">
-                  <span className="text-rosewood/50">Vendors: <strong className="text-rosewood">{data.vendors}</strong></span>
-                  <span className="text-rosewood/50">RSVPs: <strong className="text-rosewood">{data.rsvps}</strong></span>
-                  <span className="text-rosewood/50">Tickets: <strong className="text-rosewood">{data.tickets}</strong></span>
-                </div>
-              </div>
-            ))}
+      {/* Event Info */}
+      <div className="bg-white rounded-2xl p-6 border border-rosewood/5 shadow-sm">
+        <h3 className="font-host-grotesk font-bold text-lg text-rosewood mb-3">Event Information</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <p className="text-sm text-rosewood/40">Name</p>
+            <p className="font-host-grotesk font-semibold text-rosewood">{event.name}</p>
+          </div>
+          <div>
+            <p className="text-sm text-rosewood/40">Type</p>
+            <p className="font-host-grotesk font-semibold text-rosewood">{event.type}</p>
+          </div>
+          <div>
+            <p className="text-sm text-rosewood/40">Date</p>
+            <p className="font-host-grotesk font-semibold text-rosewood">{event.dateDisplay || event.date}</p>
+          </div>
+          <div>
+            <p className="text-sm text-rosewood/40">Location</p>
+            <p className="font-host-grotesk font-semibold text-rosewood">{event.location}</p>
+          </div>
+          <div>
+            <p className="text-sm text-rosewood/40">Status</p>
+            <p className="font-host-grotesk font-semibold text-rosewood">{event.status}</p>
+          </div>
+          <div>
+            <p className="text-sm text-rosewood/40">Price</p>
+            <p className="font-host-grotesk font-semibold text-rosewood">
+              {event.isFree ? 'Free' : `$${event.price}`}
+            </p>
           </div>
         </div>
-      )}
+      </div>
 
       {/* Quick Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -440,15 +563,68 @@ function OverviewTab({
 }
 
 // ============================================
-// SUBMISSIONS TAB
+// SUBMISSIONS TAB - With Search & Filters
 // ============================================
 
-function SubmissionsTab({ submissions }: SubmissionsTabProps) {
+function SubmissionsTab({ submissions, onDelete, onEdit, onRefresh }: SubmissionsTabProps) {
+  const [searchTerm, setSearchTerm] = useState('')
+  const [typeFilter, setTypeFilter] = useState<string>('all')
+  const [sortField, setSortField] = useState<'name' | 'date' | 'type'>('date')
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
+
+  // Get unique types
+  const types = ['all', ...new Set(submissions.map(s => s.type))]
+
+  // Filter submissions
+  const filtered = submissions.filter(s => {
+    if (searchTerm) {
+      const search = searchTerm.toLowerCase()
+      const data = s.data
+      const searchable = [
+        data.fullName,
+        data.businessName,
+        data.email,
+        data.dancerName,
+        data.city,
+      ].filter(Boolean).join(' ').toLowerCase()
+      if (!searchable.includes(search)) return false
+    }
+    if (typeFilter !== 'all' && s.type !== typeFilter) return false
+    return true
+  })
+
+  // Sort submissions
+  const sorted = [...filtered].sort((a, b) => {
+    let aVal: string | number = ''
+    let bVal: string | number = ''
+    
+    switch (sortField) {
+      case 'name':
+        aVal = String(a.data.fullName || a.data.businessName || a.data.dancerName || '')
+        bVal = String(b.data.fullName || b.data.businessName || b.data.dancerName || '')
+        break
+      case 'date':
+        aVal = new Date(a.timestamp).getTime()
+        bVal = new Date(b.timestamp).getTime()
+        break
+      case 'type':
+        aVal = a.type
+        bVal = b.type
+        break
+    }
+    
+    if (sortOrder === 'asc') {
+      return aVal < bVal ? -1 : aVal > bVal ? 1 : 0
+    } else {
+      return aVal > bVal ? -1 : aVal < bVal ? 1 : 0
+    }
+  })
+
   const getTypeColor = (type: string) => {
     switch (type) {
       case 'vendor': return 'bg-chartreuse/10 text-chartreuse'
       case 'rsvp': return 'bg-cypress/10 text-cypress'
-      case 'dance-signup': return 'bg-hippie/10 text-hippie'
+      case 'dance-signup': return 'bg-pomegranate/10 text-pomegranate'
       default: return 'bg-rosewood/10 text-rosewood'
     }
   }
@@ -472,9 +648,11 @@ function SubmissionsTab({ submissions }: SubmissionsTabProps) {
 
   if (!submissions || submissions.length === 0) {
     return (
-      <div className="bg-white rounded-2xl border border-rosewood/5 shadow-sm">
+      <div className="bg-white rounded-2xl border border-rosewood/5 shadow-sm p-8">
         <div className="text-center py-12 text-rosewood/40 font-host-grotesk">
-          No submissions yet
+          <AlertCircle className="w-12 h-12 mx-auto mb-3 text-rosewood/20" />
+          <p>No submissions yet</p>
+          <p className="text-sm mt-1">Submissions will appear here once people sign up</p>
         </div>
       </div>
     )
@@ -482,26 +660,80 @@ function SubmissionsTab({ submissions }: SubmissionsTabProps) {
 
   return (
     <div className="bg-white rounded-2xl border border-rosewood/5 shadow-sm overflow-hidden">
+      {/* Search and Filters */}
+      <div className="p-4 border-b border-rosewood/10 flex flex-wrap items-center gap-4 bg-plaster/20">
+        <div className="flex-1 min-w-[200px]">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-rosewood/30" />
+            <input
+              type="text"
+              placeholder="Search submissions..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 bg-white border border-rosewood/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-chartreuse/40 font-host-grotesk text-sm text-rosewood"
+            />
+          </div>
+        </div>
+
+        <select
+          value={typeFilter}
+          onChange={(e) => setTypeFilter(e.target.value)}
+          className="px-4 py-2 bg-white border border-rosewood/10 rounded-xl font-host-grotesk text-sm text-rosewood focus:outline-none focus:ring-2 focus:ring-chartreuse/40"
+        >
+          <option value="all">All Types</option>
+          {types.filter(t => t !== 'all').map(type => (
+            <option key={type} value={type}>{type.replace('-', ' ')}</option>
+          ))}
+        </select>
+
+        <button
+          onClick={onRefresh}
+          className="text-rosewood/40 hover:text-rosewood transition-colors"
+        >
+          <RefreshCw className="w-5 h-5" />
+        </button>
+
+        <span className="text-sm text-rosewood/40 ml-auto">
+          {sorted.length} of {submissions.length} shown
+        </span>
+      </div>
+
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead className="bg-plaster/30">
             <tr>
-              <th className="text-left px-4 py-3 font-host-grotesk font-semibold text-xs uppercase text-rosewood/50">Type</th>
-              <th className="text-left px-4 py-3 font-host-grotesk font-semibold text-xs uppercase text-rosewood/50">Name</th>
+              <th className="text-left px-4 py-3 font-host-grotesk font-semibold text-xs uppercase text-rosewood/50 cursor-pointer hover:text-rosewood/80" onClick={() => {
+                if (sortField === 'type') setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')
+                else { setSortField('type'); setSortOrder('asc') }
+              }}>
+                Type {sortField === 'type' && (sortOrder === 'asc' ? '↑' : '↓')}
+              </th>
+              <th className="text-left px-4 py-3 font-host-grotesk font-semibold text-xs uppercase text-rosewood/50 cursor-pointer hover:text-rosewood/80" onClick={() => {
+                if (sortField === 'name') setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')
+                else { setSortField('name'); setSortOrder('asc') }
+              }}>
+                Name {sortField === 'name' && (sortOrder === 'asc' ? '↑' : '↓')}
+              </th>
               <th className="text-left px-4 py-3 font-host-grotesk font-semibold text-xs uppercase text-rosewood/50">Email</th>
               <th className="text-left px-4 py-3 font-host-grotesk font-semibold text-xs uppercase text-rosewood/50">Details</th>
-              <th className="text-left px-4 py-3 font-host-grotesk font-semibold text-xs uppercase text-rosewood/50">Date</th>
+              <th className="text-left px-4 py-3 font-host-grotesk font-semibold text-xs uppercase text-rosewood/50 cursor-pointer hover:text-rosewood/80" onClick={() => {
+                if (sortField === 'date') setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')
+                else { setSortField('date'); setSortOrder('asc') }
+              }}>
+                Date {sortField === 'date' && (sortOrder === 'asc' ? '↑' : '↓')}
+              </th>
+              <th className="text-left px-4 py-3 font-host-grotesk font-semibold text-xs uppercase text-rosewood/50">Actions</th>
             </tr>
           </thead>
           <tbody>
-            {submissions.map((submission) => (
-              <tr key={submission.id} className="border-t border-rosewood/5 hover:bg-plaster/20">
+            {sorted.map((submission) => (
+              <tr key={submission.id} className="border-t border-rosewood/5 hover:bg-plaster/20 transition-colors">
                 <td className="px-4 py-3">
                   <span className={`text-xs font-semibold px-2 py-1 rounded-full ${getTypeColor(submission.type)}`}>
                     {submission.type.replace('-', ' ')}
                   </span>
                 </td>
-                <td className="px-4 py-3 font-host-grotesk text-sm text-rosewood">
+                <td className="px-4 py-3 font-host-grotesk text-sm text-rosewood font-medium">
                   {getDisplayName(submission)}
                 </td>
                 <td className="px-4 py-3 font-host-grotesk text-sm text-rosewood/50">
@@ -512,6 +744,24 @@ function SubmissionsTab({ submissions }: SubmissionsTabProps) {
                 </td>
                 <td className="px-4 py-3 font-host-grotesk text-sm text-rosewood/40">
                   {new Date(submission.timestamp).toLocaleDateString()}
+                </td>
+                <td className="px-4 py-3">
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => onEdit(submission)}
+                      className="text-rosewood/30 hover:text-chartreuse transition-colors p-1"
+                      title="Edit"
+                    >
+                      <Edit className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => onDelete(submission.id)}
+                      className="text-rosewood/30 hover:text-poppy transition-colors p-1"
+                      title="Delete"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -526,7 +776,7 @@ function SubmissionsTab({ submissions }: SubmissionsTabProps) {
 // STATS TAB
 // ============================================
 
-function StatsTab({ event, stats, cityBreakdown, breakdown }: StatsTabProps) {
+function StatsTab({ event, stats, breakdown }: StatsTabProps) {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -548,26 +798,148 @@ function StatsTab({ event, stats, cityBreakdown, breakdown }: StatsTabProps) {
         )}
       </div>
 
-      {/* City Breakdown Stats */}
-      {event.type === 'tour' && cityBreakdown && Object.keys(cityBreakdown).length > 0 && (
+      {/* Vendor Breakdown */}
+      {breakdown.vendors && breakdown.vendors.length > 0 && (
         <div className="bg-white rounded-2xl p-6 border border-rosewood/5 shadow-sm">
-          <h3 className="font-host-grotesk font-bold text-lg text-rosewood mb-4">
-            City Statistics
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {Object.entries(cityBreakdown).map(([city, data]) => (
-              <div key={city} className="bg-plaster/30 rounded-xl p-4">
-                <p className="font-host-grotesk font-bold text-rosewood">{city}</p>
-                <div className="mt-2 space-y-1 text-sm">
-                  <p className="text-rosewood/50">Vendors: <span className="text-rosewood font-semibold">{data.vendors}</span></p>
-                  <p className="text-rosewood/50">RSVPs: <span className="text-rosewood font-semibold">{data.rsvps}</span></p>
-                  <p className="text-rosewood/50">Tickets: <span className="text-rosewood font-semibold">{data.tickets}</span></p>
-                </div>
+          <h3 className="font-host-grotesk font-bold text-lg text-rosewood mb-4">Vendor List</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {breakdown.vendors.map((vendor, index) => (
+              <div key={index} className="bg-plaster/30 rounded-xl p-3">
+                <p className="font-host-grotesk font-semibold text-rosewood">
+                  {String(vendor.businessName || vendor.fullName || 'Unknown')}
+                </p>
+                <p className="text-sm text-rosewood/40">{String(vendor.email || '')}</p>
+                {vendor.products && (
+                  <p className="text-xs text-rosewood/30 mt-1">{String(vendor.products)}</p>
+                )}
               </div>
             ))}
           </div>
         </div>
       )}
+
+      {/* RSVP Breakdown */}
+      {breakdown.rsvps && breakdown.rsvps.length > 0 && (
+        <div className="bg-white rounded-2xl p-6 border border-rosewood/5 shadow-sm">
+          <h3 className="font-host-grotesk font-bold text-lg text-rosewood mb-4">RSVP List</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {breakdown.rsvps.map((rsvp, index) => (
+              <div key={index} className="bg-plaster/30 rounded-xl p-3">
+                <p className="font-host-grotesk font-semibold text-rosewood">
+                  {String(rsvp.fullName || 'Unknown')}
+                </p>
+                <p className="text-sm text-rosewood/40">{String(rsvp.email || '')}</p>
+                {rsvp.tickets && (
+                  <p className="text-xs text-chartreuse font-semibold">{rsvp.tickets} tickets</p>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ============================================
+// EDIT MODAL
+// ============================================
+
+function EditModal({ 
+  submission, 
+  onSave, 
+  onClose 
+}: { 
+  submission: SubmissionData
+  onSave: (data: Record<string, string | number | string[] | boolean | undefined>) => void
+  onClose: () => void
+}) {
+  const [formData, setFormData] = useState(submission.data)
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    onSave(formData)
+  }
+
+  return (
+    <div className="fixed inset-0 bg-rosewood/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <div className="sticky top-0 bg-white border-b border-rosewood/10 p-6 flex items-center justify-between">
+          <div>
+            <h3 className="font-host-grotesk font-bold text-2xl text-rosewood">Edit Submission</h3>
+            <p className="font-host-grotesk text-sm text-rosewood/50">
+              {submission.type} • {new Date(submission.timestamp).toLocaleDateString()}
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-2 hover:bg-plaster/50 rounded-full transition-colors"
+          >
+            <X className="w-5 h-5 text-rosewood/60" />
+          </button>
+        </div>
+        
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          {Object.entries(formData).map(([key, value]) => {
+            // Skip internal fields
+            if (['_subject', '_replyto'].includes(key)) return null
+            
+            const label = key
+              .replace(/([A-Z])/g, ' $1')
+              .replace(/^./, (str) => str.toUpperCase())
+            
+            return (
+              <div key={key}>
+                <label className="font-host-grotesk font-semibold text-sm text-rosewood/80 block mb-1">
+                  {label}
+                </label>
+                {typeof value === 'string' && value.length > 100 ? (
+                  <textarea
+                    value={String(value)}
+                    onChange={(e) => setFormData({ ...formData, [key]: e.target.value })}
+                    rows={3}
+                    className="w-full px-4 py-2 bg-plaster/30 border border-rosewood/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-chartreuse/40 font-host-grotesk text-rosewood"
+                  />
+                ) : typeof value === 'string' || typeof value === 'number' ? (
+                  <input
+                    type="text"
+                    value={String(value)}
+                    onChange={(e) => setFormData({ ...formData, [key]: e.target.value })}
+                    className="w-full px-4 py-2 bg-plaster/30 border border-rosewood/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-chartreuse/40 font-host-grotesk text-rosewood"
+                  />
+                ) : typeof value === 'object' ? (
+                  <pre className="w-full px-4 py-2 bg-plaster/30 border border-rosewood/20 rounded-xl font-host-grotesk text-sm text-rosewood overflow-auto">
+                    {JSON.stringify(value, null, 2)}
+                  </pre>
+                ) : (
+                  <input
+                    type="text"
+                    value={String(value)}
+                    onChange={(e) => setFormData({ ...formData, [key]: e.target.value })}
+                    className="w-full px-4 py-2 bg-plaster/30 border border-rosewood/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-chartreuse/40 font-host-grotesk text-rosewood"
+                  />
+                )}
+              </div>
+            )
+          })}
+          
+          <div className="flex gap-3 pt-4 border-t border-rosewood/10">
+            <button
+              type="submit"
+              className="bg-chartreuse hover:bg-chartreuse/90 text-grove px-6 py-2 rounded-xl font-host-grotesk font-semibold transition-all"
+            >
+              Save Changes
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="bg-rosewood/10 hover:bg-rosewood/20 text-rosewood/60 px-6 py-2 rounded-xl font-host-grotesk font-semibold transition-all"
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   )
 }

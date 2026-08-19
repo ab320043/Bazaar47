@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { 
   Calendar, MapPin, Users, Ticket, 
-  Building2, ArrowRight, CheckCircle, Clock
+  Building2, ArrowRight, CheckCircle, Clock,
+  Search, Filter, X
 } from 'lucide-react'
 
 interface EventWithStats {
@@ -35,6 +36,8 @@ export default function AdminDashboard() {
   const [events, setEvents] = useState<EventWithStats[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<'all' | 'active' | 'upcoming' | 'past'>('all')
+  const [searchTerm, setSearchTerm] = useState('')
+  const [selectedCity, setSelectedCity] = useState<string>('all')
 
   useEffect(() => {
     let cancelled = false
@@ -63,22 +66,61 @@ export default function AdminDashboard() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'active': return 'bg-chartreuse'
-      case 'completed': return 'bg-rosewood/40'
-      case 'upcoming': return 'bg-hippie'
-      case 'past': return 'bg-rosewood/30'
-      default: return 'bg-rosewood/20'
+      case 'active': return 'border-chartreuse/50 bg-chartreuse/5'
+      case 'completed': return 'border-rosewood/30 bg-rosewood/5'
+      case 'upcoming': return 'border-pomegranate/50 bg-pomegranate/5'
+      case 'past': return 'border-grove/30 bg-grove/5'
+      default: return 'border-rosewood/10'
     }
   }
 
-  const getStatusIcon = (status: string) => {
+  const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'active': return <div className="w-2 h-2 rounded-full bg-chartreuse animate-pulse" />
-      case 'completed': return <CheckCircle className="w-4 h-4 text-rosewood/40" />
-      case 'upcoming': return <Clock className="w-4 h-4 text-hippie" />
-      default: return <div className="w-2 h-2 rounded-full bg-rosewood/30" />
+      case 'active': return 'bg-chartreuse text-grove'
+      case 'completed': return 'bg-rosewood/20 text-rosewood/60'
+      case 'upcoming': return 'bg-pomegranate text-plaster'
+      case 'past': return 'bg-grove/20 text-grove'
+      default: return 'bg-rosewood/10 text-rosewood'
     }
   }
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'active': return '🟢 Live Now'
+      case 'completed': return '✅ Completed'
+      case 'upcoming': return '🔜 Upcoming'
+      case 'past': return '📅 Past'
+      default: return status
+    }
+  }
+
+  // Get unique cities from tour events
+  const tourCities = Array.from(
+    new Set(events.filter(e => e.type === 'tour').map(e => e.city).filter(Boolean))
+  )
+
+  // Filter events
+  const filteredEvents = events.filter(event => {
+    // Search filter
+    if (searchTerm) {
+      const search = searchTerm.toLowerCase()
+      const matchName = event.name.toLowerCase().includes(search)
+      const matchCity = event.city?.toLowerCase().includes(search) || false
+      const matchLocation = event.location.toLowerCase().includes(search)
+      if (!matchName && !matchCity && !matchLocation) return false
+    }
+
+    // City filter (only for tour events)
+    if (selectedCity !== 'all' && event.type === 'tour') {
+      if (event.city !== selectedCity) return false
+    }
+
+    return true
+  })
+
+  // Group events by type
+  const tourEvents = filteredEvents.filter(e => e.type === 'tour')
+  const standaloneEvents = filteredEvents.filter(e => e.type !== 'tour')
 
   if (loading) {
     return (
@@ -87,10 +129,6 @@ export default function AdminDashboard() {
       </div>
     )
   }
-
-  // Group events by type
-  const tourEvents = events.filter(e => e.type === 'tour')
-  const standaloneEvents = events.filter(e => e.type !== 'tour')
 
   return (
     <div className="min-h-screen bg-plaster p-4 md:p-6 lg:p-10">
@@ -103,10 +141,10 @@ export default function AdminDashboard() {
               Dashboard
             </h1>
             <p className="font-host-grotesk text-rosewood/50">
-              {events.length} events • {events.reduce((acc, e) => acc + e.stats.total, 0)} total submissions
+              {filteredEvents.length} events • {filteredEvents.reduce((acc, e) => acc + e.stats.total, 0)} total submissions
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             {(['all', 'active', 'upcoming', 'past'] as const).map((f) => (
               <button
                 key={f}
@@ -123,6 +161,45 @@ export default function AdminDashboard() {
           </div>
         </div>
 
+        {/* Search & Filters */}
+        <div className="flex flex-wrap items-center gap-4 mb-6">
+          <div className="flex-1 min-w-[200px]">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-rosewood/30" />
+              <input
+                type="text"
+                placeholder="Search events by name, city, or location..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2.5 bg-white border border-rosewood/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-chartreuse/40 font-host-grotesk text-sm text-rosewood"
+              />
+            </div>
+          </div>
+
+          {/* City Filter - Only for tour events */}
+          {tourCities.length > 0 && (
+            <select
+              value={selectedCity}
+              onChange={(e) => setSelectedCity(e.target.value)}
+              className="px-4 py-2.5 bg-white border border-rosewood/10 rounded-xl font-host-grotesk text-sm text-rosewood focus:outline-none focus:ring-2 focus:ring-chartreuse/40"
+            >
+              <option value="all">All Cities</option>
+              {tourCities.map(city => (
+                <option key={city} value={city}>{city}</option>
+              ))}
+            </select>
+          )}
+
+          {searchTerm && (
+            <button
+              onClick={() => setSearchTerm('')}
+              className="text-rosewood/40 hover:text-rosewood transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          )}
+        </div>
+
         {/* Tour Events Section */}
         {tourEvents.length > 0 && (
           <div className="mb-8">
@@ -135,7 +212,7 @@ export default function AdminDashboard() {
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {tourEvents.map((event) => (
-                <EventCard key={event.id} event={event} />
+                <EventCard key={event.id} event={event} getStatusBadge={getStatusBadge} getStatusLabel={getStatusLabel} />
               ))}
             </div>
           </div>
@@ -153,7 +230,7 @@ export default function AdminDashboard() {
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {standaloneEvents.map((event) => (
-                <EventCard key={event.id} event={event} />
+                <EventCard key={event.id} event={event} getStatusBadge={getStatusBadge} getStatusLabel={getStatusLabel} />
               ))}
             </div>
           </div>
@@ -164,21 +241,23 @@ export default function AdminDashboard() {
 }
 
 // Event Card Component
-function EventCard({ event }: { event: EventWithStats }) {
-  const statusColor = event.status === 'active' ? 'border-chartreuse/30' : 'border-rosewood/10'
+function EventCard({ event, getStatusBadge, getStatusLabel }: { 
+  event: EventWithStats
+  getStatusBadge: (status: string) => string
+  getStatusLabel: (status: string) => string
+}) {
+  const statusColor = getStatusBadge(event.status)
+  const cardBorder = event.status === 'active' ? 'border-chartreuse/30' : 
+                     event.status === 'upcoming' ? 'border-pomegranate/30' :
+                     event.status === 'completed' ? 'border-rosewood/20' : 'border-rosewood/10'
   
   return (
     <Link href={`/admin/events/${event.id}`}>
-      <div className={`bg-white rounded-2xl p-5 border-2 ${statusColor} shadow-sm hover:shadow-md transition-all cursor-pointer hover:-translate-y-1`}>
+      <div className={`bg-white rounded-2xl p-5 border-2 ${cardBorder} shadow-sm hover:shadow-md transition-all cursor-pointer hover:-translate-y-1`}>
         <div className="flex items-start justify-between mb-3">
           <div>
             <div className="flex items-center gap-2">
               <h3 className="font-host-grotesk font-bold text-lg text-rosewood">{event.name}</h3>
-              {event.status === 'completed' && (
-                <span className="text-xs bg-rosewood/10 text-rosewood/50 px-2 py-0.5 rounded-full">
-                  Done
-                </span>
-              )}
             </div>
             <div className="flex items-center gap-2 text-sm text-rosewood/40 mt-0.5">
               <Calendar className="w-3.5 h-3.5" />
@@ -186,12 +265,9 @@ function EventCard({ event }: { event: EventWithStats }) {
             </div>
           </div>
           <div className="flex items-center gap-1.5">
-            {event.status === 'active' && (
-              <span className="text-xs font-host-grotesk font-semibold text-chartreuse bg-chartreuse/10 px-2 py-0.5 rounded-full">
-                Live
-              </span>
-            )}
-            <div className={`w-2.5 h-2.5 rounded-full ${event.status === 'active' ? 'bg-chartreuse animate-pulse' : 'bg-rosewood/30'}`} />
+            <span className={`text-xs font-host-grotesk font-semibold px-2 py-0.5 rounded-full ${statusColor}`}>
+              {getStatusLabel(event.status)}
+            </span>
           </div>
         </div>
 
@@ -200,7 +276,7 @@ function EventCard({ event }: { event: EventWithStats }) {
           <span>{event.location}</span>
         </div>
 
-        {/* Stats */}
+        {/* Stats - Removed capacity display */}
         <div className="grid grid-cols-3 gap-2 pt-3 border-t border-rosewood/5">
           <div className="text-center">
             <p className="font-host-grotesk text-xs text-rosewood/40">Total</p>
@@ -228,7 +304,7 @@ function EventCard({ event }: { event: EventWithStats }) {
 
         <div className="mt-3 pt-3 border-t border-rosewood/5 flex items-center justify-between">
           <span className="font-host-grotesk text-xs text-rosewood/40">
-            {event.capacity ? `${event.stats.tickets}/${event.capacity} tickets` : `${event.stats.tickets} tickets`}
+            {event.stats.tickets} tickets sold
           </span>
           <span className="text-chartreuse font-host-grotesk text-sm font-semibold flex items-center gap-1">
             View Details <ArrowRight className="w-4 h-4" />

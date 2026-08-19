@@ -139,3 +139,58 @@ export async function POST(request: NextRequest) {
     )
   }
 }
+
+// DELETE handler
+export async function DELETE(request: NextRequest) {
+  try {
+    const { id } = await request.json()
+    const submissions = await getSubmissions()
+    const filtered = submissions.filter((s: { id: string }) => s.id !== id)
+    
+    if (filtered.length === submissions.length) {
+      return NextResponse.json(
+        { error: 'Submission not found' },
+        { status: 404 }
+      )
+    }
+    
+    await saveSubmissions(filtered)
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    console.error('Delete error:', error)
+    return NextResponse.json(
+      { error: 'Failed to delete submission' },
+      { status: 500 }
+    )
+  }
+}
+
+// PUT handler for editing
+export async function PUT(request: NextRequest) {
+  try {
+    const { id, data } = await request.json()
+    const submissions = await getSubmissions()
+    
+    const index = submissions.findIndex((s: { id: string }) => s.id !== id)
+    if (index === -1) {
+      return NextResponse.json(
+        { error: 'Submission not found' },
+        { status: 404 }
+      )
+    }
+    
+    submissions[index] = {
+      ...submissions[index],
+      data: { ...submissions[index].data, ...data },
+    }
+    
+    await saveSubmissions(submissions)
+    return NextResponse.json({ success: true, submission: submissions[index] })
+  } catch (error) {
+    console.error('Update error:', error)
+    return NextResponse.json(
+      { error: 'Failed to update submission' },
+      { status: 500 }
+    )
+  }
+}
