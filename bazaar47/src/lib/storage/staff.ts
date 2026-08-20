@@ -1,95 +1,40 @@
 // lib/storage/staff.ts
 import { Redis } from '@upstash/redis'
-import fs from 'fs'
-import path from 'path'
 import type { StaffMember, StaffFilters } from '@/types/staff'
 
-// Initialize Redis (only if environment variables exist)
-let redis: Redis | null = null
-try {
-  if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
-    redis = Redis.fromEnv()
-  }
-} catch (error) {
-  console.log('Redis not configured - using file storage')
-  redis = null
-}
-
+// ✅ Use the same Redis instance as submissions
+const redis = Redis.fromEnv()
 const STAFF_KEY = 'staff'
-const STAFF_FILE = path.join(process.cwd(), 'data', 'staff.json')
-
-// Ensure data directory exists
-const dataDir = path.dirname(STAFF_FILE)
-if (!fs.existsSync(dataDir)) {
-  fs.mkdirSync(dataDir, { recursive: true })
-}
 
 // ============================================
-// GET ALL STAFF
+// READ STAFF
 // ============================================
 
 export async function getStaff(): Promise<StaffMember[]> {
-  if (process.env.VERCEL && redis) {
-    try {
-      const staff = await redis.get(STAFF_KEY)
-      return (staff as StaffMember[]) || []
-    } catch (error) {
-      console.error('Redis get error:', error)
-      return []
-    }
-  }
-
   try {
-    if (!fs.existsSync(STAFF_FILE)) {
-      fs.writeFileSync(STAFF_FILE, JSON.stringify([], null, 2))
-      return []
-    }
-    const content = fs.readFileSync(STAFF_FILE, 'utf-8')
-    return JSON.parse(content)
+    const staff = await redis.get(STAFF_KEY)
+    return (staff as StaffMember[]) || []
   } catch (error) {
-    console.error('File read error:', error)
+    console.error('Redis get error:', error)
     return []
   }
 }
 
 // ============================================
-// FILTER STAFF
+// SAVE STAFF
 // ============================================
 
-export async function filterStaff(filters: StaffFilters): Promise<StaffMember[]> {
-  const staff = await getStaff()
-  
-  return staff.filter(member => {
-    // Search filter
-    if (filters.search) {
-      const search = filters.search.toLowerCase()
-      const matchName = member.name.toLowerCase().includes(search)
-      const matchEmail = member.email.toLowerCase().includes(search)
-      if (!matchName && !matchEmail) return false
-    }
-    
-    // Role filter
-    if (filters.role && member.primaryRole !== filters.role) {
-      return false
-    }
-    
-    // Position filter
-    if (filters.position && member.position !== filters.position) {
-      return false
-    }
-    
-    // Status filter
-    if (filters.status) {
-      const isActive = filters.status === 'active'
-      if (member.isActive !== isActive) return false
-    }
-    
-    return true
-  })
+export async function saveStaff(staff: StaffMember[]): Promise<void> {
+  try {
+    await redis.set(STAFF_KEY, staff)
+  } catch (error) {
+    console.error('Redis set error:', error)
+    throw new Error('Failed to save staff')
+  }
 }
 
 // ============================================
-// GET STAFF BY ID
+// CRUD OPERATIONS
 // ============================================
 
 export async function getStaffById(id: string): Promise<StaffMember | undefined> {
@@ -97,16 +42,12 @@ export async function getStaffById(id: string): Promise<StaffMember | undefined>
   return staff.find(s => s.id === id)
 }
 
-// ============================================
-// CREATE STAFF
-// ============================================
-
 export async function createStaff(
-  staff: Omit<StaffMember, 'id' | 'createdAt' | 'updatedAt'>
+  staffData: Omit<StaffMember, 'id' | 'createdAt' | 'updatedAt'>
 ): Promise<StaffMember> {
   const existing = await getStaff()
   const newStaff: StaffMember = {
-    ...staff,
+    ...staffData,
     id: crypto.randomUUID(),
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -115,10 +56,6 @@ export async function createStaff(
   await saveStaff(existing)
   return newStaff
 }
-
-// ============================================
-// UPDATE STAFF
-// ============================================
 
 export async function updateStaff(
   id: string,
@@ -137,10 +74,6 @@ export async function updateStaff(
   return staff[index]
 }
 
-// ============================================
-// DELETE STAFF
-// ============================================
-
 export async function deleteStaff(id: string): Promise<boolean> {
   const staff = await getStaff()
   const filtered = staff.filter(s => s.id !== id)
@@ -149,31 +82,33 @@ export async function deleteStaff(id: string): Promise<boolean> {
   return true
 }
 
-// ============================================
-// SAVE STAFF (Internal)
-// ============================================
-
-async function saveStaff(staff: StaffMember[]): Promise<void> {
-  if (process.env.VERCEL && redis) {
-    try {
-      await redis.set(STAFF_KEY, staff)
-    } catch (error) {
-      console.error('Redis set error:', error)
-      throw new Error('Failed to save staff')
+export async function filterStaff(filters: StaffFilters): Promise<StaffMember[]> {
+  const staff = await getStaff()
+  
+  return staff.filter(member => {
+    if (filters.search) {
+      const search = filters.search.toLowerCase()
+      const matchName = member.name.toLowerCase().includes(search)
+      const matchEmail = member.email.toLowerCase().includes(search)
+      if (!matchName && !matchEmail) return false
     }
-  } else {
-    try {
-      fs.writeFileSync(STAFF_FILE, JSON.stringify(staff, null, 2))
-    } catch (error) {
-      console.error('File write error:', error)
-      throw new Error('Failed to save staff')
+    
+    if (filters.role && member.primaryRole !== filters.role) {
+      return false
     }
-  }
+    
+    if (filters.position && member.position !== filters.position) {
+      return false
+    }
+    
+    if (filters.status) {
+      const isActive = filters.status === 'active'
+      if (member.isActive !== isActive) return false
+    }
+    
+    return true
+  })
 }
-
-// ============================================
-// GET STAFF STATS
-// ============================================
 
 export async function getStaffStats(): Promise<{
   total: number

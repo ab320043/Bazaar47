@@ -1,59 +1,40 @@
 // lib/storage/staff-assignments.ts
 import { Redis } from '@upstash/redis'
-import fs from 'fs'
-import path from 'path'
-import type { StaffAssignment, AssignmentStatus, EventType } from '@/types/staff'
+import type { StaffAssignment, AssignmentStatus } from '@/types/staff'
 
-// Initialize Redis (only if environment variables exist)
-let redis: Redis | null = null
-try {
-  if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
-    redis = Redis.fromEnv()
-  }
-} catch (error) {
-  console.log('Redis not configured - using file storage')
-  redis = null
-}
-
+// ✅ Use the same Redis instance as submissions
+const redis = Redis.fromEnv()
 const ASSIGNMENTS_KEY = 'staff_assignments'
-const ASSIGNMENTS_FILE = path.join(process.cwd(), 'data', 'staff-assignments.json')
-
-// Ensure data directory exists
-const dataDir = path.dirname(ASSIGNMENTS_FILE)
-if (!fs.existsSync(dataDir)) {
-  fs.mkdirSync(dataDir, { recursive: true })
-}
 
 // ============================================
-// GET ALL ASSIGNMENTS
+// READ ASSIGNMENTS
 // ============================================
 
 export async function getAssignments(): Promise<StaffAssignment[]> {
-  if (process.env.VERCEL && redis) {
-    try {
-      const assignments = await redis.get(ASSIGNMENTS_KEY)
-      return (assignments as StaffAssignment[]) || []
-    } catch (error) {
-      console.error('Redis get error:', error)
-      return []
-    }
-  }
-
   try {
-    if (!fs.existsSync(ASSIGNMENTS_FILE)) {
-      fs.writeFileSync(ASSIGNMENTS_FILE, JSON.stringify([], null, 2))
-      return []
-    }
-    const content = fs.readFileSync(ASSIGNMENTS_FILE, 'utf-8')
-    return JSON.parse(content)
+    const assignments = await redis.get(ASSIGNMENTS_KEY)
+    return (assignments as StaffAssignment[]) || []
   } catch (error) {
-    console.error('File read error:', error)
+    console.error('Redis get error:', error)
     return []
   }
 }
 
 // ============================================
-// GET ASSIGNMENTS BY EVENT
+// SAVE ASSIGNMENTS
+// ============================================
+
+export async function saveAssignments(assignments: StaffAssignment[]): Promise<void> {
+  try {
+    await redis.set(ASSIGNMENTS_KEY, assignments)
+  } catch (error) {
+    console.error('Redis set error:', error)
+    throw new Error('Failed to save assignments')
+  }
+}
+
+// ============================================
+// CRUD OPERATIONS
 // ============================================
 
 export async function getAssignmentsByEvent(eventId: string): Promise<StaffAssignment[]> {
@@ -61,27 +42,15 @@ export async function getAssignmentsByEvent(eventId: string): Promise<StaffAssig
   return assignments.filter(a => a.eventId === eventId)
 }
 
-// ============================================
-// GET ASSIGNMENTS BY STAFF
-// ============================================
-
 export async function getAssignmentsByStaff(staffId: string): Promise<StaffAssignment[]> {
   const assignments = await getAssignments()
   return assignments.filter(a => a.staffId === staffId)
 }
 
-// ============================================
-// GET ASSIGNMENTS BY STATUS
-// ============================================
-
 export async function getAssignmentsByStatus(status: AssignmentStatus): Promise<StaffAssignment[]> {
   const assignments = await getAssignments()
   return assignments.filter(a => a.status === status)
 }
-
-// ============================================
-// GET UPCOMING ASSIGNMENTS
-// ============================================
 
 export async function getUpcomingAssignments(staffId?: string): Promise<StaffAssignment[]> {
   const assignments = await getAssignments()
@@ -99,16 +68,12 @@ export async function getUpcomingAssignments(staffId?: string): Promise<StaffAss
   return filtered.sort((a, b) => new Date(a.shiftStart).getTime() - new Date(b.shiftStart).getTime())
 }
 
-// ============================================
-// CREATE ASSIGNMENT
-// ============================================
-
 export async function createAssignment(
-  assignment: Omit<StaffAssignment, 'id' | 'createdAt' | 'updatedAt'>
+  assignmentData: Omit<StaffAssignment, 'id' | 'createdAt' | 'updatedAt'>
 ): Promise<StaffAssignment> {
   const existing = await getAssignments()
   const newAssignment: StaffAssignment = {
-    ...assignment,
+    ...assignmentData,
     id: crypto.randomUUID(),
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -117,10 +82,6 @@ export async function createAssignment(
   await saveAssignments(existing)
   return newAssignment
 }
-
-// ============================================
-// UPDATE ASSIGNMENT
-// ============================================
 
 export async function updateAssignment(
   id: string,
@@ -139,10 +100,6 @@ export async function updateAssignment(
   return assignments[index]
 }
 
-// ============================================
-// DELETE ASSIGNMENT
-// ============================================
-
 export async function deleteAssignment(id: string): Promise<boolean> {
   const assignments = await getAssignments()
   const filtered = assignments.filter(a => a.id !== id)
@@ -151,20 +108,12 @@ export async function deleteAssignment(id: string): Promise<boolean> {
   return true
 }
 
-// ============================================
-// CHECK IN STAFF
-// ============================================
-
 export async function checkInStaff(id: string): Promise<StaffAssignment | undefined> {
   return updateAssignment(id, {
     checkInTime: new Date().toISOString(),
     status: 'checked-in',
   })
 }
-
-// ============================================
-// CHECK OUT STAFF
-// ============================================
 
 export async function checkOutStaff(id: string): Promise<StaffAssignment | undefined> {
   const assignment = await getAssignments().then(a => a.find(a => a.id === id))
@@ -184,32 +133,6 @@ export async function checkOutStaff(id: string): Promise<StaffAssignment | undef
     status: 'completed',
   })
 }
-
-// ============================================
-// SAVE ASSIGNMENTS (Internal)
-// ============================================
-
-async function saveAssignments(assignments: StaffAssignment[]): Promise<void> {
-  if (process.env.VERCEL && redis) {
-    try {
-      await redis.set(ASSIGNMENTS_KEY, assignments)
-    } catch (error) {
-      console.error('Redis set error:', error)
-      throw new Error('Failed to save assignments')
-    }
-  } else {
-    try {
-      fs.writeFileSync(ASSIGNMENTS_FILE, JSON.stringify(assignments, null, 2))
-    } catch (error) {
-      console.error('File write error:', error)
-      throw new Error('Failed to save assignments')
-    }
-  }
-}
-
-// ============================================
-// GET STAFF DASHBOARD DATA
-// ============================================
 
 export async function getStaffDashboardData(staffId: string): Promise<{
   upcoming: StaffAssignment[]
@@ -241,7 +164,6 @@ export async function getStaffDashboardData(staffId: string): Promise<{
     return shiftEnd < now || a.status === 'completed'
   }).sort((a, b) => new Date(b.shiftEnd).getTime() - new Date(a.shiftEnd).getTime())
   
-  // Calculate stats for this month
   const thisMonth = assignments.filter(a => {
     const date = new Date(a.createdAt)
     return date >= startOfMonth && (a.status === 'completed')

@@ -1,6 +1,7 @@
+// app/api/admin/staff/route.ts
 import { NextRequest, NextResponse } from 'next/server'
 import { getStaff, createStaff, filterStaff, getStaffStats } from '@/lib/storage/staff'
-import type { StaffMember, StaffFilters, StaffRole, StaffPosition, StaffStatus } from '@/types/staff'
+import type { StaffMember, StaffFilters } from '@/types/staff'
 
 // ============================================
 // GET - List all staff with optional filters
@@ -10,28 +11,24 @@ export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams
     
-    // Build filters from query params
     const filters: StaffFilters = {}
     
     const search = searchParams.get('search')
     if (search) filters.search = search
     
-    const role = searchParams.get('role') as StaffRole | null
+    const role = searchParams.get('role') as StaffFilters['role']
     if (role) filters.role = role
     
-    const position = searchParams.get('position') as StaffPosition | null
+    const position = searchParams.get('position') as StaffFilters['position']
     if (position) filters.position = position
     
-    const status = searchParams.get('status') as StaffStatus | null
+    const status = searchParams.get('status') as StaffFilters['status']
     if (status) filters.status = status
     
-    // Check if we need stats
     const includeStats = searchParams.get('stats') === 'true'
     
-    // Get filtered staff
     const staff = await filterStaff(filters)
     
-    // Get stats if requested
     let stats = null
     if (includeStats) {
       stats = await getStaffStats()
@@ -43,7 +40,7 @@ export async function GET(request: NextRequest) {
       stats,
     })
   } catch (error) {
-    console.error('Error fetching staff:', error)
+    console.error('❌ Error fetching staff:', error)
     return NextResponse.json(
       { error: 'Failed to fetch staff' },
       { status: 500 }
@@ -59,9 +56,15 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     
+    console.log('📝 Creating staff member:', { 
+      name: body.name, 
+      email: body.email,
+      role: body.primaryRole 
+    })
+    
     // Validate required fields
-    const requiredFields: (keyof StaffMember)[] = ['name', 'email', 'phone', 'primaryRole', 'position', 'hourlyRate', 'nonprofitRate']
-    const missingFields = requiredFields.filter(field => !body[field])
+    const requiredFields = ['name', 'email', 'phone', 'primaryRole', 'position', 'hourlyRate', 'nonprofitRate']
+    const missingFields = requiredFields.filter(field => body[field] === undefined || body[field] === null)
     
     if (missingFields.length > 0) {
       return NextResponse.json(
@@ -70,26 +73,11 @@ export async function POST(request: NextRequest) {
       )
     }
     
-    // Validate email format
+    // Validate email
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!emailRegex.test(body.email)) {
       return NextResponse.json(
         { error: 'Invalid email format' },
-        { status: 400 }
-      )
-    }
-    
-    // Validate rates are numbers
-    if (typeof body.hourlyRate !== 'number' || body.hourlyRate < 0) {
-      return NextResponse.json(
-        { error: 'Hourly rate must be a positive number' },
-        { status: 400 }
-      )
-    }
-    
-    if (typeof body.nonprofitRate !== 'number' || body.nonprofitRate < 0) {
-      return NextResponse.json(
-        { error: 'Nonprofit rate must be a positive number' },
         { status: 400 }
       )
     }
@@ -103,19 +91,25 @@ export async function POST(request: NextRequest) {
       position: body.position,
       hourlyRate: body.hourlyRate,
       nonprofitRate: body.nonprofitRate,
-      status: body.status || 'active',
       isActive: body.isActive !== undefined ? body.isActive : true,
       notes: body.notes || '',
+      status: 'active'
     })
+    
+    console.log('✅ Staff created successfully:', { id: newStaff.id, name: newStaff.name })
     
     return NextResponse.json({
       success: true,
       staff: newStaff,
     }, { status: 201 })
   } catch (error) {
-    console.error('Error creating staff:', error)
+    console.error('❌ Error creating staff:', error)
+    
+    // Send detailed error for debugging
+    const errorMessage = error instanceof Error ? error.message : 'Failed to create staff member'
+    
     return NextResponse.json(
-      { error: 'Failed to create staff member' },
+      { error: errorMessage },
       { status: 500 }
     )
   }
