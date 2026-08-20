@@ -1,9 +1,11 @@
-import { NextResponse } from 'next/server'
-import { isAdminAuthenticated } from '@/lib/admin/auth'
+import { NextRequest, NextResponse } from 'next/server'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const authenticated = await isAdminAuthenticated()
+    // ✅ Read cookie from the request
+    const sessionCookie = request.cookies.get('admin_session')
+    const authenticated = sessionCookie?.value === 'authenticated'
+    
     return NextResponse.json({ 
       authenticated,
       message: authenticated ? 'Authenticated' : 'Not authenticated'

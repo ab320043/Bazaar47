@@ -1,1 +1,17 @@
-[]
+[
+  {
+    "name": "Abdallah RH",
+    "email": "abdallahrh001@gmail.com",
+    "phone": "3523625758",
+    "primaryRole": "event-coordinator",
+    "position": "team-member",
+    "hourlyRate": 20,
+    "nonprofitRate": 15,
+    "status": "active",
+    "isActive": true,
+    "notes": "",
+    "id": "cdc77029-7cfc-4a50-836c-458bd6da8aad",
+    "createdAt": "2026-08-20T02:47:59.292Z",
+    "updatedAt": "2026-08-20T02:47:59.293Z"
+  }
+]

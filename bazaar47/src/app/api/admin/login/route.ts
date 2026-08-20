@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { setAdminSession } from '@/lib/admin/auth'
 
 export async function POST(request: NextRequest) {
   try {
@@ -19,16 +18,28 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Validate credentials - case sensitive
+    // Validate credentials
     if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
-      setAdminSession()
-      return NextResponse.json({ 
+      // ✅ Create response with cookie using NextResponse
+      const response = NextResponse.json({ 
         success: true,
-        message: 'Login successful'
+        message: 'Login successful',
+        redirect: '/admin/dashboard'
       })
+      
+      // ✅ Set the cookie on the response
+      response.cookies.set('admin_session', 'authenticated', {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/',
+        maxAge: 60 * 60 * 24, // 24 hours
+      })
+      
+      return response
     }
 
-    // Failed login - generic message for security
+    // Failed login
     return NextResponse.json(
       { error: 'Invalid username or password' },
       { status: 401 }

@@ -1,38 +1,33 @@
 import type { Metadata } from 'next'
-import { isAdminAuthenticated } from '@/lib/admin/auth'
 import { redirect } from 'next/navigation'
 import { AdminSidebar } from './components/AdminSidebar'
+import { cookies } from 'next/headers'
 
 export const metadata: Metadata = {
   title: 'Bazaar 47 Admin',
   icons: {
     icon: '/icons/favicon.ico',
   },
-  openGraph: {
-    title: 'Bazaar 47',
-    description: 'Where Palestinian heritage meets Florida warmth',
-    url: 'https://bazaar47.com',
-    siteName: 'Bazaar 47',
-    locale: 'en_US',
-    type: 'website',
-  },
-  robots: {
-    index: true,
-    follow: true,
-    googleBot: {
-      index: true,
-      follow: true,
-    },
-  },
 }
 
-export default function AdminLayout({
+async function isAuthenticated(): Promise<boolean> {
+  try {
+    const cookieStore = await cookies()
+    const session = cookieStore.get('admin_session')
+    return session?.value === 'authenticated'
+  } catch {
+    return false
+  }
+}
+
+export default async function AdminLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  // Check authentication - redirect to /login if not authenticated
-  if (!isAdminAuthenticated()) {
+  const authenticated = await isAuthenticated()
+  
+  if (!authenticated) {
     redirect('/login')
   }
 

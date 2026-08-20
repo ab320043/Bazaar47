@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { motion } from 'framer-motion'
-import { Lock, Mail, ArrowRight, AlertCircle, CheckCircle } from 'lucide-react'
+import { Lock, Mail, ArrowRight, AlertCircle } from 'lucide-react'
 import overlay from '@/assets/newAssets/overlay.png'
 
 export default function LoginPage() {
@@ -15,7 +15,6 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [isCheckingAuth, setIsCheckingAuth] = useState(true)
 
-  // Check if already authenticated
   useEffect(() => {
     const checkAuth = async () => {
       try {
@@ -23,7 +22,7 @@ export default function LoginPage() {
         if (response.ok) {
           const data = await response.json()
           if (data.authenticated) {
-            router.push('/admin')
+            window.location.href = '/admin/dashboard'
             return
           }
         }
@@ -35,7 +34,7 @@ export default function LoginPage() {
     }
     
     checkAuth()
-  }, [router])
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -52,13 +51,13 @@ export default function LoginPage() {
       const data = await response.json()
 
       if (response.ok) {
-        // Successful login - redirect to admin
-        router.push('/admin')
-        router.refresh()
+        // ✅ Force hard redirect after successful login
+        window.location.href = '/admin/dashboard'
       } else {
         setError(data.error || 'Invalid credentials. Please try again.')
       }
     } catch (error) {
+      console.error('Login error:', error)
       setError('Network error - please check your connection')
     } finally {
       setLoading(false)
@@ -68,14 +67,13 @@ export default function LoginPage() {
   if (isCheckingAuth) {
     return (
       <div className="min-h-screen bg-plaster flex items-center justify-center">
-        <div className="text-rosewood/60 font-host-grotesk">Checking authentication...</div>
+        <div className="text-rosewood/60 font-host-grotesk">Loading...</div>
       </div>
     )
   }
 
   return (
     <div className="min-h-screen bg-plaster flex items-center justify-center p-4 relative">
-      {/* Background */}
       <div className="absolute inset-0 opacity-10">
         <Image
           src={overlay}
@@ -93,7 +91,6 @@ export default function LoginPage() {
         className="relative z-10 w-full max-w-md"
       >
         <div className="bg-white rounded-3xl shadow-2xl p-8 md:p-10 border border-rosewood/5">
-          {/* Logo */}
           <div className="text-center mb-8">
             <div className="w-16 h-16 bg-rosewood rounded-2xl flex items-center justify-center mx-auto mb-4">
               <span className="text-plaster font-host-grotesk-narrow font-bold text-2xl">B47</span>
@@ -106,7 +103,6 @@ export default function LoginPage() {
             </p>
           </div>
 
-          {/* Error Message */}
           {error && (
             <div className="bg-poppy/10 border border-poppy/20 rounded-xl p-3 mb-4 flex items-start gap-2">
               <AlertCircle className="w-5 h-5 text-poppy shrink-0 mt-0.5" />
@@ -114,7 +110,6 @@ export default function LoginPage() {
             </div>
           )}
 
-          {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
               <label className="font-host-grotesk font-semibold text-sm text-rosewood/80 block mb-1.5">
