@@ -1,24 +1,26 @@
 import { cookies } from 'next/headers'
 
-export const ADMIN_SESSION_KEY = 'admin_session'
-
-export async function isAdminAuthenticated(): Promise<boolean> {
-  const cookieStore = await cookies()
-  return cookieStore.has(ADMIN_SESSION_KEY)
-}
+const SESSION_KEY = 'admin_session'
+const SESSION_VALUE = 'authenticated'
 
 export async function setAdminSession() {
   const cookieStore = await cookies()
-  cookieStore.set(ADMIN_SESSION_KEY, 'true', {
+  cookieStore.set(SESSION_KEY, SESSION_VALUE, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    maxAge: 60 * 60 * 24,
-    path: '/',
     sameSite: 'lax',
+    path: '/',
+    maxAge: 60 * 60 * 24, // 24 hours
   })
 }
 
 export async function clearAdminSession() {
   const cookieStore = await cookies()
-  cookieStore.delete(ADMIN_SESSION_KEY)
+  cookieStore.delete(SESSION_KEY)
+}
+
+export async function isAdminAuthenticated(): Promise<boolean> {
+  const cookieStore = await cookies()
+  const session = cookieStore.get(SESSION_KEY)
+  return session?.value === SESSION_VALUE
 }
