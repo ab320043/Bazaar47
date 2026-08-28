@@ -216,17 +216,37 @@ export default function EventDetailPage() {
       return
     }
 
-    // Build CSV
-    const headers = ['Type', 'Name', 'Email', 'Tickets', 'Business', 'City', 'Date']
-    const rows = data.submissions.map(s => [
-      s.type,
-      s.data.fullName || s.data.businessName || s.data.dancerName || 'N/A',
-      s.data.email || '',
-      s.data.tickets || '',
-      s.data.businessName || '',
-      s.data.city || s.data.eventCity || '',
-      new Date(s.timestamp).toLocaleDateString()
-    ])
+    // Get all unique field names from all submissions
+    const allFields = new Set<string>()
+    data.submissions.forEach(submission => {
+      Object.keys(submission.data).forEach(key => {
+        allFields.add(key)
+      })
+    })
+    
+    // Add standard fields that might not be in data
+    const standardFields = ['type', 'timestamp', 'id']
+    standardFields.forEach(field => allFields.add(field))
+    
+    const fieldArray = Array.from(allFields)
+    
+    // Build CSV headers
+    const headers = fieldArray
+    
+    // Build CSV rows
+    const rows = data.submissions.map(submission => {
+      return fieldArray.map(field => {
+        if (field === 'type') return submission.type
+        if (field === 'timestamp') return submission.timestamp
+        if (field === 'id') return submission.id
+        const value = submission.data[field]
+        if (value === undefined || value === null) return ''
+        if (typeof value === 'string' && value.includes(',')) {
+          return `"${value}"`
+        }
+        return String(value)
+      })
+    })
 
     const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n')
     const blob = new Blob([csv], { type: 'text/csv' })
@@ -255,6 +275,8 @@ export default function EventDetailPage() {
           s.data.dancerName,
           s.data.city,
           s.data.eventCity,
+          s.data.phone,
+          s.data.phoneNumber,
         ].filter(Boolean).join(' ').toLowerCase()
         return searchable.includes(search)
       })
@@ -569,7 +591,7 @@ function OverviewTab({
 function SubmissionsTab({ submissions, onDelete, onEdit, onRefresh }: SubmissionsTabProps) {
   const [searchTerm, setSearchTerm] = useState('')
   const [typeFilter, setTypeFilter] = useState<string>('all')
-  const [sortField, setSortField] = useState<'name' | 'date' | 'type'>('date')
+  const [sortField, setSortField] = useState<'name' | 'date' | 'type' | 'phone'>('date')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
 
   // Get unique types
@@ -586,6 +608,8 @@ function SubmissionsTab({ submissions, onDelete, onEdit, onRefresh }: Submission
         data.email,
         data.dancerName,
         data.city,
+        data.phone,
+        data.phoneNumber,
       ].filter(Boolean).join(' ').toLowerCase()
       if (!searchable.includes(search)) return false
     }
@@ -602,6 +626,10 @@ function SubmissionsTab({ submissions, onDelete, onEdit, onRefresh }: Submission
       case 'name':
         aVal = String(a.data.fullName || a.data.businessName || a.data.dancerName || '')
         bVal = String(b.data.fullName || b.data.businessName || b.data.dancerName || '')
+        break
+      case 'phone':
+        aVal = String(a.data.phone || a.data.phoneNumber || '')
+        bVal = String(b.data.phone || b.data.phoneNumber || '')
         break
       case 'date':
         aVal = new Date(a.timestamp).getTime()
@@ -635,6 +663,11 @@ function SubmissionsTab({ submissions, onDelete, onEdit, onRefresh }: Submission
     if (data.businessName) return String(data.businessName)
     if (data.dancerName) return String(data.dancerName)
     return 'N/A'
+  }
+
+  const getPhone = (submission: SubmissionData) => {
+    const data = submission.data
+    return String(data.phone || data.phoneNumber || '')
   }
 
   const getDetails = (submission: SubmissionData) => {
@@ -715,6 +748,12 @@ function SubmissionsTab({ submissions, onDelete, onEdit, onRefresh }: Submission
                 Name {sortField === 'name' && (sortOrder === 'asc' ? '↑' : '↓')}
               </th>
               <th className="text-left px-4 py-3 font-host-grotesk font-semibold text-xs uppercase text-rosewood/50">Email</th>
+              <th className="text-left px-4 py-3 font-host-grotesk font-semibold text-xs uppercase text-rosewood/50 cursor-pointer hover:text-rosewood/80" onClick={() => {
+                if (sortField === 'phone') setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')
+                else { setSortField('phone'); setSortOrder('asc') }
+              }}>
+                Phone {sortField === 'phone' && (sortOrder === 'asc' ? '↑' : '↓')}
+              </th>
               <th className="text-left px-4 py-3 font-host-grotesk font-semibold text-xs uppercase text-rosewood/50">Details</th>
               <th className="text-left px-4 py-3 font-host-grotesk font-semibold text-xs uppercase text-rosewood/50 cursor-pointer hover:text-rosewood/80" onClick={() => {
                 if (sortField === 'date') setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')
@@ -738,6 +777,9 @@ function SubmissionsTab({ submissions, onDelete, onEdit, onRefresh }: Submission
                 </td>
                 <td className="px-4 py-3 font-host-grotesk text-sm text-rosewood/50">
                   {String(submission.data.email || '')}
+                </td>
+                <td className="px-4 py-3 font-host-grotesk text-sm text-rosewood/50">
+                  {getPhone(submission)}
                 </td>
                 <td className="px-4 py-3 font-host-grotesk text-sm text-rosewood/50">
                   {getDetails(submission)}
