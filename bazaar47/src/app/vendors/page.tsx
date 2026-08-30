@@ -27,6 +27,7 @@ const cityOptions = [
     venue: 'MAD Arts',
     pricing: [
       { label: 'Outdoor Booth', price: '$70', size: '8\'x8\'', note: 'We will provide booths' },
+      { label: 'Indoor Booth', price: '$85', size: '10\'x10\'', note: 'We will provide booths' },
     ],
     status: 'open',
   },
