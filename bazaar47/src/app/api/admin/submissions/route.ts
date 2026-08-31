@@ -51,10 +51,21 @@ export async function POST(request: NextRequest) {
     const submissionData = data as SubmissionDataUnion
 
     // ----------------------------------------
-    // Determine event ID
+    // Determine event ID(s)
     // ----------------------------------------
+    // ✅ FIX: vendors can apply to multiple cities in one submission, so
+    // the vendor form sends an `eventIds` array rather than a single
+    // `eventId`/`eventSlug`. The old logic here only ever looked for a
+    // singular event id, so every multi-city vendor submission failed
+    // with "Event ID is required" even though it had valid event data.
 
-    let eventId = data.eventId || data.eventSlug
+    const rawEventIds: string[] = Array.isArray(data.eventIds)
+      ? data.eventIds.filter(
+          (id: unknown): id is string => typeof id === 'string' && id.length > 0
+        )
+      : []
+
+    let eventId: string | undefined = data.eventId || data.eventSlug
 
     // If no eventId, try eventName
     if (!eventId && data.eventName) {
@@ -67,7 +78,17 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    if (!eventId) {
+    // Fall back to the first id in eventIds (multi-city vendor apps)
+    if (!eventId && rawEventIds.length > 0) {
+      eventId = rawEventIds[0]
+    }
+
+    // Full list of event ids this submission applies to. For
+    // single-event submissions (RSVP, dance-signup) this is just
+    // [eventId].
+    const eventIds = rawEventIds.length > 0 ? rawEventIds : eventId ? [eventId] : []
+
+    if (!eventId && eventIds.length === 0) {
       return NextResponse.json(
         { error: 'Event ID is required' },
         { status: 400 }
@@ -223,7 +244,10 @@ export async function POST(request: NextRequest) {
       timestamp: new Date().toISOString(),
       type,
       eventId,
-      eventSlug: data.eventSlug || 'unknown',
+      // ✅ Full set of events this submission applies to (multi-city
+      // vendor applications will have more than one entry here).
+      eventIds,
+      eventSlug: data.eventSlug || eventIds[0] || 'unknown',
       data: submissionData,
     }
 

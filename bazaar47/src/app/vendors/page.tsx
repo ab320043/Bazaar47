@@ -27,7 +27,10 @@ const cityOptions = [
     venue: 'MAD Arts',
     pricing: [
       { label: 'Outdoor Booth', price: '$70', size: '8\'x8\'', note: 'We will provide booths' },
-      { label: 'Indoor Booth', price: '$85', size: '10\'x10\'', note: 'We will provide booths' },
+      // ✅ $85 -> $80, "We will provide booths" note removed for indoor only
+      { label: 'Indoor Booth', price: '$80', size: '10\'x10\'' },
+      // ✅ New: no-preference option, no fixed price/size shown
+      { label: 'No Preference', price: '', size: '', note: "We'll assign you the best available booth" },
     ],
     status: 'open',
   },
@@ -74,34 +77,46 @@ const cityOptions = [
   },
 ]
 
+// Maps a city id from cityOptions to its event id used by the admin API
+const CITY_TO_EVENT_ID: Record<string, string> = {
+  'orlando': 'orlando-tour',
+  'south-florida': 'south-florida-tour',
+  'jacksonville': 'jacksonville-tour',
+  'gainesville-fest': 'gainesville-fest-tour',
+  'gulf-coast': 'gulf-coast-tour',
+  'gainesville-finale': 'gainesville-finale-tour',
+}
+
+const INITIAL_FORM_DATA = {
+  fullName: '',
+  preferredName: '',
+  pronouns: '',
+  city: '',
+  businessName: '',
+  phone: '',
+  email: '',
+  instagram: '',
+  instagramLink: '',
+  products: '',
+  pricePoints: '',
+  bio: '',
+  vendorHighlight: 'yes',
+  photography: 'yes',
+  promotion: 'yes',
+  bringItems: 'yes',
+  noiseSensitive: 'no',
+  payFee: 'yes',
+  recommendVendors: '',
+  additionalInfo: '',
+}
+
 export default function VendorsPage() {
   const [step, setStep] = useState<'landing' | 'cities' | 'form' | 'success'>('landing')
   const [selectedCities, setSelectedCities] = useState<string[]>([])
   const [selectedPricing, setSelectedPricing] = useState<Record<string, string>>({})
   const [isExiting, setIsExiting] = useState(false)
   
-  const [formData, setFormData] = useState({
-    fullName: '',
-    preferredName: '',
-    pronouns: '',
-    city: '',
-    businessName: '',
-    phone: '',
-    email: '',
-    instagram: '',
-    instagramLink: '',
-    products: '',
-    pricePoints: '',
-    bio: '',
-    vendorHighlight: 'yes',
-    photography: 'yes',
-    promotion: 'yes',
-    bringItems: 'yes',
-    noiseSensitive: 'no',
-    payFee: 'yes',
-    recommendVendors: '',
-    additionalInfo: '',
-  })
+  const [formData, setFormData] = useState(INITIAL_FORM_DATA)
 
   const formRef = useRef<HTMLFormElement>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -141,95 +156,52 @@ export default function VendorsPage() {
     setFormData(prev => ({ ...prev, [name]: value }))
   }
 
-  const saveToAdmin = async (data: Record<string, unknown>, type: 'vendor' | 'rsvp') => {
-    try {
-      const response = await fetch('/api/admin/submissions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ data, type }),
-      })
-      if (!response.ok) {
-        console.error('Failed to save to admin')
-      }
-    } catch (error) {
-      console.error('Failed to save to admin:', error)
-    }
-  }
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsSubmitting(true)
 
     try {
-      const response = await fetch('https://formspree.io/f/xzdnaegk', {
+      const selectedCitiesPayload = selectedCities.map(id => {
+        const city = cityOptions.find(c => c.id === id)
+        return {
+          city: city?.name,
+          pricing: selectedPricing[id] || 'Not specified',
+        }
+      })
+
+      // ✅ FIX: vendors can pick multiple cities, so we send the full
+      // array of event ids (eventIds), not a single eventId. The admin
+      // API now knows how to read this.
+      const eventIds = selectedCities
+        .map(id => CITY_TO_EVENT_ID[id])
+        .filter(Boolean)
+
+      // ✅ No more FormSpree — this is the only submission call now.
+      // Success/failure is driven entirely by the admin API's response,
+      // so a failed save actually surfaces an error to the vendor
+      // instead of silently showing "success" anyway.
+      const response = await fetch('/api/admin/submissions', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          ...formData,
-          selectedCities: selectedCities.map(id => {
-            const city = cityOptions.find(c => c.id === id)
-            return {
-              city: city?.name,
-              pricing: selectedPricing[id] || 'Not specified',
-            }
-          }),
-          paymentDeadline: 'Sept 12th, 2026',
-          _subject: `Vendor Application - ${formData.businessName || 'New Applicant'}`,
+          data: {
+            ...formData,
+            selectedCities: selectedCitiesPayload,
+            eventIds,
+            paymentDeadline: 'Sept 12th, 2026',
+          },
+          type: 'vendor',
         }),
       })
 
       if (response.ok) {
-        await saveToAdmin({
-          ...formData,
-          selectedCities: selectedCities.map(id => {
-            const city = cityOptions.find(c => c.id === id)
-            return {
-              city: city?.name,
-              pricing: selectedPricing[id] || 'Not specified',
-            }
-          }),
-          eventIds: selectedCities.map(id => {
-            // Map city ID to event ID
-            const cityMap: Record<string, string> = {
-              'orlando': 'orlando-tour',
-              'south-florida': 'south-florida-tour',
-              'jacksonville': 'jacksonville-tour',
-              'gainesville-fest': 'gainesville-fest-tour',
-              'gulf-coast': 'gulf-coast-tour',
-              'gainesville-finale': 'gainesville-finale-tour',
-            }
-            return cityMap[id]
-          }).filter(Boolean),
-        }, 'vendor')
         setFormSubmitted(true)
         setStep('success')
-        setFormData({
-          fullName: '',
-          preferredName: '',
-          pronouns: '',
-          city: '',
-          businessName: '',
-          phone: '',
-          email: '',
-          instagram: '',
-          instagramLink: '',
-          products: '',
-          pricePoints: '',
-          bio: '',
-          vendorHighlight: 'yes',
-          photography: 'yes',
-          promotion: 'yes',
-          bringItems: 'yes',
-          noiseSensitive: 'no',
-          payFee: 'yes',
-          recommendVendors: '',
-          additionalInfo: '',
-        })
+        setFormData(INITIAL_FORM_DATA)
         window.scrollTo({ top: 0, behavior: 'smooth' })
       } else {
-        alert('Something went wrong. Please try again or contact us directly.')
+        const err = await response.json().catch(() => null)
+        alert(err?.error || 'Something went wrong. Please try again or contact us directly.')
       }
     } catch (error) {
       alert('Network error. Please check your connection and try again.')
@@ -621,9 +593,14 @@ export default function VendorsPage() {
                                       <p className="font-host-grotesk font-semibold text-sm text-rosewood mb-2">
                                         {option.label}
                                       </p>
-                                      <p className="font-host-grotesk text-sm font-bold text-rosewood/50 mb-2">
-                                        {option.size} · {option.price}
-                                      </p>
+                                      {/* ✅ Only render this line if there's a size or price to show —
+                                          keeps "No Preference" (and any future no-price option) clean
+                                          instead of printing a bare " · " */}
+                                      {(option.size || option.price) && (
+                                        <p className="font-host-grotesk text-sm font-bold text-rosewood/50 mb-2">
+                                          {[option.size, option.price].filter(Boolean).join(' · ')}
+                                        </p>
+                                      )}
                                     </div>
                                     {selectedPricing[cityId] === option.label && (
                                       <CheckCircle className="w-5 h-5 text-chartreuse" />

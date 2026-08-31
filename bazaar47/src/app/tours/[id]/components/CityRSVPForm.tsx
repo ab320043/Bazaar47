@@ -27,7 +27,13 @@ interface CityRSVPFormData {
   tickets: string
 }
 
+// 💲 Price per ticket — single source of truth
+const PRICE_PER_TICKET = 5
+
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
+
+// Basic email format check — used to gate payment-intent creation
+const isValidEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())
 
 // Checkout form component
 function CheckoutForm({ 
@@ -56,6 +62,17 @@ function CheckoutForm({
     setIsProcessing(true)
 
     try {
+      // ✅ FIX: elements.submit() must run before confirmPayment() when
+      // using the deferred-intent pattern (Elements initialized with
+      // options={{ clientSecret }}). It validates & collects the
+      // PaymentElement's current input.
+      const { error: submitError } = await elements.submit()
+      if (submitError) {
+        onError(submitError.message || 'Please check your payment details')
+        setIsProcessing(false)
+        return
+      }
+
       const { error } = await stripe.confirmPayment({
         elements,
         clientSecret,
@@ -82,7 +99,7 @@ function CheckoutForm({
               eventId: city.id,  // ✅ Use the event ID from events.ts
               eventSlug: city.slug,
               paymentStatus: 'paid',
-              totalPrice: `$${ticketCount * 10}`,
+              totalPrice: `$${ticketCount * PRICE_PER_TICKET}`,
             },
             type: 'rsvp',
           }),
@@ -121,7 +138,7 @@ function CheckoutForm({
         disabled={!stripe || isProcessing}
         className="w-full bg-[#6A2630] hover:bg-[#6A2630]/90 text-plaster font-host-grotesk font-bold text-base py-3 rounded-xl transition-all duration-300 hover:scale-[1.02] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
       >
-        {isProcessing ? 'Processing...' : `Pay $${ticketCount * 10}`}
+        {isProcessing ? 'Processing...' : `Pay $${ticketCount * PRICE_PER_TICKET}`}
         <Lock className="w-4 h-4" />
       </button>
     </form>
@@ -157,6 +174,12 @@ export function CityRSVPForm({ city }: CityRSVPFormProps) {
       if (clientSecret) setClientSecret(null)
     }
 
+    // Any edit to email/name after a client secret was created should
+    // invalidate it, since the intent was created with the old values.
+    if ((name === 'email' || name === 'fullName') && clientSecret) {
+      setClientSecret(null)
+    }
+
     setFormData({ ...formData, [name]: value })
   }
 
@@ -169,7 +192,7 @@ export function CityRSVPForm({ city }: CityRSVPFormProps) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          amount: parseInt(formData.tickets || '1') * 10,
+          amount: parseInt(formData.tickets || '1') * PRICE_PER_TICKET,
           city: city.city || city.name,
           email: formData.email || 'guest@bazaar47.com',
           fullName: formData.fullName || 'Guest',
@@ -190,10 +213,17 @@ export function CityRSVPForm({ city }: CityRSVPFormProps) {
   }
 
   useEffect(() => {
-    if (isPaidEvent && formData.email && formData.fullName) {
+    // ✅ FIX: only fire once we have a *complete, valid* email and a
+    // non-empty name, and debounce for real (800ms) instead of a 0ms
+    // timeout — otherwise this hits the API on every keystroke.
+    if (
+      isPaidEvent &&
+      formData.fullName.trim() &&
+      isValidEmail(formData.email)
+    ) {
       const timer = window.setTimeout(() => {
         fetchPaymentIntent()
-      }, 0)
+      }, 800)
       return () => window.clearTimeout(timer)
     }
   }, [isPaidEvent, formData.email, formData.fullName, formData.tickets])
@@ -273,7 +303,7 @@ export function CityRSVPForm({ city }: CityRSVPFormProps) {
           </h2>
           {isPaidEvent && (
             <span className="text-sm font-host-grotesk font-bold text-chartreuse bg-chartreuse/10 px-3 py-1 rounded-full">
-              ${parseInt(formData.tickets || '1') * 10}
+              ${parseInt(formData.tickets || '1') * PRICE_PER_TICKET}
             </span>
           )}
         </div>
@@ -427,8 +457,8 @@ export function CityRSVPForm({ city }: CityRSVPFormProps) {
                 ) : (
                   <button
                     onClick={() => {
-                      if (!formData.fullName.trim() || !formData.email.trim()) {
-                        setPaymentError('Please enter your name and email first.')
+                      if (!formData.fullName.trim() || !isValidEmail(formData.email)) {
+                        setPaymentError('Please enter a valid name and email first.')
                         setTimeout(() => setPaymentError(''), 5000)
                         return
                       }
