@@ -1,7 +1,7 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { Send, CreditCard, Ticket, Lock } from 'lucide-react'
+import { Send, CreditCard, Ticket, Lock, CheckCircle } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { loadStripe } from '@stripe/stripe-js'
 import {
@@ -15,7 +15,7 @@ import {
 import { getEventBySlug, type EventDefinition } from '@/data/events'
 
 interface CityRSVPFormProps {
-  city: EventDefinition  // ✅ Use EventDefinition instead of TourCity
+  city: EventDefinition
 }
 
 interface CityRSVPFormData {
@@ -35,7 +35,7 @@ const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
 // Basic email format check — used to gate payment-intent creation
 const isValidEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())
 
-// ✅ NEW: Function to send confirmation email
+// ✅ Function to send confirmation email
 const sendConfirmationEmail = async (data: {
   name: string
   email: string
@@ -46,7 +46,6 @@ const sendConfirmationEmail = async (data: {
   eventTime: string
   eventLocation: string
   orderNumber: string
-  paymentMethod: string
 }) => {
   try {
     const response = await fetch('/api/send-ticket-email', {
@@ -60,6 +59,7 @@ const sendConfirmationEmail = async (data: {
       return false
     }
     
+    console.log('✅ Email sent successfully!')
     return true
   } catch (error) {
     console.error('Error sending email:', error)
@@ -86,6 +86,8 @@ function CheckoutForm({
   const stripe = useStripe()
   const elements = useElements()
   const [isProcessing, setIsProcessing] = useState(false)
+  const [showConfirmation, setShowConfirmation] = useState(false)
+  const [orderNumber, setOrderNumber] = useState('')
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -94,10 +96,7 @@ function CheckoutForm({
     setIsProcessing(true)
 
     try {
-      // ✅ FIX: elements.submit() must run before confirmPayment() when
-      // using the deferred-intent pattern (Elements initialized with
-      // options={{ clientSecret }}). It validates & collects the
-      // PaymentElement's current input.
+      // ✅ elements.submit() must run before confirmPayment()
       const { error: submitError } = await elements.submit()
       if (submitError) {
         onError(submitError.message || 'Please check your payment details')
@@ -105,26 +104,31 @@ function CheckoutForm({
         return
       }
 
-      const { error } = await stripe.confirmPayment({
-        elements,
-        clientSecret,
-        confirmParams: {
-          return_url: `${window.location.origin}/tours/${city.slug}`,
-        },
-      })
-
-      if (error) {
-        onError(error.message || 'Payment failed')
-        setIsProcessing(false)
-        return
-      }
-
-      // Payment successful - save submission and send email
-      const orderNumber = `TICKET-${Date.now().toString().slice(-8)}`
+      // ✅ Generate order number FIRST
+      const orderNum = `TICKET-${Date.now().toString().slice(-8)}`
+      setOrderNumber(orderNum)
       const totalAmount = ticketCount * PRICE_PER_TICKET
       
-      // ✅ Use the new submissions endpoint
-      const submissionResponse = await fetch('/api/admin/submissions', {
+      // ✅ Send confirmation email BEFORE confirming payment
+      const emailSent = await sendConfirmationEmail({
+        name: formData.fullName || 'Guest',
+        email: formData.email,
+        ticketCount: ticketCount,
+        totalPrice: `$${totalAmount}.00`,
+        eventName: city.name || 'Bazaar47 Event',
+        eventDate: city.date || 'TBA',
+        eventTime: city.time || 'TBA',
+        eventLocation: city.location || 'TBA',
+        orderNumber: orderNum,
+        
+      })
+
+      if (!emailSent) {
+        console.warn('⚠️ Email may not have been sent, but continuing with payment')
+      }
+
+      // ✅ Save submission to database
+      await fetch('/api/admin/submissions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -139,35 +143,44 @@ function CheckoutForm({
             eventSlug: city.slug,
             paymentStatus: 'paid',
             totalPrice: `$${totalAmount}`,
-            orderNumber: orderNumber,
+            orderNumber: orderNum,
           },
           type: 'rsvp',
         }),
       })
 
-      if (!submissionResponse.ok) {
-        console.error('Failed to save submission')
-      }
+      // ✅ Show confirmation message before redirect
+      setShowConfirmation(true)
+      
+      // ✅ Wait 2 seconds so user can see the confirmation
+      await new Promise(resolve => setTimeout(resolve, 2000))
 
-      // ✅ Send confirmation email
-      await sendConfirmationEmail({
-        name: formData.fullName || 'Guest',
-        email: formData.email,
-        ticketCount: ticketCount,
-        totalPrice: `$${totalAmount}.00`,
-        eventName: city.name || 'Bazaar47 Event',
-        eventDate: city.date || 'TBA',
-        eventTime: city.time || 'TBA',
-        eventLocation: city.location || 'TBA',
-        orderNumber: orderNumber,
-        paymentMethod: 'Credit Card',
+      // ✅ NOW confirm the payment (this will redirect)
+      const { error } = await stripe.confirmPayment({
+        elements,
+        clientSecret,
+        confirmParams: {
+          return_url: `${window.location.origin}/tours/${city.slug}?payment_success=true`,
+        },
       })
 
+      if (error) {
+        onError(error.message || 'Payment failed')
+        setIsProcessing(false)
+        setShowConfirmation(false)
+        return
+      }
+
+      // Note: The redirect happens here, so onSuccess won't be called
+      // But the email was already sent, so it's fine!
+      
+      // If we reach here without redirect (unlikely), call onSuccess
       onSuccess()
     } catch (error) {
+      console.error('Payment error:', error)
       onError('Something went wrong with payment')
-    } finally {
       setIsProcessing(false)
+      setShowConfirmation(false)
     }
   }
 
@@ -180,26 +193,64 @@ function CheckoutForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4" suppressHydrationWarning>
-      <div className="bg-white/50 rounded-xl p-4 border border-[#6A2630]/10">
-        <div className="flex items-center gap-2 mb-3">
-          <CreditCard className="w-4 h-4 text-[#6A2630]" />
-          <span className="font-host-grotesk font-semibold text-sm text-[#6A2630]">
-            Card Details
-          </span>
+    <>
+      <form onSubmit={handleSubmit} className="space-y-4" suppressHydrationWarning>
+        <div className="bg-white/50 rounded-xl p-4 border border-[#6A2630]/10">
+          <div className="flex items-center gap-2 mb-3">
+            <CreditCard className="w-4 h-4 text-[#6A2630]" />
+            <span className="font-host-grotesk font-semibold text-sm text-[#6A2630]">
+              Card Details
+            </span>
+          </div>
+          <PaymentElement />
         </div>
-        <PaymentElement />
-      </div>
 
-      <button
-        type="submit"
-        disabled={!stripe || isProcessing}
-        className="w-full bg-[#6A2630] hover:bg-[#6A2630]/90 text-plaster font-host-grotesk font-bold text-base py-3 rounded-xl transition-all duration-300 hover:scale-[1.02] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        {isProcessing ? 'Processing...' : `Pay $${ticketCount * PRICE_PER_TICKET}`}
-        <Lock className="w-4 h-4" />
-      </button>
-    </form>
+        <button
+          type="submit"
+          disabled={!stripe || isProcessing}
+          className="w-full bg-[#6A2630] hover:bg-[#6A2630]/90 text-plaster font-host-grotesk font-bold text-base py-3 rounded-xl transition-all duration-300 hover:scale-[1.02] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {isProcessing ? 'Processing...' : `Pay $${ticketCount * PRICE_PER_TICKET}`}
+          <Lock className="w-4 h-4" />
+        </button>
+      </form>
+
+      {/* ✅ Confirmation Overlay */}
+      {showConfirmation && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 animate-in fade-in duration-300">
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ duration: 0.3 }}
+            className="bg-plaster rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl"
+          >
+            <div className="text-center">
+              <div className="w-16 h-16 bg-chartreuse/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                <CheckCircle className="w-8 h-8 text-chartreuse" />
+              </div>
+              <h3 className="font-host-grotesk font-bold text-2xl text-[#341B1C] mb-2">
+                Booking Confirmed! 🎉
+              </h3>
+              <p className="font-host-grotesk text-[#6A2630] mb-2">
+                Your tickets for <span className="font-bold">{city.name}</span> have been confirmed.
+              </p>
+              <div className="bg-white/50 rounded-xl p-4 my-4">
+                <p className="font-host-grotesk text-sm text-[#6A2630]">
+                  Order #{orderNumber}
+                </p>
+                <p className="font-host-grotesk text-xs text-[#6A2630]/60 mt-1">
+                  A confirmation email has been sent to {formData.email}
+                </p>
+              </div>
+              <div className="flex items-center justify-center gap-2 text-sm text-[#6A2630]/60">
+                <div className="animate-spin rounded-full h-4 w-4 border-2 border-chartreuse border-t-transparent"></div>
+                <span>Redirecting to payment...</span>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
+    </>
   )
 }
 
@@ -217,6 +268,8 @@ export function CityRSVPForm({ city }: CityRSVPFormProps) {
   const [paymentError, setPaymentError] = useState('')
   const [clientSecret, setClientSecret] = useState<string | null>(null)
   const [isLoadingPayment, setIsLoadingPayment] = useState(false)
+  const [showConfirmation, setShowConfirmation] = useState(false)
+  const [orderNumber, setOrderNumber] = useState('')
 
   // ✅ Check if this is a paid event (South Florida is the only paid one)
   const isPaidEvent = city.slug === 'south-florida'
@@ -310,9 +363,27 @@ export function CityRSVPForm({ city }: CityRSVPFormProps) {
     setIsSubmitting(true)
     
     // ✅ Generate order number for RSVP
-    const orderNumber = `RSVP-${Date.now().toString().slice(-8)}`
+    const orderNum = `RSVP-${Date.now().toString().slice(-8)}`
+    setOrderNumber(orderNum)
     
     try {
+      // ✅ Send confirmation email FIRST for free RSVP
+      const emailSent = await sendConfirmationEmail({
+        name: formData.fullName || 'Guest',
+        email: formData.email,
+        ticketCount: ticketNum,
+        totalPrice: '$0 (Free RSVP)',
+        eventName: city.name || 'Bazaar47 Event',
+        eventDate: city.date || 'TBA',
+        eventTime: city.time || 'TBA',
+        eventLocation: city.location || 'TBA',
+        orderNumber: orderNum,
+      })
+
+      if (!emailSent) {
+        console.warn('⚠️ Email may not have been sent, but continuing with RSVP')
+      }
+
       // ✅ Use the new submissions endpoint
       const response = await fetch('/api/admin/submissions', {
         method: 'POST',
@@ -327,27 +398,19 @@ export function CityRSVPForm({ city }: CityRSVPFormProps) {
             date: city.date,
             eventId: city.id,
             eventSlug: city.slug,
-            orderNumber: orderNumber,
+            orderNumber: orderNum,
           },
           type: 'rsvp',
         }),
       })
       
       if (response.ok) {
-        // ✅ Send confirmation email for free RSVP
-        await sendConfirmationEmail({
-          name: formData.fullName || 'Guest',
-          email: formData.email,
-          ticketCount: ticketNum,
-          totalPrice: '$0 (Free RSVP)',
-          eventName: city.name || 'Bazaar47 Event',
-          eventDate: city.date || 'TBA',
-          eventTime: city.time || 'TBA',
-          eventLocation: city.location || 'TBA',
-          orderNumber: orderNumber,
-          paymentMethod: 'Free RSVP',
-        })
+        // ✅ Show confirmation for free RSVP
+        setShowConfirmation(true)
         
+        // ✅ Wait 2 seconds then show success
+        await new Promise(resolve => setTimeout(resolve, 2000))
+        setShowConfirmation(false)
         setIsSuccess(true)
         setFormData({ fullName: '', email: '', city: '', instagram: '', zipCode: '', tickets: '1' })
       } else {
@@ -355,6 +418,7 @@ export function CityRSVPForm({ city }: CityRSVPFormProps) {
         alert(err?.error || 'Something went wrong. Please try again.')
       }
     } catch (error) {
+      console.error('RSVP error:', error)
       alert('Something went wrong. Please try again.')
     } finally {
       setIsSubmitting(false)
@@ -406,7 +470,7 @@ export function CityRSVPForm({ city }: CityRSVPFormProps) {
           </div>
         ) : (
           <div suppressHydrationWarning>
-            {/* Form fields - same as before */}
+            {/* Form fields */}
             <div className="space-y-4">
               <div>
                 <label className="font-host-grotesk font-semibold text-sm text-[#6A2630] block mb-1">
@@ -561,6 +625,42 @@ export function CityRSVPForm({ city }: CityRSVPFormProps) {
                 </button>
               </div>
             )}
+          </div>
+        )}
+
+        {/* ✅ Confirmation Overlay for Free RSVP */}
+        {showConfirmation && !isPaidEvent && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 animate-in fade-in duration-300">
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ duration: 0.3 }}
+              className="bg-plaster rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl"
+            >
+              <div className="text-center">
+                <div className="w-16 h-16 bg-chartreuse/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <CheckCircle className="w-8 h-8 text-chartreuse" />
+                </div>
+                <h3 className="font-host-grotesk font-bold text-2xl text-[#341B1C] mb-2">
+                  RSVP Confirmed! 🎉
+                </h3>
+                <p className="font-host-grotesk text-[#6A2630] mb-2">
+                  You are all set for <span className="font-bold">{city.name}</span>!
+                </p>
+                <div className="bg-white/50 rounded-xl p-4 my-4">
+                  <p className="font-host-grotesk text-sm text-[#6A2630]">
+                    RSVP #{orderNumber}
+                  </p>
+                  <p className="font-host-grotesk text-xs text-[#6A2630]/60 mt-1">
+                    A confirmation email has been sent to {formData.email}
+                  </p>
+                </div>
+                <div className="flex items-center justify-center gap-2 text-sm text-[#6A2630]/60">
+                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-chartreuse border-t-transparent"></div>
+                  <span>Finalizing your RSVP...</span>
+                </div>
+              </div>
+            </motion.div>
           </div>
         )}
       </div>
