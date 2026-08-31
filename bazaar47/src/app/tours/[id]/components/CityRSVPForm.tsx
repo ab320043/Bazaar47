@@ -35,6 +35,38 @@ const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
 // Basic email format check — used to gate payment-intent creation
 const isValidEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())
 
+// ✅ NEW: Function to send confirmation email
+const sendConfirmationEmail = async (data: {
+  name: string
+  email: string
+  ticketCount: number
+  totalPrice: string
+  eventName: string
+  eventDate: string
+  eventTime: string
+  eventLocation: string
+  orderNumber: string
+  paymentMethod: string
+}) => {
+  try {
+    const response = await fetch('/api/send-ticket-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    })
+    
+    if (!response.ok) {
+      console.error('Failed to send email:', await response.text())
+      return false
+    }
+    
+    return true
+  } catch (error) {
+    console.error('Error sending email:', error)
+    return false
+  }
+}
+
 // Checkout form component
 function CheckoutForm({ 
   city, 
@@ -83,29 +115,55 @@ function CheckoutForm({
 
       if (error) {
         onError(error.message || 'Payment failed')
-      } else {
-        // ✅ Use the new submissions endpoint
-        await fetch('/api/admin/submissions', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            data: {
-              ...formData,
-              tickets: ticketCount,
-              eventCity: city.city || city.name,
-              eventDisplayName: city.name,
-              venue: city.location,
-              date: city.date,
-              eventId: city.id,  // ✅ Use the event ID from events.ts
-              eventSlug: city.slug,
-              paymentStatus: 'paid',
-              totalPrice: `$${ticketCount * PRICE_PER_TICKET}`,
-            },
-            type: 'rsvp',
-          }),
-        })
-        onSuccess()
+        setIsProcessing(false)
+        return
       }
+
+      // Payment successful - save submission and send email
+      const orderNumber = `TICKET-${Date.now().toString().slice(-8)}`
+      const totalAmount = ticketCount * PRICE_PER_TICKET
+      
+      // ✅ Use the new submissions endpoint
+      const submissionResponse = await fetch('/api/admin/submissions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          data: {
+            ...formData,
+            tickets: ticketCount,
+            eventCity: city.city || city.name,
+            eventDisplayName: city.name,
+            venue: city.location,
+            date: city.date,
+            eventId: city.id,
+            eventSlug: city.slug,
+            paymentStatus: 'paid',
+            totalPrice: `$${totalAmount}`,
+            orderNumber: orderNumber,
+          },
+          type: 'rsvp',
+        }),
+      })
+
+      if (!submissionResponse.ok) {
+        console.error('Failed to save submission')
+      }
+
+      // ✅ Send confirmation email
+      await sendConfirmationEmail({
+        name: formData.fullName || 'Guest',
+        email: formData.email,
+        ticketCount: ticketCount,
+        totalPrice: `$${totalAmount}.00`,
+        eventName: city.name || 'Bazaar47 Event',
+        eventDate: city.date || 'TBA',
+        eventTime: city.time || 'TBA',
+        eventLocation: city.location || 'TBA',
+        orderNumber: orderNumber,
+        paymentMethod: 'Credit Card',
+      })
+
+      onSuccess()
     } catch (error) {
       onError('Something went wrong with payment')
     } finally {
@@ -213,9 +271,6 @@ export function CityRSVPForm({ city }: CityRSVPFormProps) {
   }
 
   useEffect(() => {
-    // ✅ FIX: only fire once we have a *complete, valid* email and a
-    // non-empty name, and debounce for real (800ms) instead of a 0ms
-    // timeout — otherwise this hits the API on every keystroke.
     if (
       isPaidEvent &&
       formData.fullName.trim() &&
@@ -253,6 +308,10 @@ export function CityRSVPForm({ city }: CityRSVPFormProps) {
     }
 
     setIsSubmitting(true)
+    
+    // ✅ Generate order number for RSVP
+    const orderNumber = `RSVP-${Date.now().toString().slice(-8)}`
+    
     try {
       // ✅ Use the new submissions endpoint
       const response = await fetch('/api/admin/submissions', {
@@ -266,13 +325,29 @@ export function CityRSVPForm({ city }: CityRSVPFormProps) {
             eventDisplayName: city.name,
             venue: city.location,
             date: city.date,
-            eventId: city.id,  // ✅ Use the event ID
+            eventId: city.id,
             eventSlug: city.slug,
+            orderNumber: orderNumber,
           },
           type: 'rsvp',
         }),
       })
+      
       if (response.ok) {
+        // ✅ Send confirmation email for free RSVP
+        await sendConfirmationEmail({
+          name: formData.fullName || 'Guest',
+          email: formData.email,
+          ticketCount: ticketNum,
+          totalPrice: '$0 (Free RSVP)',
+          eventName: city.name || 'Bazaar47 Event',
+          eventDate: city.date || 'TBA',
+          eventTime: city.time || 'TBA',
+          eventLocation: city.location || 'TBA',
+          orderNumber: orderNumber,
+          paymentMethod: 'Free RSVP',
+        })
+        
         setIsSuccess(true)
         setFormData({ fullName: '', email: '', city: '', instagram: '', zipCode: '', tickets: '1' })
       } else {
