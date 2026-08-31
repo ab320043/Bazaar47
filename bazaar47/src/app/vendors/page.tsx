@@ -175,7 +175,7 @@ export default function VendorsPage() {
               pricing: selectedPricing[id] || 'Not specified',
             }
           }),
-          paymentDeadline: 'August 8th, 2026',
+          paymentDeadline: 'Sept 12th, 2026',
           _subject: `Vendor Application - ${formData.businessName || 'New Applicant'}`,
         }),
       })
@@ -888,7 +888,7 @@ export default function VendorsPage() {
                           <p className="font-host-grotesk text-sm text-rosewood/60">
                             <span className="font-medium text-rosewood">Payment Deadline:</span>{' '}
                             <span className="text-rosewood font-semibold">
-                              August 8th, 2026
+                              Sept 12th, 2026
                             </span>
                           </p>
                         </div>
