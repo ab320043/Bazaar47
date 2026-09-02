@@ -27,10 +27,6 @@ const cityOptions = [
     venue: 'MAD Arts',
     pricing: [
       { label: 'Outdoor Booth', price: '$70', size: '8\'x8\'', note: 'We will provide booths' },
-      // ✅ $85 -> $80, "We will provide booths" note removed for indoor only
-      { label: 'Indoor Booth', price: '$80', size: '10\'x10\'' },
-      // ✅ New: no-preference option, no fixed price/size shown
-      { label: 'No Preference', price: '', size: '', note: "We'll assign you the best available booth" },
     ],
     status: 'open',
   },
