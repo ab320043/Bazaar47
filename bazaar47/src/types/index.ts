@@ -5,7 +5,7 @@ export interface EventDefinition {
   id: string
   slug: string
   name: string
-  type: 'tour' | 'block-party' | 'concert' | 'custom'
+  type: 'tour' | 'block-party' | 'concert' | 'custom' | 'workshop'
   status: 'upcoming' | 'active' | 'past' | 'completed'
   date: string
   dateDisplay: string
@@ -24,6 +24,11 @@ export interface EventDefinition {
   ticketUrl?: string
   rsvpUrl?: string
   parentEventId?: string
+  isWorkshop?: boolean
+  workshopId?: string
+  isSlidingScale?: boolean
+  minPrice?: number
+  maxPrice?: number
 }
 
 // ===== SUBMISSION TYPES =====
@@ -86,7 +91,7 @@ export interface DanceSignupData {
 export interface Submission {
   id: string
   timestamp: string
-  type: 'vendor' | 'rsvp' | 'dance-signup' | 'ticket'
+  type: 'vendor' | 'rsvp' | 'dance-signup' | 'ticket' | 'workshop-ticket' | 'workshop-rsvp'
   eventId: string
   eventSlug: string
   data: SubmissionDataUnion

@@ -31,13 +31,19 @@ export function getEventStats(submissions: Submission[], eventId: string): {
 
   eventSubmissions.forEach(s => {
     if (s.type === 'vendor') vendors++
-    if (s.type === 'rsvp') {
+    if (s.type === 'rsvp' || s.type === 'workshop-rsvp') {
       rsvps++
       if (isRSVPData(s.data) && s.data.tickets) {
         tickets += typeof s.data.tickets === 'number' ? s.data.tickets : 0
       }
     }
     if (s.type === 'dance-signup') danceSignups++
+    if (s.type === 'workshop-ticket') {
+      tickets += 1 // Each workshop ticket is one person
+      if (s.data.tickets) {
+        tickets += typeof s.data.tickets === 'number' ? s.data.tickets - 1 : 0
+      }
+    }
   })
 
   return {
@@ -69,7 +75,7 @@ export function getActiveEventsWithStats(submissions: Submission[]): {
   event: EventDefinition
   stats: ReturnType<typeof getEventStats>
 }[] {
-  const activeEvents = allEvents.filter(e => e.status === 'active')
+  const activeEvents = allEvents.filter(e => e.status === 'active' || e.status === 'upcoming')
   
   return activeEvents.map(event => ({
     event,
