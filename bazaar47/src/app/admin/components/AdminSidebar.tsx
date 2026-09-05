@@ -1,3 +1,4 @@
+// app/admin/components/AdminSidebar.tsx
 'use client'
 
 import { usePathname } from 'next/navigation'
@@ -6,7 +7,8 @@ import {
   LayoutDashboard, 
   Users, 
   UserCog,
-  LogOut
+  LogOut,
+  Archive,
 } from 'lucide-react'
 import { LogoutButton } from './LogoutButton'
 
@@ -15,6 +17,11 @@ const navItems = [
     href: '/admin/dashboard',
     label: 'Dashboard',
     icon: LayoutDashboard,
+  },
+  {
+    href: '/admin/archive',
+    label: 'Archive',
+    icon: Archive,
   },
   {
     href: '/admin/staff',

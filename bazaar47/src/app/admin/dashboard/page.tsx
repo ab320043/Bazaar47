@@ -304,6 +304,12 @@ function EventCard({ event }: { event: EventWithStats }) {
               <p className="font-host-grotesk font-bold text-rosewood">{event.stats.danceSignups}</p>
             </div>
           )}
+          {event.type === 'workshop' && (
+            <div className="text-center">
+              <p className="font-host-grotesk text-xs text-rosewood/40">Workshop</p>
+              <p className="font-host-grotesk font-bold text-rosewood">{event.stats.rsvps + event.stats.tickets}</p>
+            </div>
+          )}
         </div>
 
         <div className="mt-3 pt-3 border-t border-rosewood/5 flex items-center justify-between">

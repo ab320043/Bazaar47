@@ -30,7 +30,7 @@ export function middleware(request: NextRequest) {
     })
   }
 
-  // ✅ FIX: /api/admin/submissions is where the *public* RSVP, vendor,
+  //api/admin/submissions is where the *public* RSVP, vendor,
   // and dance-signup forms POST their entries. It only lives under
   // /api/admin because it reuses the same storage helpers as the admin
   // dashboard — creating a submission is not itself an admin-only
@@ -56,7 +56,7 @@ export function middleware(request: NextRequest) {
   const isAuthenticated = sessionCookie?.value === 'authenticated'
 
   if (!isAuthenticated) {
-    // ✅ FIX: API routes now get a real 401 JSON response instead of an
+    // API routes now get a real 401 JSON response instead of an
     // HTML redirect to /login. A redirect is easy for client-side
     // fetch() code to misread as success (fetch follows it, the final
     // response can come back 200/OK-ish), which is exactly how a

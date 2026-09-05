@@ -7,12 +7,14 @@ import GNV from '@/assets/newAssets/GNV.jpg'
 import jacks2 from '@/assets/newAssets/jacks2.jpeg'
 import FEST from '@/assets/newAssets/FEST.jpeg'
 import blockPart from '@/assets/events/blockPart.png'
+import { workshops } from '@/app/components/calendar-events/workshops-data'
+import type { Workshop } from '@/app/components/calendar-events/workshops-data'
 
 export interface EventDefinition {
   id: string
   slug: string
   name: string
-  type: 'tour' | 'block-party' | 'concert' | 'custom'
+  type: 'tour' | 'block-party' | 'concert' | 'custom' | 'workshop'
   status: 'upcoming' | 'active' | 'past' | 'completed'
   date: string
   dateDisplay: string
@@ -33,6 +35,11 @@ export interface EventDefinition {
   parentEventId?: string
   venueDetails?: string
   highlights?: string[]
+  isWorkshop?: boolean
+  workshopId?: string
+  isSlidingScale?: boolean
+  minPrice?: number
+  maxPrice?: number
 }
 
 // ============================================
@@ -233,7 +240,7 @@ const standaloneEvents: EventDefinition[] = [
 // EXPORTS & HELPERS
 // ============================================
 
-// All events flat list
+// All events flat list - workshops are NOT included here, they come from events-config.ts
 export const allEvents: EventDefinition[] = [...tourCities, ...standaloneEvents]
 
 // Group events by parent
@@ -254,7 +261,41 @@ export function getActiveTourCities(): EventDefinition[] {
 
 // ✅ EXPORT: Get event by ID
 export function getEventById(id: string): EventDefinition | undefined {
-  return allEvents.find(e => e.id === id)
+  // First check main events
+  const event = allEvents.find(e => e.id === id)
+  if (event) return event
+  
+  // Then check workshops from events-config
+  try {
+    const workshopEvent = workshops.find((w: Workshop) => w.id === id)
+    if (workshopEvent) {
+      return {
+        id: workshopEvent.id,
+        slug: workshopEvent.id,
+        name: workshopEvent.title,
+        type: 'workshop' as const,
+        status: 'active',
+        date: '2026-09-12',
+        dateDisplay: 'September 12th, 2026',
+        time: workshopEvent.time,
+        location: workshopEvent.table,
+        address: 'MAD Arts, Broward County',
+        city: 'Broward',
+        hasVendors: false,
+        hasRSVP: true,
+        hasDanceSignup: false,
+        isFree: workshopEvent.ticketType === 'free-rsvp',
+        price: parseInt(workshopEvent.price) || 0,
+        description: workshopEvent.description,
+        isWorkshop: true,
+        workshopId: workshopEvent.id,
+      }
+    }
+  } catch {
+    // Workshops data not available
+  }
+  
+  return undefined
 }
 
 // ✅ EXPORT: Get event by slug
@@ -274,7 +315,7 @@ export function getEventsByStatus(status: EventDefinition['status']): EventDefin
 
 // ✅ EXPORT: Get active events
 export function getActiveEvents(): EventDefinition[] {
-  return allEvents.filter(e => e.status === 'active')
+  return allEvents.filter(e => e.status === 'active' || e.status === 'upcoming')
 }
 
 // ✅ EXPORT: Get upcoming events
@@ -300,3 +341,12 @@ export const ALL_EVENT_IDS = allEvents.map(e => e.id)
 
 // ✅ EXPORT: Get all event slugs
 export const ALL_EVENT_SLUGS = allEvents.map(e => e.slug)
+
+// ✅ EXPORT: Check if event is past due
+export function isEventPastDue(eventDate: string): boolean {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const eventDateObj = new Date(eventDate)
+  eventDateObj.setHours(0, 0, 0, 0)
+  return eventDateObj < today
+}

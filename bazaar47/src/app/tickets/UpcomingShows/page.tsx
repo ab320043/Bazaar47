@@ -1,4 +1,3 @@
-// This file is the general form i want to use for any event with ability to add more fields if needed, this i'm using for the block party event upcoming
 // app/tickets/UpcomingShows/page.tsx
 'use client'
 
@@ -7,7 +6,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { useState, useMemo, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { ArrowLeft, CreditCard, Ticket, Calendar, MapPin, Clock, Lock, Sparkles, Users } from 'lucide-react'
+import { ArrowLeft, CreditCard, Ticket, Calendar, MapPin, Clock, Lock, Sparkles, Users, Sliders } from 'lucide-react'
 import { loadStripe } from '@stripe/stripe-js'
 import {
   Elements,
@@ -25,6 +24,7 @@ interface TicketFormData {
   email: string
   phone: string
   tickets: string
+  customPrice?: string
 }
 
 // Checkout Form Component
@@ -34,12 +34,14 @@ function CheckoutForm({
   formData,
   event,
   city,
+  selectedPrice,
 }: {
   onSuccess: () => void
   onError: (message: string) => void
   formData: TicketFormData
   event: EventConfig
   city: string
+  selectedPrice: number
 }) {
   const stripe = useStripe()
   const elements = useElements()
@@ -65,7 +67,6 @@ function CheckoutForm({
 
       console.log('💳 Confirming payment with Stripe...')
       
-      // Store order data in sessionStorage before redirect
       const orderData = {
         fullName: formData.fullName,
         email: formData.email,
@@ -77,8 +78,9 @@ function CheckoutForm({
         eventDate: event.date,
         eventTime: event.time,
         eventLocation: `${event.location}, ${event.city}, ${event.state}`,
-        total: parseInt(formData.tickets) * event.price,
+        total: parseInt(formData.tickets) * selectedPrice,
         timestamp: new Date().toISOString(),
+        workshopType: 'ticket',
       }
       
       sessionStorage.setItem('pendingOrder', JSON.stringify(orderData))
@@ -124,7 +126,7 @@ function CheckoutForm({
       >
         <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/20 to-transparent" />
         <span className="relative z-10">
-          {isProcessing ? 'Processing...' : `Pay $${parseInt(formData.tickets) * event.price}`}
+          {isProcessing ? 'Processing...' : `Pay $${parseInt(formData.tickets) * selectedPrice}`}
         </span>
         <Lock className="w-4 h-4 relative z-10" />
       </button>
@@ -137,7 +139,6 @@ export default function UpcomingShowsPage() {
   const eventId = searchParams.get('event')
   const successParam = searchParams.get('success')
   
-  // Use useMemo instead of useState + useEffect
   const selectedEvent = useMemo(() => {
     if (eventId) {
       return getEventById(eventId) || getDefaultEvent()
@@ -150,19 +151,26 @@ export default function UpcomingShowsPage() {
     email: '',
     phone: '',
     tickets: '1',
+    customPrice: String(selectedEvent?.minPrice || selectedEvent?.price || 0),
   })
   
-  // City is managed separately since it's not part of TicketFormData
   const [city, setCity] = useState('')
-  
   const [isSuccess, setIsSuccess] = useState(successParam === 'true')
   const [paymentError, setPaymentError] = useState('')
   const [clientSecret, setClientSecret] = useState<string | null>(null)
   const [isLoadingPayment, setIsLoadingPayment] = useState(false)
   const [showPayment, setShowPayment] = useState(false)
+  const [sliderState, setSliderState] = useState({
+    eventId: selectedEvent?.id,
+    value: selectedEvent?.minPrice || selectedEvent?.price || 0,
+  })
 
-  // Check if event is free
-  const isFreeEvent = selectedEvent.price === 0
+  const isFreeEvent = selectedEvent?.isFree || selectedEvent?.price === 0
+  const isSlidingScale = selectedEvent?.isSlidingScale || false
+  const sliderValue = sliderState.eventId === selectedEvent?.id
+    ? sliderState.value
+    : selectedEvent?.minPrice || 10
+  const selectedPrice = isSlidingScale ? sliderValue : selectedEvent?.price || 0
 
   // Process pending order when returning from Stripe payment
   useEffect(() => {
@@ -176,10 +184,9 @@ export default function UpcomingShowsPage() {
           const orderData = JSON.parse(pendingOrderData)
           console.log('📋 Order data:', orderData)
           
-          const orderNumber = `BZR-${Date.now().toString(36).toUpperCase()}`
+          const orderNumber = `WS-${Date.now().toString(36).toUpperCase()}`
           
-          // Save to admin
-          console.log('📊 Saving to admin...')
+          // Save to admin with workshop type
           const adminResponse = await fetch('/api/admin/submissions', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -200,14 +207,16 @@ export default function UpcomingShowsPage() {
                 ticketCount: parseInt(orderData.tickets),
                 paymentStatus: 'paid',
                 timestamp: orderData.timestamp,
+                workshopId: selectedEvent.id,
+                workshopName: selectedEvent.name,
+                isWorkshop: true,
               },
-              type: 'ticket',
+              type: 'workshop-ticket',
             }),
           })
           console.log('  Admin save response:', adminResponse.status)
 
           // Send email
-          console.log('📧 Sending confirmation email to:', orderData.email)
           const emailResponse = await fetch('/api/send-ticket-email', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -216,10 +225,10 @@ export default function UpcomingShowsPage() {
               email: orderData.email,
               ticketCount: parseInt(orderData.tickets),
               totalPrice: `$${orderData.total}`,
-              eventName: orderData.eventName,
-              eventDate: orderData.eventDate,
-              eventTime: orderData.eventTime,
-              eventLocation: orderData.eventLocation,
+              eventName: `Workshop: ${selectedEvent.name}`,
+              eventDate: selectedEvent.date,
+              eventTime: selectedEvent.time,
+              eventLocation: selectedEvent.location,
               orderNumber,
               paymentMethod: 'Credit Card',
             }),
@@ -234,7 +243,6 @@ export default function UpcomingShowsPage() {
             console.error('❌ Email sending failed:', emailResult)
           }
 
-          // Clear the pending order
           sessionStorage.removeItem('pendingOrder')
           console.log('🗑️ Pending order cleared from sessionStorage')
           
@@ -247,7 +255,7 @@ export default function UpcomingShowsPage() {
     if (successParam === 'true') {
       processPendingOrder()
     }
-  }, [successParam])
+  }, [successParam, selectedEvent])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
@@ -258,6 +266,12 @@ export default function UpcomingShowsPage() {
     }
   }
 
+  const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = parseInt(e.target.value)
+    setSliderState({ eventId: selectedEvent.id, value })
+    setFormData(prev => ({ ...prev, customPrice: String(value) }))
+  }
+
   const fetchPaymentIntent = async () => {
     setIsLoadingPayment(true)
     try {
@@ -265,7 +279,7 @@ export default function UpcomingShowsPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          amount: parseInt(formData.tickets) * selectedEvent.price,
+          amount: parseInt(formData.tickets) * selectedPrice,
           city: city || selectedEvent.city,
           email: formData.email,
           fullName: formData.fullName,
@@ -290,7 +304,7 @@ export default function UpcomingShowsPage() {
 
   const handleSuccess = () => {
     setIsSuccess(true)
-    setFormData({ fullName: '', email: '', phone: '', tickets: '1' })
+    setFormData({ fullName: '', email: '', phone: '', tickets: '1', customPrice: String(selectedEvent?.price || 0) })
     setCity('')
     setClientSecret(null)
     setShowPayment(false)
@@ -304,7 +318,6 @@ export default function UpcomingShowsPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    // If it's a free event, handle RSVP directly
     if (isFreeEvent) {
       setIsLoadingPayment(true)
       
@@ -324,10 +337,11 @@ export default function UpcomingShowsPage() {
           eventLocation: `${selectedEvent.location}, ${selectedEvent.city}, ${selectedEvent.state}`,
           total: 0,
           timestamp: new Date().toISOString(),
+          workshopId: selectedEvent.id,
+          workshopName: selectedEvent.name,
+          isWorkshop: true,
         }
         
-        // Save RSVP to admin
-        console.log('📊 Saving RSVP to admin...')
         const adminResponse = await fetch('/api/admin/submissions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -348,14 +362,15 @@ export default function UpcomingShowsPage() {
               ticketCount: parseInt(orderData.tickets),
               paymentStatus: 'free',
               timestamp: orderData.timestamp,
+              workshopId: selectedEvent.id,
+              workshopName: selectedEvent.name,
+              isWorkshop: true,
             },
-            type: 'rsvp',
+            type: 'workshop-rsvp',
           }),
         })
         console.log('  Admin save response:', adminResponse.status)
         
-        // 📧 Send RSVP confirmation email
-        console.log('📧 Sending RSVP confirmation email to:', orderData.email)
         const emailResponse = await fetch('/api/send-ticket-email', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -364,10 +379,10 @@ export default function UpcomingShowsPage() {
             email: orderData.email,
             ticketCount: parseInt(orderData.tickets),
             totalPrice: '$0 (Free RSVP)',
-            eventName: orderData.eventName,
-            eventDate: orderData.eventDate,
-            eventTime: orderData.eventTime,
-            eventLocation: orderData.eventLocation,
+            eventName: `Workshop: ${selectedEvent.name}`,
+            eventDate: selectedEvent.date,
+            eventTime: selectedEvent.time,
+            eventLocation: selectedEvent.location,
             orderNumber,
             paymentMethod: 'Free RSVP',
           }),
@@ -397,12 +412,15 @@ export default function UpcomingShowsPage() {
     }
   }
 
-  const totalPrice = parseInt(formData.tickets || '1') * selectedEvent.price
+  const totalPrice = parseInt(formData.tickets || '1') * selectedPrice
+
+  if (!selectedEvent) {
+    return null
+  }
 
   return (
     <section className="relative w-full min-h-screen overflow-hidden bg-plaster">
       
-      {/* Background with overlay */}
       <div className="absolute inset-0 opacity-20">
         <Image
           src={overlay}
@@ -413,22 +431,14 @@ export default function UpcomingShowsPage() {
         />
       </div>
 
-      {/* Back buttons */}
       <div className="absolute top-6 left-6 md:top-8 md:left-8 z-20 flex flex-col sm:flex-row gap-2">
-        {/* <Link 
-          href="/"
-          className="inline-flex items-center gap-2 text-rosewood/60 hover:text-rosewood transition-colors font-host-grotesk text-sm group bg-plaster/80 backdrop-blur-sm px-4 py-2 rounded-full shadow-sm border border-rosewood/10"
-        >
-          <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-          Back to Home
-        </Link> */}
         <Link 
-          href="/#events"
+          href="/#workshops"
           scroll={true}
           className="inline-flex items-center gap-2 text-rosewood/60 hover:text-rosewood transition-colors font-host-grotesk text-sm group bg-plaster/80 backdrop-blur-sm px-4 py-2 rounded-full shadow-sm border border-rosewood/10"
         >
           <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-          Back to Events
+          Back to Workshops
         </Link>
       </div>
 
@@ -440,26 +450,24 @@ export default function UpcomingShowsPage() {
           transition={{ duration: 0.6 }}
           className="max-w-2xl w-full"
         >
-          {/* Header */}
           <div className="text-center mb-10">
             <div className="flex items-center justify-center gap-3 mb-4">
               <span className="w-12 h-px bg-rosewood/30" />
               <span className="font-host-grotesk text-xs text-rosewood/60 uppercase tracking-[0.3em] font-bold flex items-center gap-2">
                 <Ticket className="w-3 h-3" />
-                {isFreeEvent ? 'RSVP' : 'Upcoming Shows'}
+                  Workshop RSVP & Tickets
                 <Ticket className="w-3 h-3" />
               </span>
               <span className="w-12 h-px bg-rosewood/30" />
             </div>
             <h1 className="font-host-grotesk-narrow font-bold text-4xl md:text-5xl lg:text-6xl text-rosewood leading-tight">
-              {isFreeEvent ? 'RSVP Now' : 'Get Your Tickets'}
+              {isFreeEvent ? 'RSVP Now' : 'Get Your Ticket'}
             </h1>
             <p className="font-host-grotesk text-lg text-rosewood/50 mt-3">
               {selectedEvent.description}
             </p>
           </div>
 
-          {/* Event Details */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -506,8 +514,50 @@ export default function UpcomingShowsPage() {
             </div>
           </motion.div>
 
-          {/* Pricing Info - Show different for free events */}
-          {!isFreeEvent ? (
+          {isSlidingScale && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.15 }}
+              className="bg-rosewood/5 border border-rosewood/10 rounded-2xl p-4 md:p-5 mb-8"
+            >
+              <div className="flex items-center gap-3 mb-3">
+                <Sliders className="w-5 h-5 text-rosewood" />
+                <span className="font-host-grotesk font-semibold text-rosewood text-sm">
+                  Choose Your Price
+                </span>
+              </div>
+              <div className="flex items-center gap-4">
+                <span className="font-host-grotesk text-sm text-rosewood/60">
+                  ${selectedEvent.minPrice}
+                </span>
+                <input
+                  type="range"
+                  min={selectedEvent.minPrice}
+                  max={selectedEvent.maxPrice}
+                  value={sliderValue}
+                  onChange={handleSliderChange}
+                  className="flex-1 h-2 bg-rosewood/20 rounded-lg appearance-none cursor-pointer accent-chartreuse"
+                  style={{
+                    background: `linear-gradient(to right, #CCD145 0%, #CCD145 ${((sliderValue - (selectedEvent.minPrice || 10)) / ((selectedEvent.maxPrice || 25) - (selectedEvent.minPrice || 10))) * 100}%, #E5E0D4 ${((sliderValue - (selectedEvent.minPrice || 10)) / ((selectedEvent.maxPrice || 25) - (selectedEvent.minPrice || 10))) * 100}%, #E5E0D4 100%)`
+                  }}
+                />
+                <span className="font-host-grotesk text-sm text-rosewood/60">
+                  ${selectedEvent.maxPrice}
+                </span>
+              </div>
+              <div className="text-center mt-3">
+                <span className="font-host-grotesk font-bold text-2xl text-rosewood">
+                  ${sliderValue}
+                </span>
+                <span className="font-host-grotesk text-sm text-rosewood/50 ml-1">
+                  per person
+                </span>
+              </div>
+            </motion.div>
+          )}
+
+          {!isFreeEvent && !isSlidingScale && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -516,15 +566,13 @@ export default function UpcomingShowsPage() {
             >
               <div className="flex items-center justify-center gap-6 flex-wrap">
                 <span className="font-host-grotesk text-sm text-rosewood/60">
-                  🎟️ Presale: <span className="font-bold text-rosewood">${selectedEvent.price}</span>
-                </span>
-                <span className="w-px h-6 bg-rosewood/10 hidden sm:block" />
-                <span className="font-host-grotesk text-sm text-rosewood/60">
-                  💵 At the Door: <span className="font-bold text-rosewood">${selectedEvent.doorPrice}</span>
+                  🎟️ Workshop Price: <span className="font-bold text-rosewood">${selectedEvent.price}</span>
                 </span>
               </div>
             </motion.div>
-          ) : (
+          )}
+
+          {isFreeEvent && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -533,12 +581,11 @@ export default function UpcomingShowsPage() {
             >
               <span className="font-host-grotesk font-bold text-henna text-lg flex items-center justify-center gap-2">
                 <Sparkles className="w-5 h-5" />
-                🎉 This is a FREE event! RSVP now to secure your spot.
+                🎉 This is a FREE workshop! RSVP now to secure your spot.
               </span>
             </motion.div>
           )}
 
-          {/* Ticket/RSVP Form */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -551,10 +598,10 @@ export default function UpcomingShowsPage() {
               <div className="flex items-center gap-2 mb-6">
                 <Users className="w-5 h-5 text-rosewood" />
                 <h3 className="font-host-grotesk font-bold text-xl text-rosewood">
-                  {isFreeEvent ? 'RSVP' : 'Book Tickets'}
+                  {isFreeEvent ? 'RSVP' : 'Book Your Spot'}
                 </h3>
                 <span className="ml-auto font-host-grotesk text-xs text-rosewood/30">
-                  {isFreeEvent ? 'Secure your spot' : 'Secure your spot'}
+                  Secure your spot
                 </span>
               </div>
 
@@ -564,25 +611,24 @@ export default function UpcomingShowsPage() {
                     <Sparkles className="w-10 h-10 text-chartreuse" />
                   </div>
                   <h2 className="font-host-grotesk font-bold text-2xl text-rosewood">
-                    {isFreeEvent ? 'RSVP Confirmed! 🎉' : 'Tickets Confirmed! 🎉'}
+                    {isFreeEvent ? 'RSVP Confirmed! 🎉' : 'Ticket Confirmed! 🎉'}
                   </h2>
                   <p className="font-host-grotesk text-rosewood/60 mt-2">
-                    {isFreeEvent ? 'See you at the Block Party!' : 'Check your email for the confirmation.'}
+                    {isFreeEvent ? 'See you at the workshop!' : 'Check your email for the confirmation.'}
                   </p>
                   <p className="font-host-grotesk text-xs text-rosewood/30 mt-4">
-                    {isFreeEvent ? 'Excited to see you at ' : 'Excited to see you at '}{selectedEvent.name}!
+                    Excited to see you at {selectedEvent.name}!
                   </p>
                   <Link
-                    href="/#events"
+                    href="/#workshops"
                     scroll={true}
                     className="mt-6 inline-block text-chartreuse font-bold text-sm hover:underline transition-colors"
                   >
-                    ← Back to Events
+                    ← Back to Workshops
                   </Link>
                 </div>
               ) : (
                 <form onSubmit={handleSubmit} className="space-y-5">
-                  {/* Full Name */}
                   <div>
                     <label className="font-host-grotesk font-semibold text-sm text-rosewood/80 block mb-1.5">
                       Full Name <span className="text-poppy">*</span>
@@ -599,7 +645,6 @@ export default function UpcomingShowsPage() {
                     />
                   </div>
 
-                  {/* Email & Phone */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="font-host-grotesk font-semibold text-sm text-rosewood/80 block mb-1.5">
@@ -633,7 +678,6 @@ export default function UpcomingShowsPage() {
                     </div>
                   </div>
 
-                  {/* City & Tickets */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="font-host-grotesk font-semibold text-sm text-rosewood/80 block mb-1.5">
@@ -692,7 +736,6 @@ export default function UpcomingShowsPage() {
                     </div>
                   </div>
 
-                  {/* Payment Section - Only show for paid events */}
                   {!isFreeEvent && (
                     <>
                       {!showPayment ? (
@@ -722,6 +765,7 @@ export default function UpcomingShowsPage() {
                               formData={formData}
                               event={selectedEvent}
                               city={city}
+                              selectedPrice={selectedPrice}
                             />
                           </Elements>
                           <button
@@ -739,7 +783,6 @@ export default function UpcomingShowsPage() {
                     </>
                   )}
 
-                  {/* Free Event RSVP Button */}
                   {isFreeEvent && (
                     <button
                       type="submit"
@@ -759,7 +802,6 @@ export default function UpcomingShowsPage() {
             </div>
           </motion.div>
 
-          {/* Footer note */}
           <motion.p
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}

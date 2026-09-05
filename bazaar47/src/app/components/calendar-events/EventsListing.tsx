@@ -4,14 +4,13 @@
 import { motion } from 'framer-motion'
 import Image from 'next/image'
 import Link from 'next/link'
-import { Calendar, MapPin, Clock, ArrowRight, Music, Flame } from 'lucide-react'
+import { Calendar, MapPin, Clock, ArrowRight, Music } from 'lucide-react'
 import { events, type Event } from './events-config'
 import overlay from '@/assets/newAssets/overlay.png'
 
 function EventCard({ event, index }: { event: Event; index: number }) {
-  const isBazaar47 = event.id === 'bazaar47'
-  const isBlockParty = event.id === 'block-party'
-
+  const isSouthFlorida = event.id === 'south-florida-tour'
+  
   return (
     <motion.div
       initial={{ opacity: 0, y: 30 }}
@@ -21,7 +20,7 @@ function EventCard({ event, index }: { event: Event; index: number }) {
       className="group bg-henna rounded-2xl overflow-hidden border border-plaster/10 hover:border-plaster/30 transition-all duration-300 hover:shadow-2xl hover:-translate-y-1"
     >
       <div className="flex flex-col md:flex-row">
-        {/* Flyer - Left */}
+        {/* Flyer - Left
         <div className="relative md:w-56 lg:w-64 h-56 md:h-auto flex-shrink-0 overflow-hidden">
           <Image
             src={event.flyerImage}
@@ -29,7 +28,7 @@ function EventCard({ event, index }: { event: Event; index: number }) {
             fill
             className="object-cover transition-transform duration-500 group-hover:scale-105"
           />
-        </div>
+        </div> */}
 
         {/* Content - Right */}
         <div className="flex-1 p-6 md:p-8 flex flex-col bg-henna">
@@ -63,25 +62,24 @@ function EventCard({ event, index }: { event: Event; index: number }) {
             </p>
           </div>
 
-          {/* Action Buttons */}
-          <div className="mt-6 pt-6 border-t border-plaster/10 flex flex-wrap gap-3">
-            <Link
-              href={`/tickets/UpcomingShows?event=${event.id}`}
-              className="inline-flex items-center gap-2 font-host-grotesk font-bold text-henna bg-plaster hover:bg-sand-dune px-6 py-3 rounded-xl transition-all duration-300 hover:scale-[1.03] text-sm"
-            >
-              <Music className="w-4 h-4" />
-              {isBazaar47 ? 'Get Tickets' : 'RSVP Now'}
-              <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
-            </Link>
-
-            {/* Dance Battle sign-up only shows on the Block Party card */}
-            {isBlockParty && (
+          {/* Action Button */}
+          <div className="mt-6 pt-6 border-t border-plaster/10">
+            {isSouthFlorida ? (
               <Link
-                href="/events/block-party/dance-signup"
+                href="/#workshops"
                 className="inline-flex items-center gap-2 font-host-grotesk font-bold text-henna bg-chartreuse hover:bg-plaster px-6 py-3 rounded-xl transition-all duration-300 hover:scale-[1.03] text-sm"
               >
-                <Flame className="w-4 h-4" />
-                Dance Battle Sign-Up
+                <Music className="w-4 h-4" />
+                View Workshops
+                <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+              </Link>
+            ) : (
+              <Link
+                href={`/tickets/UpcomingShows?event=${event.id}`}
+                className="inline-flex items-center gap-2 font-host-grotesk font-bold text-henna bg-plaster hover:bg-sand-dune px-6 py-3 rounded-xl transition-all duration-300 hover:scale-[1.03] text-sm"
+              >
+                <Music className="w-4 h-4" />
+                Get Tickets
                 <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
               </Link>
             )}

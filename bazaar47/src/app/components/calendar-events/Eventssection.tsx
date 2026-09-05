@@ -1,8 +1,8 @@
-// Eventssection.tsx - simplified version
+// Eventssection.tsx
 'use client'
 
-import { EventsListing } from './EventsListing'
+import { WorkshopsListing } from './WorkshopsListing'
 
 export function EventsSection() {
-  return <EventsListing />
+  return <WorkshopsListing />
 }
