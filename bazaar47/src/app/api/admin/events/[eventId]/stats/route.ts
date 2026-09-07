@@ -48,8 +48,8 @@ export async function GET(
           }
         } else if (s.type === 'vendor' && isVendorData(s.data)) {
           const cities = s.data.selectedCities || []
-          cities.forEach((city: string) => {
-            if (city && cityBreakdown[city]) {
+          cities.forEach((city: string | object) => {
+            if (typeof city === 'string' && cityBreakdown[city]) {
               cityBreakdown[city].vendors += 1
             }
           })
