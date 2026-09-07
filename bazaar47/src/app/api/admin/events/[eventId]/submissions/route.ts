@@ -93,7 +93,9 @@ export async function POST(request: NextRequest) {
       // ✅ Validate selectedCities using VALID_TOUR_CITIES
       if (submissionData.selectedCities && Array.isArray(submissionData.selectedCities)) {
         const validCities = submissionData.selectedCities
-          .filter((city) => VALID_TOUR_CITIES.includes(city))
+          .filter((city): city is string =>
+            typeof city === 'string' && VALID_TOUR_CITIES.includes(city)
+          )
         
         if (validCities.length === 0) {
           return NextResponse.json(

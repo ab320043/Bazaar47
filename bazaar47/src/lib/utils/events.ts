@@ -1,7 +1,7 @@
 // lib/utils/events.ts
 import { allEvents, getEventById } from '@/data/events'
 import type { EventDefinition, Submission } from '@/types'
-import { isVendorData, isRSVPData, isDanceSignupData } from '@/types'
+import { isRSVPData } from '@/types'
 
 export function getEventForSubmission(submission: Submission): EventDefinition | undefined {
   return getEventById(submission.eventId)
