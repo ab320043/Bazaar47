@@ -1,3 +1,4 @@
+// app/admin/events/[eventId]/page.tsx
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
@@ -18,7 +19,7 @@ interface EventData {
   id: string
   slug: string
   name: string
-  type: 'tour' | 'block-party' | 'concert' | 'custom'
+  type: 'tour' | 'block-party' | 'concert' | 'custom' | 'workshop'
   status: 'upcoming' | 'active' | 'past' | 'completed'
   date: string
   dateDisplay: string
@@ -38,8 +39,9 @@ interface EventData {
 interface SubmissionData {
   id: string
   timestamp: string
-  type: 'vendor' | 'rsvp' | 'dance-signup' | 'ticket'
+  type: 'vendor' | 'rsvp' | 'dance-signup' | 'ticket' | 'workshop-ticket' | 'workshop-rsvp'
   eventId: string
+  eventIds?: string[] // For vendor submissions
   eventSlug: string
   data: Record<string, string | number | string[] | boolean | undefined>
 }
@@ -224,8 +226,8 @@ export default function EventDetailPage() {
       })
     })
     
-    // Add standard fields that might not be in data
-    const standardFields = ['type', 'timestamp', 'id']
+    // Add standard fields
+    const standardFields = ['type', 'timestamp', 'id', 'eventIds']
     standardFields.forEach(field => allFields.add(field))
     
     const fieldArray = Array.from(allFields)
@@ -239,10 +241,16 @@ export default function EventDetailPage() {
         if (field === 'type') return submission.type
         if (field === 'timestamp') return submission.timestamp
         if (field === 'id') return submission.id
+        if (field === 'eventIds') {
+          return submission.eventIds ? submission.eventIds.join('; ') : ''
+        }
         const value = submission.data[field]
         if (value === undefined || value === null) return ''
         if (typeof value === 'string' && value.includes(',')) {
           return `"${value}"`
+        }
+        if (typeof value === 'object') {
+          return JSON.stringify(value)
         }
         return String(value)
       })
@@ -258,7 +266,7 @@ export default function EventDetailPage() {
     window.URL.revokeObjectURL(url)
   }
 
-  // Filter submissions
+  // Filter submissions - updated to handle vendor submissions
   const getFilteredSubmissions = () => {
     if (!data) return []
     
@@ -285,6 +293,18 @@ export default function EventDetailPage() {
     // Type filter
     if (submissionTypeFilter !== 'all') {
       filtered = filtered.filter(s => s.type === submissionTypeFilter)
+    }
+    
+    // For vendor submissions, filter by eventIds
+    if (eventId) {
+      filtered = filtered.filter(s => {
+        // If it's a vendor submission with eventIds array
+        if (s.type === 'vendor' && s.eventIds && Array.isArray(s.eventIds)) {
+          return s.eventIds.includes(eventId)
+        }
+        // Regular submission
+        return s.eventId === eventId
+      })
     }
     
     return filtered
@@ -389,7 +409,7 @@ export default function EventDetailPage() {
           </div>
         </div>
 
-        {/* Stats Overview Cards - No ticket count display */}
+        {/* Stats Overview Cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           <div className="bg-white rounded-xl p-4 border border-rosewood/5 shadow-sm">
             <p className="font-host-grotesk text-xs text-rosewood/40">Total Submissions</p>
@@ -495,7 +515,7 @@ export default function EventDetailPage() {
 }
 
 // ============================================
-// OVERVIEW TAB - No City Breakdown
+// OVERVIEW TAB
 // ============================================
 
 function OverviewTab({ 
@@ -585,7 +605,7 @@ function OverviewTab({
 }
 
 // ============================================
-// SUBMISSIONS TAB - With Search & Filters
+// SUBMISSIONS TAB
 // ============================================
 
 function SubmissionsTab({ submissions, onDelete, onEdit, onRefresh }: SubmissionsTabProps) {
@@ -653,6 +673,8 @@ function SubmissionsTab({ submissions, onDelete, onEdit, onRefresh }: Submission
       case 'vendor': return 'bg-chartreuse/10 text-chartreuse'
       case 'rsvp': return 'bg-cypress/10 text-cypress'
       case 'dance-signup': return 'bg-pomegranate/10 text-pomegranate'
+      case 'workshop-ticket': return 'bg-poppy/10 text-poppy'
+      case 'workshop-rsvp': return 'bg-hippie/10 text-hippie'
       default: return 'bg-rosewood/10 text-rosewood'
     }
   }
@@ -676,6 +698,10 @@ function SubmissionsTab({ submissions, onDelete, onEdit, onRefresh }: Submission
     if (data.tickets) parts.push(`${data.tickets} tickets`)
     if (data.businessName) parts.push(`@ ${data.businessName}`)
     if (data.dancerName) parts.push(`🎤 ${data.dancerName}`)
+    // Show selected cities for vendor submissions
+    if (submission.type === 'vendor' && submission.eventIds && Array.isArray(submission.eventIds)) {
+      parts.push(`📍 ${submission.eventIds.length} cities`)
+    }
     return parts.join(' ') || '—'
   }
 
@@ -771,6 +797,9 @@ function SubmissionsTab({ submissions, onDelete, onEdit, onRefresh }: Submission
                   <span className={`text-xs font-semibold px-2 py-1 rounded-full ${getTypeColor(submission.type)}`}>
                     {submission.type.replace('-', ' ')}
                   </span>
+                  {submission.type === 'vendor' && submission.eventIds && submission.eventIds.length > 1 && (
+                    <span className="ml-1 text-xs text-rosewood/40">({submission.eventIds.length} cities)</span>
+                  )}
                 </td>
                 <td className="px-4 py-3 font-host-grotesk text-sm text-rosewood font-medium">
                   {getDisplayName(submission)}

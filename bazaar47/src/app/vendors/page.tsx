@@ -157,34 +157,42 @@ export default function VendorsPage() {
     setIsSubmitting(true)
 
     try {
-      const selectedCitiesPayload = selectedCities.map(id => {
+      // Build detailed selected cities data
+      const selectedCitiesData = selectedCities.map(id => {
         const city = cityOptions.find(c => c.id === id)
         return {
-          city: city?.name,
+          city: city?.name || id,
           pricing: selectedPricing[id] || 'Not specified',
+          cityId: id,
+          date: city?.date || '',
+          venue: city?.venue || '',
         }
       })
 
-      // ✅ FIX: vendors can pick multiple cities, so we send the full
-      // array of event ids (eventIds), not a single eventId. The admin
-      // API now knows how to read this.
+      // Get event IDs for all selected cities
       const eventIds = selectedCities
         .map(id => CITY_TO_EVENT_ID[id])
         .filter(Boolean)
 
-      // ✅ No more FormSpree — this is the only submission call now.
-      // Success/failure is driven entirely by the admin API's response,
-      // so a failed save actually surfaces an error to the vendor
-      // instead of silently showing "success" anyway.
+      // Build city names array for validation
+      const cityNames = selectedCities
+        .map(id => {
+          const city = cityOptions.find(c => c.id === id)
+          return city?.name || id
+        })
+        .filter(Boolean)
+
       const response = await fetch('/api/admin/submissions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           data: {
             ...formData,
-            selectedCities: selectedCitiesPayload,
-            eventIds,
+            selectedCities: cityNames, // Array of city names for validation
+            selectedCitiesData: selectedCitiesData, // Detailed data for admin
+            eventIds: eventIds, // Array of event IDs
             paymentDeadline: 'Sept 12th, 2026',
+            cityCount: selectedCities.length,
           },
           type: 'vendor',
         }),
@@ -426,7 +434,7 @@ export default function VendorsPage() {
                                   <h4 className="font-host-grotesk font-bold text-lg text-rosewood">
                                     {city.name}
                                   </h4>
-                                  {/* Completed Badge - NEW */}
+                                  {/* Completed Badge */}
                                   {isCompleted && (
                                     <span className="flex items-center gap-1 bg-poppy/10 text-poppy text-xs px-2 py-0.5 rounded-full font-host-grotesk font-semibold">
                                       <Clock className="w-3 h-3" />
@@ -449,7 +457,7 @@ export default function VendorsPage() {
                           </div>
                         </div>
 
-                        {/* Completed City Message - NEW */}
+                        {/* Completed City Message */}
                         {isCompleted && (
                           <div className="mt-4 pt-4 border-t border-rosewood/10">
                             <div className="bg-poppy/10 rounded-xl p-4 text-center">
@@ -507,7 +515,7 @@ export default function VendorsPage() {
             </motion.div>
           )}
 
-          {/* FORM VIEW - Same as before */}
+          {/* FORM VIEW */}
           {step === 'form' && (
             <motion.div
               key="form"
@@ -589,9 +597,6 @@ export default function VendorsPage() {
                                       <p className="font-host-grotesk font-semibold text-sm text-rosewood mb-2">
                                         {option.label}
                                       </p>
-                                      {/* ✅ Only render this line if there's a size or price to show —
-                                          keeps "No Preference" (and any future no-price option) clean
-                                          instead of printing a bare " · " */}
                                       {(option.size || option.price) && (
                                         <p className="font-host-grotesk text-sm font-bold text-rosewood/50 mb-2">
                                           {[option.size, option.price].filter(Boolean).join(' · ')}
@@ -616,7 +621,7 @@ export default function VendorsPage() {
                     </div>
                   </div>
 
-                  {/* PERSONAL INFORMATION - Same as before */}
+                  {/* PERSONAL INFORMATION */}
                   <div className="space-y-4 pt-4 border-t border-rosewood/10">
                     <h3 className="font-host-grotesk font-semibold text-xl text-rosewood flex items-center gap-2">
                       <span className="text-chartreuse">✦</span>
@@ -762,7 +767,7 @@ export default function VendorsPage() {
                     </div>
                   </div>
 
-                  {/* VENDOR DETAILS - Same as before */}
+                  {/* VENDOR DETAILS */}
                   <div className="space-y-4 pt-4 border-t border-rosewood/10">
                     <h3 className="font-host-grotesk font-semibold text-xl text-rosewood flex items-center gap-2">
                       <span className="text-chartreuse">✦</span>
@@ -815,7 +820,7 @@ export default function VendorsPage() {
                     </div>
                   </div>
 
-                  {/* QUICK QUESTIONS - Same as before */}
+                  {/* QUICK QUESTIONS */}
                   <div className="space-y-4 pt-4 border-t border-rosewood/10">
                     <h3 className="font-host-grotesk font-semibold text-xl text-rosewood flex items-center gap-2">
                       <span className="text-chartreuse">✦</span>
@@ -885,7 +890,7 @@ export default function VendorsPage() {
                     </div>
                   </div>
 
-                  {/* ADDITIONAL INFO - Same as before */}
+                  {/* ADDITIONAL INFO */}
                   <div className="space-y-4 pt-4 border-t border-rosewood/10">
                     <h3 className="font-host-grotesk font-semibold text-xl text-rosewood flex items-center gap-2">
                       <span className="text-chartreuse">✦</span>
@@ -934,7 +939,7 @@ export default function VendorsPage() {
             </motion.div>
           )}
 
-          {/* SUCCESS VIEW - Same as before */}
+          {/* SUCCESS VIEW */}
           {step === 'success' && (
             <motion.div
               key="success"

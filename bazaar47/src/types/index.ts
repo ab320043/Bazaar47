@@ -32,15 +32,16 @@ export interface EventDefinition {
 }
 
 // ===== SUBMISSION TYPES =====
-export type SubmissionDataUnion = Record<string, string | number | string[] | boolean | undefined>
+export type SubmissionDataUnion = Record<string, string | number | string[] | boolean | undefined | object>
 
 export interface VendorData {
-  [key: string]: string | number | string[] | boolean | undefined
+  [key: string]: string | number | string[] | boolean | undefined | object
   fullName: string
   email: string
   businessName: string
   phone: string
-  selectedCities: string[]
+  selectedCities: string[] | object[]
+  eventIds: string[]
   city: string
   instagram: string
   instagramLink: string
@@ -57,6 +58,7 @@ export interface VendorData {
   additionalInfo?: string
   preferredName?: string
   pronouns?: string
+  paymentDeadline?: string
 }
 
 export interface RSVPData {
@@ -88,26 +90,29 @@ export interface DanceSignupData {
   signupNumber: string
 }
 
-export interface Submission {
+export interface SubmissionData {
   id: string
   timestamp: string
   type: 'vendor' | 'rsvp' | 'dance-signup' | 'ticket' | 'workshop-ticket' | 'workshop-rsvp'
   eventId: string
+  eventIds?: string[] // For vendor submissions with multiple cities
   eventSlug: string
   data: SubmissionDataUnion
 }
 
-export interface VendorSubmission extends Submission {
+export type Submission = SubmissionData
+
+export interface VendorSubmission extends SubmissionData {
   type: 'vendor'
   data: VendorData
 }
 
-export interface RSVPSubmission extends Submission {
+export interface RSVPSubmission extends SubmissionData {
   type: 'rsvp'
   data: RSVPData
 }
 
-export interface DanceSignupSubmission extends Submission {
+export interface DanceSignupSubmission extends SubmissionData {
   type: 'dance-signup'
   data: DanceSignupData
 }

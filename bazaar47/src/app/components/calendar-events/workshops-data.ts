@@ -69,7 +69,7 @@ export const workshops: Workshop[] = [
   {
     id: 'pottery',
     title: 'Clay Workshop: In a Calm, Candlelit Corner',
-    time: '8:15 PM - 10:15 PM',
+    time: '8:30 PM - 10:30 PM',
     table: 'Table 2 · Workshop Room',
     description: 'A slow evening spent with clay, surrounded by art and candlelight. All materials and guided instruction included. No experience necessary.',
     price: '$65',
@@ -88,7 +88,7 @@ export const workshops: Workshop[] = [
     price: '$50',
     ticketType: 'external-link',
     externalLink: 'https://www.sondersewing.com/workshops/p/intro-to-sewing-machines-l9fsy-pcczy-3srrn-7n65s-sadz4-rcefy',
-    color: 'bg-pomegranate',
+    color: 'bg-grove',
     textColor: 'text-plaster',
     icon: '🪡'
   }

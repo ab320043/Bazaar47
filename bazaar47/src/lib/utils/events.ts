@@ -8,7 +8,13 @@ export function getEventForSubmission(submission: Submission): EventDefinition |
 }
 
 export function getSubmissionsByEvent(submissions: Submission[], eventId: string): Submission[] {
-  return submissions.filter(s => s.eventId === eventId)
+  return submissions.filter(s => {
+    // For vendor submissions, check if the event is in the eventIds array
+    if (s.type === 'vendor' && s.eventIds && Array.isArray(s.eventIds)) {
+      return s.eventIds.includes(eventId)
+    }
+    return s.eventId === eventId
+  })
 }
 
 export function getSubmissionsByType(submissions: Submission[], type: Submission['type']): Submission[] {
@@ -22,7 +28,13 @@ export function getEventStats(submissions: Submission[], eventId: string): {
   danceSignups: number
   tickets: number
 } {
-  const eventSubmissions = submissions.filter(s => s.eventId === eventId)
+  const eventSubmissions = submissions.filter(s => {
+    // For vendor submissions, check if the event is in the eventIds array
+    if (s.type === 'vendor' && s.eventIds && Array.isArray(s.eventIds)) {
+      return s.eventIds.includes(eventId)
+    }
+    return s.eventId === eventId
+  })
   
   let vendors = 0
   let rsvps = 0
@@ -39,7 +51,7 @@ export function getEventStats(submissions: Submission[], eventId: string): {
     }
     if (s.type === 'dance-signup') danceSignups++
     if (s.type === 'workshop-ticket') {
-      tickets += 1 // Each workshop ticket is one person
+      tickets += 1
       if (s.data.tickets) {
         tickets += typeof s.data.tickets === 'number' ? s.data.tickets - 1 : 0
       }

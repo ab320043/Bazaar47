@@ -1,3 +1,4 @@
+// app/api/admin/events/[eventId]/route.ts
 import { NextRequest, NextResponse } from 'next/server'
 import { getEventById } from '@/data/events'
 import { getSubmissions } from '@/lib/storage'
@@ -24,7 +25,7 @@ export async function GET(
       )
     }
 
-    // 2. Get submissions - this will use JSON file in development
+    // 2. Get submissions
     let submissions: Submission[] = []
     try {
       const rawSubmissions = await getSubmissions()
@@ -35,11 +36,17 @@ export async function GET(
     }
 
     // 3. Filter submissions for this event
-    const eventSubmissions = submissions.filter(
-      (s: Submission) => s.eventId === eventId
-    )
+    // IMPORTANT: For vendor submissions, check if the eventId is in the eventIds array
+    const eventSubmissions = submissions.filter((s: Submission) => {
+      // If it's a vendor submission with eventIds array
+      if (s.type === 'vendor' && s.eventIds && Array.isArray(s.eventIds)) {
+        return s.eventIds.includes(eventId)
+      }
+      // Regular submission
+      return s.eventId === eventId
+    })
 
-    // 4. Calculate stats
+    // 4. Calculate stats using the same logic
     const stats = getEventStats(submissions, eventId)
 
     // 5. City breakdown (for tour events)
@@ -61,12 +68,16 @@ export async function GET(
             }
           }
         } else if (s.type === 'vendor' && isVendorData(s.data)) {
-          const cities = s.data.selectedCities || []
-          cities.forEach((city: string) => {
-            if (city && cityBreakdown[city]) {
-              cityBreakdown[city].vendors += 1
-            }
-          })
+          // For vendor submissions, check all selected cities
+          const selectedCities: unknown[] = s.data.selectedCities || []
+          if (Array.isArray(selectedCities)) {
+            selectedCities.forEach((city) => {
+              if (typeof city !== 'string') return
+              if (city && cityBreakdown[city]) {
+                cityBreakdown[city].vendors += 1
+              }
+            })
+          }
         }
       })
     }
