@@ -51,16 +51,16 @@ const cityOptions = [
     ],
     status: 'open',
   },
-  {
-    id: 'gulf-coast',
-    name: 'Gulf Coast',
-    date: 'Saturday, November 21',
-    venue: 'Gulf Coast',
-    pricing: [
-      { label: 'Outdoor Booth', price: '$TBD', size: 'TBD', note: 'Details coming soon' },
-    ],
-    status: 'open',
-  },
+  // {
+  //   id: 'gulf-coast',
+  //   name: 'Gulf Coast',
+  //   date: 'Saturday, November 21',
+  //   venue: 'Gulf Coast',
+  //   pricing: [
+  //     { label: 'Outdoor Booth', price: '$TBD', size: 'TBD', note: 'Details coming soon' },
+  //   ],
+  //   status: 'open',
+  // },
   {
     id: 'gainesville-finale',
     name: 'Gainesville',

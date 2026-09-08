@@ -53,7 +53,7 @@ export async function GET(
     const cityBreakdown: Record<string, { vendors: number; rsvps: number; tickets: number }> = {}
     
     if (event.type === 'tour') {
-      const tourCityNames = ['Orlando', 'South Florida', 'Jacksonville', 'Gainesville | The FEST', 'Gulf Coast', 'Gainesville']
+      const tourCityNames = ['Orlando', 'South Florida', 'Jacksonville', 'Gainesville | The FEST', 'Gainesville']
       tourCityNames.forEach((city: string) => {
         cityBreakdown[city] = { vendors: 0, rsvps: 0, tickets: 0 }
       })

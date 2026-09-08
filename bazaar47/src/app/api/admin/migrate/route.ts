@@ -24,7 +24,7 @@ function getEventIdFromCity(cityName: string): string | null {
     'South Florida': 'south-florida-tour',
     'Jacksonville': 'jacksonville-tour',
     'Gainesville | The FEST': 'gainesville-fest-tour',
-    'Gulf Coast': 'gulf-coast-tour',
+    // 'Gulf Coast': 'gulf-coast-tour',
     'Gainesville': 'gainesville-finale-tour',
   }
   return cityMap[cityName] || null

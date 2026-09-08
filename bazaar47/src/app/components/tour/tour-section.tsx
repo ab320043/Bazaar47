@@ -6,14 +6,15 @@ import Link from 'next/link'
 import { Clock } from 'lucide-react'
 import overlay from '@/assets/newAssets/overlay.png'
 import floridaTourText from '@/assets/newAssets/floridaTourText.png'
-// ✅ NOW THIS WORKS - getTourCities is exported
 import { getTourCities } from '@/data/events'
 
 import cardLocationIcon from '@/assets/newAssets/cardLocationIcon.png'
 
 export function TourSection() {
-  // ✅ This now works
   const tourCities = getTourCities()
+
+  // Filter out completed events
+  const activeCities = tourCities.filter(stop => stop.status !== 'completed')
 
   return (
     <section className="relative w-full overflow-hidden bg-[#6A2630]" id="tour-section">
@@ -50,13 +51,9 @@ export function TourSection() {
           </div>
         </div>
 
-        {/* TOUR CARDS */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
-          {tourCities.map((stop, index) => {
-            // Filter out completed events if you don't want to show them
-            // Remove this line to show all tours including completed
-            if (stop.status === 'completed') return null
-
+        {/* TOUR CARDS - 4 columns on large screens */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8">
+          {activeCities.map((stop, index) => {
             return (
               <motion.div
                 key={stop.id}
@@ -80,10 +77,10 @@ export function TourSection() {
                 <div className="flex flex-col bg-plaster px-4 py-4 grow">
                   {/* City + Badge */}
                   <div className="flex items-center justify-between gap-2">
-                    <h3 className="font-host-grotesk text-[24px] md:text-[30px] font-bold text-[#341B1C] leading-tight">
+                    <h3 className="font-host-grotesk text-[24px] md:text-[28px] lg:text-[30px] font-bold text-[#341B1C] leading-tight">
                       {stop.city || stop.name}
                     </h3>
-                    <span className="shrink-0 rounded-full px-3 py-1.5 md:px-4 md:py-2 text-[14px] md:text-[18px] font-bold leading-none bg-chartreuse text-[#295211]">
+                    <span className="shrink-0 rounded-full px-3 py-1.5 md:px-4 md:py-2 text-[14px] md:text-[16px] lg:text-[18px] font-bold leading-none bg-chartreuse text-[#295211]">
                       {stop.isFree ? 'Free' : `$${stop.price}`}
                     </span>
                   </div>

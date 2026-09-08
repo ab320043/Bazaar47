@@ -2,7 +2,7 @@
 import type { StaticImageData } from 'next/image'
 import casselberry from '@/assets/casselberry.jpg'
 import MAD from '@/assets/MAD.jpg'
-import Camp from '@/assets/Camp.jpg'
+// import Camp from '@/assets/Camp.jpg'
 import GNV from '@/assets/newAssets/GNV.jpg'
 import jacks2 from '@/assets/newAssets/jacks2.jpeg'
 import FEST from '@/assets/newAssets/FEST.jpeg'
@@ -92,7 +92,7 @@ const tourCities: EventDefinition[] = [
     hasDanceSignup: false,
     isFree: false,
     price: 5,
-    description: "Experience the fusion of Palestinian heritage and South Florida's vibrant energy. A night to remember.",
+    description: "Experience a collaboration between creatives from across South Florida's vibrant art and music scene. A night to remember.",
     image: MAD,
     ticketUrl: '#',
     parentEventId: 'florida-tour',
@@ -153,30 +153,30 @@ const tourCities: EventDefinition[] = [
   },
 
   // 5. GULF COAST - ACTIVE
-  {
-    id: 'gulf-coast-tour',
-    slug: 'gulf-coast',
-    name: 'Gulf Coast',
-    type: 'tour',
-    status: 'active',
-    date: '2026-11-21',
-    dateDisplay: 'Saturday, November 21',
-    time: '5-10pm',
-    location: 'CAMP Tampa',
-    address: '3012 W Palmira Ave, Tampa, FL 33629',
-    city: 'Gulf Coast',
-    capacity: 180,
-    hasVendors: true,
-    hasRSVP: true,
-    hasDanceSignup: false,
-    isFree: true,
-    description: 'A celebration of culture with food, music, and the warmth of community. Bring your family and friends.',
-    image: Camp,
-    ticketUrl: '#',
-    parentEventId: 'florida-tour',
-    venueDetails: 'Gulf Coast is a unique community space that hosts events, workshops, and cultural gatherings.',
-    highlights: ['Family Friendly', 'Live Music', 'Local Food', 'Community Workshops'],
-  },
+  // {
+  //   id: 'gulf-coast-tour',
+  //   slug: 'gulf-coast',
+  //   name: 'Gulf Coast',
+  //   type: 'tour',
+  //   status: 'active',
+  //   date: '2026-11-21',
+  //   dateDisplay: 'Saturday, November 21',
+  //   time: '5-10pm',
+  //   location: 'CAMP Tampa',
+  //   address: '3012 W Palmira Ave, Tampa, FL 33629',
+  //   city: 'Gulf Coast',
+  //   capacity: 180,
+  //   hasVendors: true,
+  //   hasRSVP: true,
+  //   hasDanceSignup: false,
+  //   isFree: true,
+  //   description: 'A celebration of culture with food, music, and the warmth of community. Bring your family and friends.',
+  //   image: Camp,
+  //   ticketUrl: '#',
+  //   parentEventId: 'florida-tour',
+  //   venueDetails: 'Gulf Coast is a unique community space that hosts events, workshops, and cultural gatherings.',
+  //   highlights: ['Family Friendly', 'Live Music', 'Local Food', 'Community Workshops'],
+  // },
 
   // 6. GAINESVILLE FINALE - ACTIVE
   {
