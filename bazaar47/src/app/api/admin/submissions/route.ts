@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
     // Validate type
     if (!VALID_TYPES.includes(type)) {
       return NextResponse.json(
-        { error: 'Invalid submission type' },
+        { error: `Invalid submission type: ${type}. Must be one of: ${VALID_TYPES.join(', ')}` },
         { status: 400 }
       )
     }
@@ -63,7 +63,9 @@ export async function POST(request: NextRequest) {
 
     const submissionData = data as Record<string, unknown>
 
-    // Vendor validation
+    // ============================================
+    // VENDOR SUBMISSION
+    // ============================================
     if (type === 'vendor') {
       // Check for required fields
       if (!submissionData.fullName || typeof submissionData.fullName !== 'string') {
@@ -91,7 +93,7 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      // Validate selectedCities - handle both array of strings and array of objects
+      // Validate selectedCities
       let selectedCities: string[] = []
       const selectedCitiesRaw = submissionData.selectedCities
       
@@ -103,7 +105,6 @@ export async function POST(request: NextRequest) {
           .filter((city): city is string => typeof city === 'string' && city.length > 0)
       }
 
-      // If no selectedCities but we have eventIds, use those
       if (selectedCities.length === 0 && isStringArray(submissionData.eventIds)) {
         selectedCities = submissionData.eventIds
       }
@@ -115,7 +116,6 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      // Validate eventIds
       const eventIds = isStringArray(submissionData.eventIds) ? submissionData.eventIds : []
 
       if (eventIds.length === 0) {
@@ -125,13 +125,12 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      // Create a clean submission with all data
       const newSubmission: Submission = {
         id: crypto.randomUUID(),
         timestamp: new Date().toISOString(),
         type: 'vendor',
-        eventId: eventIds[0], // Primary event for display
-        eventIds: eventIds, // All selected events
+        eventId: eventIds[0],
+        eventIds: eventIds,
         eventSlug: 'vendor-application',
         data: {
           ...submissionData,
@@ -139,11 +138,10 @@ export async function POST(request: NextRequest) {
           eventIds: eventIds,
           selectedCitiesRaw: isStringArray(selectedCitiesRaw) || isCityObjectArray(selectedCitiesRaw)
             ? selectedCitiesRaw
-            : undefined, // Keep original for reference
+            : undefined,
         },
       }
 
-      // Get existing submissions and save
       const submissions = await getSubmissions()
       submissions.push(newSubmission)
       await saveSubmissions(submissions)
@@ -157,19 +155,163 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // RSVP validation
-    if (type === 'rsvp' && isRSVPData(submissionData as SubmissionDataUnion)) {
-      // Existing RSVP logic here
+    // ============================================
+    // RSVP SUBMISSION
+    // ============================================
+    if (type === 'rsvp') {
+      // Check for required fields
+      if (!submissionData.fullName || typeof submissionData.fullName !== 'string') {
+        return NextResponse.json(
+          { error: 'Full name is required' },
+          { status: 400 }
+        )
+      }
+      if (!submissionData.email || typeof submissionData.email !== 'string' || !isValidEmail(submissionData.email)) {
+        return NextResponse.json(
+          { error: 'A valid email is required' },
+          { status: 400 }
+        )
+      }
+      if (!submissionData.eventId || typeof submissionData.eventId !== 'string') {
+        return NextResponse.json(
+          { error: 'Event ID is required' },
+          { status: 400 }
+        )
+      }
+
+      // Get the ticket count
+      let ticketCount = 1
+      if (submissionData.tickets) {
+        const parsed = parseInt(String(submissionData.tickets), 10)
+        if (!isNaN(parsed) && parsed > 0) {
+          ticketCount = parsed
+        }
+      }
+
+      // Create the submission
+      const newSubmission: Submission = {
+        id: crypto.randomUUID(),
+        timestamp: new Date().toISOString(),
+        type: 'rsvp',
+        eventId: String(submissionData.eventId),
+        eventSlug: String(submissionData.eventSlug || submissionData.eventId),
+        data: {
+          ...submissionData,
+          tickets: ticketCount,
+        },
+      }
+
+      const submissions = await getSubmissions()
+      submissions.push(newSubmission)
+      await saveSubmissions(submissions)
+
+      return NextResponse.json({ 
+        success: true, 
+        id: newSubmission.id,
+        message: 'RSVP submitted successfully',
+        eventId: newSubmission.eventId,
+      })
     }
 
-    // Dance signup validation
+    // ============================================
+    // DANCE SIGNUP SUBMISSION
+    // ============================================
     if (type === 'dance-signup' && isDanceSignupData(submissionData as SubmissionDataUnion)) {
-      // Existing dance signup logic here
+      // Check for required fields
+      if (!submissionData.firstName || typeof submissionData.firstName !== 'string') {
+        return NextResponse.json(
+          { error: 'First name is required' },
+          { status: 400 }
+        )
+      }
+      if (!submissionData.lastName || typeof submissionData.lastName !== 'string') {
+        return NextResponse.json(
+          { error: 'Last name is required' },
+          { status: 400 }
+        )
+      }
+      if (!submissionData.dancerName || typeof submissionData.dancerName !== 'string') {
+        return NextResponse.json(
+          { error: 'Dancer name is required' },
+          { status: 400 }
+        )
+      }
+      if (!submissionData.email || typeof submissionData.email !== 'string' || !isValidEmail(submissionData.email)) {
+        return NextResponse.json(
+          { error: 'A valid email is required' },
+          { status: 400 }
+        )
+      }
+      if (!submissionData.eventId || typeof submissionData.eventId !== 'string') {
+        return NextResponse.json(
+          { error: 'Event ID is required' },
+          { status: 400 }
+        )
+      }
+
+      const newSubmission: Submission = {
+        id: crypto.randomUUID(),
+        timestamp: new Date().toISOString(),
+        type: 'dance-signup',
+        eventId: String(submissionData.eventId),
+        eventSlug: String(submissionData.eventSlug || submissionData.eventId),
+        data: submissionData as SubmissionDataUnion,
+      }
+
+      const submissions = await getSubmissions()
+      submissions.push(newSubmission)
+      await saveSubmissions(submissions)
+
+      return NextResponse.json({ 
+        success: true, 
+        id: newSubmission.id,
+        message: 'Dance signup submitted successfully',
+      })
     }
 
-    // Workshop validation
+    // ============================================
+    // WORKSHOP SUBMISSIONS
+    // ============================================
     if (type === 'workshop-ticket' || type === 'workshop-rsvp') {
-      // Existing workshop logic here
+      if (!submissionData.fullName || typeof submissionData.fullName !== 'string') {
+        return NextResponse.json(
+          { error: 'Full name is required' },
+          { status: 400 }
+        )
+      }
+      if (!submissionData.email || typeof submissionData.email !== 'string' || !isValidEmail(submissionData.email)) {
+        return NextResponse.json(
+          { error: 'A valid email is required' },
+          { status: 400 }
+        )
+      }
+      if (!submissionData.workshopId && !submissionData.eventId) {
+        return NextResponse.json(
+          { error: 'Workshop ID is required' },
+          { status: 400 }
+        )
+      }
+
+      const eventId = String(submissionData.eventId || submissionData.workshopId)
+      
+      const newSubmission: Submission = {
+        id: crypto.randomUUID(),
+        timestamp: new Date().toISOString(),
+        type: type,
+        eventId: eventId,
+        eventSlug: String(submissionData.eventSlug || eventId),
+        data: submissionData as SubmissionDataUnion,
+      }
+
+      const submissions = await getSubmissions()
+      submissions.push(newSubmission)
+      await saveSubmissions(submissions)
+
+      return NextResponse.json({ 
+        success: true, 
+        id: newSubmission.id,
+        message: `${type === 'workshop-ticket' ? 'Workshop ticket' : 'Workshop RSVP'} submitted successfully`,
+      })
     }
 
     return NextResponse.json(
@@ -207,10 +349,8 @@ export async function PUT(request: NextRequest) {
       )
     }
 
-    // Get existing submissions
     const submissions = await getSubmissions()
     
-    // Find the submission to update
     const index = submissions.findIndex((s: Submission) => s.id === id)
     
     if (index === -1) {
@@ -220,7 +360,6 @@ export async function PUT(request: NextRequest) {
       )
     }
 
-    // Update the submission data
     const existingSubmission = submissions[index]
     const updatedSubmission: Submission = {
       ...existingSubmission,
@@ -262,10 +401,8 @@ export async function DELETE(request: NextRequest) {
       )
     }
 
-    // Get existing submissions
     const submissions = await getSubmissions()
     
-    // Find the submission to delete
     const index = submissions.findIndex((s: Submission) => s.id === id)
     
     if (index === -1) {
@@ -275,7 +412,6 @@ export async function DELETE(request: NextRequest) {
       )
     }
 
-    // Remove the submission
     submissions.splice(index, 1)
     await saveSubmissions(submissions)
 

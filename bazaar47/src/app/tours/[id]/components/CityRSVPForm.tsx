@@ -96,7 +96,6 @@ function CheckoutForm({
     setIsProcessing(true)
 
     try {
-      // ✅ elements.submit() must run before confirmPayment()
       const { error: submitError } = await elements.submit()
       if (submitError) {
         onError(submitError.message || 'Please check your payment details')
@@ -104,12 +103,10 @@ function CheckoutForm({
         return
       }
 
-      // ✅ Generate order number FIRST
       const orderNum = `TICKET-${Date.now().toString().slice(-8)}`
       setOrderNumber(orderNum)
       const totalAmount = ticketCount * PRICE_PER_TICKET
       
-      // ✅ Send confirmation email BEFORE confirming payment
       const emailSent = await sendConfirmationEmail({
         name: formData.fullName || 'Guest',
         email: formData.email,
@@ -120,14 +117,13 @@ function CheckoutForm({
         eventTime: city.time || 'TBA',
         eventLocation: city.location || 'TBA',
         orderNumber: orderNum,
-        
       })
 
       if (!emailSent) {
         console.warn('⚠️ Email may not have been sent, but continuing with payment')
       }
 
-      // ✅ Save submission to database
+      // ✅ SAVE RSVP WITH CORRECT EVENT ID
       await fetch('/api/admin/submissions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -139,7 +135,7 @@ function CheckoutForm({
             eventDisplayName: city.name,
             venue: city.location,
             date: city.date,
-            eventId: city.id,
+            eventId: city.id,  // ✅ This is the key - use city.id from the event
             eventSlug: city.slug,
             paymentStatus: 'paid',
             totalPrice: `$${totalAmount}`,
@@ -149,13 +145,10 @@ function CheckoutForm({
         }),
       })
 
-      // ✅ Show confirmation message before redirect
       setShowConfirmation(true)
       
-      // ✅ Wait 2 seconds so user can see the confirmation
       await new Promise(resolve => setTimeout(resolve, 2000))
 
-      // ✅ NOW confirm the payment (this will redirect)
       const { error } = await stripe.confirmPayment({
         elements,
         clientSecret,
@@ -171,10 +164,6 @@ function CheckoutForm({
         return
       }
 
-      // Note: The redirect happens here, so onSuccess won't be called
-      // But the email was already sent, so it's fine!
-      
-      // If we reach here without redirect (unlikely), call onSuccess
       onSuccess()
     } catch (error) {
       console.error('Payment error:', error)
@@ -215,7 +204,6 @@ function CheckoutForm({
         </button>
       </form>
 
-      {/* ✅ Confirmation Overlay */}
       {showConfirmation && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 animate-in fade-in duration-300">
           <motion.div
@@ -271,7 +259,6 @@ export function CityRSVPForm({ city }: CityRSVPFormProps) {
   const [showConfirmation, setShowConfirmation] = useState(false)
   const [orderNumber, setOrderNumber] = useState('')
 
-  // ✅ Check if this is a paid event (South Florida is the only paid one)
   const isPaidEvent = city.slug === 'south-florida'
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -285,8 +272,6 @@ export function CityRSVPForm({ city }: CityRSVPFormProps) {
       if (clientSecret) setClientSecret(null)
     }
 
-    // Any edit to email/name after a client secret was created should
-    // invalidate it, since the intent was created with the old values.
     if ((name === 'email' || name === 'fullName') && clientSecret) {
       setClientSecret(null)
     }
@@ -362,12 +347,10 @@ export function CityRSVPForm({ city }: CityRSVPFormProps) {
 
     setIsSubmitting(true)
     
-    // ✅ Generate order number for RSVP
     const orderNum = `RSVP-${Date.now().toString().slice(-8)}`
     setOrderNumber(orderNum)
     
     try {
-      // ✅ Send confirmation email FIRST for free RSVP
       const emailSent = await sendConfirmationEmail({
         name: formData.fullName || 'Guest',
         email: formData.email,
@@ -384,7 +367,7 @@ export function CityRSVPForm({ city }: CityRSVPFormProps) {
         console.warn('⚠️ Email may not have been sent, but continuing with RSVP')
       }
 
-      // ✅ Use the new submissions endpoint
+      // ✅ SAVE RSVP WITH CORRECT EVENT ID
       const response = await fetch('/api/admin/submissions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -396,7 +379,7 @@ export function CityRSVPForm({ city }: CityRSVPFormProps) {
             eventDisplayName: city.name,
             venue: city.location,
             date: city.date,
-            eventId: city.id,
+            eventId: city.id,  // ✅ This is the key - use city.id from the event
             eventSlug: city.slug,
             orderNumber: orderNum,
           },
@@ -405,10 +388,8 @@ export function CityRSVPForm({ city }: CityRSVPFormProps) {
       })
       
       if (response.ok) {
-        // ✅ Show confirmation for free RSVP
         setShowConfirmation(true)
         
-        // ✅ Wait 2 seconds then show success
         await new Promise(resolve => setTimeout(resolve, 2000))
         setShowConfirmation(false)
         setIsSuccess(true)
@@ -425,7 +406,6 @@ export function CityRSVPForm({ city }: CityRSVPFormProps) {
     }
   }
 
-  // ✅ Get display name
   const displayName = city.city || city.name
 
   return (
@@ -470,7 +450,6 @@ export function CityRSVPForm({ city }: CityRSVPFormProps) {
           </div>
         ) : (
           <div suppressHydrationWarning>
-            {/* Form fields */}
             <div className="space-y-4">
               <div>
                 <label className="font-host-grotesk font-semibold text-sm text-[#6A2630] block mb-1">
@@ -575,7 +554,6 @@ export function CityRSVPForm({ city }: CityRSVPFormProps) {
               </div>
             </div>
 
-            {/* Payment or Free RSVP */}
             {isPaidEvent ? (
               <div className="space-y-3 pt-8">
                 {isLoadingPayment ? (
@@ -628,7 +606,6 @@ export function CityRSVPForm({ city }: CityRSVPFormProps) {
           </div>
         )}
 
-        {/* ✅ Confirmation Overlay for Free RSVP */}
         {showConfirmation && !isPaidEvent && (
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 animate-in fade-in duration-300">
             <motion.div

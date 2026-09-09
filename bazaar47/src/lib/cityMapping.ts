@@ -7,9 +7,9 @@ export const cityMap: Record<string, string> = {
   'gainesville-fest': 'Gainesville | The FEST',
   'gainesville | the fest': 'Gainesville | The FEST',
   'gainesville-finale': 'Gainesville',
-  'gulf-coast': 'Gulf Coast',
-  'gulf coast': 'Gulf Coast',
-  'tampa': 'Gulf Coast',
+  // 'gulf-coast': 'Gulf Coast',
+  // 'gulf coast': 'Gulf Coast',
+  // 'tampa': 'Gulf Coast',
   // Add more mappings as needed
 }
 
