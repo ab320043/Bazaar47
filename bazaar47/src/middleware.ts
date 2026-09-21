@@ -2,14 +2,22 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
-// Routes that don't require authentication
-const PUBLIC_ROUTES = ['/login', '/api/admin/login', '/api/admin/check-auth']
+// Routes that don't require authentication (exact matches)
+const PUBLIC_ROUTES = [
+  // Admin auth
+  '/login',
+  '/api/admin/login',
+  '/api/admin/check-auth',
+  // Staff auth
+  '/staff/login',
+  '/api/staff/login',
+]
 
 export function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname
   const method = request.method
 
-  // ✅ Add pathname to headers for the RootLayout to detect admin routes
+  // ✅ Add pathname to headers for the RootLayout to detect admin/staff routes
   const requestHeaders = new Headers(request.headers)
   requestHeaders.set('x-pathname', path)
 
@@ -20,18 +28,53 @@ export function middleware(request: NextRequest) {
     })
   }
 
-  // ✅ Check if it's an admin route
-  const isAdminRoute = path.startsWith('/admin') || path.startsWith('/api/admin')
+  // ============================================
+  // STAFF ROUTES
+  // ============================================
+  const isStaffRoute =
+    path.startsWith('/staff') || path.startsWith('/api/staff')
 
-  // ✅ If not admin route, allow
+  if (isStaffRoute) {
+    // Staff routes require a staff_session cookie.
+    // An admin_session alone does NOT grant access to /staff/* —
+    // admin impersonation flows live under /admin/* only.
+    const staffSession = request.cookies.get('staff_session')
+    const hasStaffSession = !!staffSession?.value
+
+    if (!hasStaffSession) {
+      if (path.startsWith('/api/')) {
+        return NextResponse.json(
+          { error: 'Unauthorized' },
+          { status: 401 }
+        )
+      }
+
+      const staffLoginUrl = new URL('/staff/login', request.url)
+      const response = NextResponse.redirect(staffLoginUrl)
+      response.headers.set('x-pathname', path)
+      return response
+    }
+
+    return NextResponse.next({
+      request: { headers: requestHeaders },
+    })
+  }
+
+  // ============================================
+  // ADMIN ROUTES
+  // ============================================
+  const isAdminRoute =
+    path.startsWith('/admin') || path.startsWith('/api/admin')
+
+  // If not an admin route, allow (public site)
   if (!isAdminRoute) {
     return NextResponse.next({
       request: { headers: requestHeaders },
     })
   }
 
-  //api/admin/submissions is where the *public* RSVP, vendor,
-  // and dance-signup forms POST their entries. It only lives under
+  // api/admin/submissions is where the *public* RSVP, vendor, and
+  // dance-signup forms POST their entries. It only lives under
   // /api/admin because it reuses the same storage helpers as the admin
   // dashboard — creating a submission is not itself an admin-only
   // action. Requiring `admin_session` for POST here meant anyone who
@@ -56,7 +99,7 @@ export function middleware(request: NextRequest) {
   const isAuthenticated = sessionCookie?.value === 'authenticated'
 
   if (!isAuthenticated) {
-    // API routes now get a real 401 JSON response instead of an
+    // API routes get a real 401 JSON response instead of an
     // HTML redirect to /login. A redirect is easy for client-side
     // fetch() code to misread as success (fetch follows it, the final
     // response can come back 200/OK-ish), which is exactly how a
@@ -86,5 +129,7 @@ export const config = {
     '/admin/:path*',
     '/api/admin/:path*',
     '/login',
+    '/staff/:path*',
+    '/api/staff/:path*',
   ],
 }

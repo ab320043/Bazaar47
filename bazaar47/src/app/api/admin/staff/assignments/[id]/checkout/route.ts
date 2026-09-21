@@ -1,57 +1,38 @@
+// app/api/staff/assignments/[id]/checkout/route.ts
 import { NextRequest, NextResponse } from 'next/server'
-import { checkOutStaff, getAssignments } from '@/lib/storage/staff-assignments'
-
-// ============================================
-// POST - Check out staff member
-// ============================================
+import { getStaffSession } from '@/lib/staff/auth'
+import { checkOutAssignment } from '@/lib/staff/assignment-actions'
 
 export async function POST(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await params
-    
-    // Check if assignment exists
-    const assignments = await getAssignments()
-    const assignment = assignments.find(a => a.id === id)
-    
-    if (!assignment) {
-      return NextResponse.json(
-        { error: 'Assignment not found' },
-        { status: 404 }
-      )
+
+    const session = await getStaffSession()
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
-    
-    // Check if already checked out
-    if (assignment.checkOutTime) {
-      return NextResponse.json(
-        { error: 'Staff already checked out' },
-        { status: 400 }
-      )
+
+    const result = await checkOutAssignment(id, session.staffId)
+
+    if (!result.ok) {
+      return NextResponse.json({ error: result.error }, { status: result.status })
     }
-    
-    // Check if checked in
-    if (!assignment.checkInTime) {
-      return NextResponse.json(
-        { error: 'Staff must be checked in first' },
-        { status: 400 }
-      )
-    }
-    
-    const updated = await checkOutStaff(id)
-    
+
     return NextResponse.json({
       success: true,
-      message: 'Staff checked out successfully',
-      assignment: updated,
-      hoursWorked: updated?.hoursWorked,
-      amountEarned: (updated?.hoursWorked ?? 0) * (updated?.hourlyRate ?? 0),
+      message: 'Checked out successfully',
+      assignment: result.assignment,
+      hoursWorked: result.assignment.hoursWorked,
+      amountEarned:
+        (result.assignment.hoursWorked ?? 0) * (result.assignment.hourlyRate ?? 0),
     })
   } catch (error) {
-    console.error('Error checking out staff:', error)
+    console.error('Error checking out staff (staff route):', error)
     return NextResponse.json(
-      { error: 'Failed to check out staff' },
+      { error: 'Failed to check out' },
       { status: 500 }
     )
   }

@@ -406,6 +406,14 @@ export default function EventDetailPage() {
               <Download className="w-4 h-4" />
               Export CSV
             </button>
+            {/* ✅ NEW: Link to per-event staffing page */}
+            <Link
+              href={`/admin/events/${eventId}/staff`}
+              className="bg-rosewood hover:bg-rosewood/90 text-plaster px-4 py-2 rounded-xl font-host-grotesk font-semibold text-sm flex items-center gap-2 transition-all shadow-sm"
+            >
+              <Users className="w-4 h-4" />
+              Manage Staff
+            </Link>
           </div>
         </div>
 

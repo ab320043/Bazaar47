@@ -1,8 +1,10 @@
+// app/login/page.tsx
 'use client'
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
+import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { Lock, Mail, ArrowRight, AlertCircle } from 'lucide-react'
 import overlay from '@/assets/newAssets/overlay.png'
@@ -32,7 +34,7 @@ export default function LoginPage() {
         setIsCheckingAuth(false)
       }
     }
-    
+
     checkAuth()
   }, [])
 
@@ -166,10 +168,16 @@ export default function LoginPage() {
             </button>
           </form>
 
-          <div className="mt-6 text-center">
+          <div className="mt-6 pt-5 border-t border-rosewood/10 text-center space-y-2">
             <p className="font-host-grotesk text-xs text-rosewood/30">
               Secure admin area • Bazaar47
             </p>
+            <Link
+              href="/staff/login"
+              className="font-host-grotesk text-xs text-rosewood/40 hover:text-rosewood transition-colors inline-block"
+            >
+              Staff? Sign in here →
+            </Link>
           </div>
         </div>
       </motion.div>

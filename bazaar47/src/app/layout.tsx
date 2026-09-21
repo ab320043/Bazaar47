@@ -48,10 +48,11 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode
 }) {
-  // Check if we're on an admin route
+  // Detect admin or staff routes to suppress the public header/footer.
   const headersList = await headers()
   const pathname = headersList.get('x-pathname') || ''
-  const isAdminRoute = pathname.startsWith('/admin')
+  const isAppRoute =
+    pathname.startsWith('/admin') || pathname.startsWith('/staff')
 
   return (
     <html 
@@ -61,15 +62,15 @@ export default async function RootLayout({
     >
       <body suppressHydrationWarning>
         <Providers>
-          {/* Only show Header if NOT on admin route */}
-          {!isAdminRoute && <Header />}
+          {/* Only show Header if NOT on an app route */}
+          {!isAppRoute && <Header />}
           
-          <main className={!isAdminRoute ? 'pt-20' : ''}>
+          <main className={!isAppRoute ? 'pt-20' : ''}>
             {children}
           </main>
           
-          {/* Only show Footer if NOT on admin route */}
-          {!isAdminRoute && <Footer />}
+          {/* Only show Footer if NOT on an app route */}
+          {!isAppRoute && <Footer />}
         </Providers>
       </body>
     </html>

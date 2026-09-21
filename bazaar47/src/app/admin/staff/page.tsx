@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { 
   Plus, Search, Edit, Trash2, User, Mail, Phone,
   CheckCircle, XCircle, Clock, Filter, X,
-  Users, Briefcase, Calendar
+  Users, Briefcase, Calendar, KeyRound, RefreshCw, Eye, EyeOff
 } from 'lucide-react'
 import type { StaffMember, StaffRole, StaffPosition } from '@/types/staff'
 import { STAFF_ROLES } from '@/data/staff-roles'
@@ -20,6 +20,23 @@ interface StaffWithStats extends StaffMember {
 }
 
 // ============================================
+// HELPERS
+// ============================================
+
+function generateTempPassword(): string {
+  // 8-char alphanumeric, mixed case. Good enough for a temp password
+  // that the admin reads aloud / pastes to the staff member.
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789'
+  let out = ''
+  const bytes = new Uint8Array(8)
+  crypto.getRandomValues(bytes)
+  for (let i = 0; i < 8; i++) {
+    out += alphabet[bytes[i] % alphabet.length]
+  }
+  return out
+}
+
+// ============================================
 // MAIN COMPONENT
 // ============================================
 
@@ -31,6 +48,7 @@ export default function StaffDirectoryPage() {
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all')
   const [showAddModal, setShowAddModal] = useState(false)
   const [editingStaff, setEditingStaff] = useState<StaffMember | null>(null)
+  const [resetPasswordStaff, setResetPasswordStaff] = useState<StaffMember | null>(null)
 
   const fetchStaff = useCallback(async () => {
     setLoading(true)
@@ -43,24 +61,24 @@ export default function StaffDirectoryPage() {
 
       const response = await fetch(`/api/admin/staff?${params.toString()}`)
       const data = await response.json()
-      
+
       // Fetch assignments for each staff member
       const staffWithAssignments = await Promise.all(
         (data.staff || []).map(async (member: StaffMember) => {
           const assignmentsRes = await fetch(`/api/admin/staff/${member.id}/assignments`)
           const assignmentsData = await assignmentsRes.json()
           const assignments = assignmentsData.assignments || []
-          
+
           return {
             ...member,
             assignmentCount: assignments.length,
-            upcomingCount: assignments.filter((a: { status?: string }) => 
+            upcomingCount: assignments.filter((a: { status?: string }) =>
               a.status === 'assigned' || a.status === 'confirmed'
             ).length,
           }
         })
       )
-      
+
       setStaff(staffWithAssignments)
     } catch (error) {
       console.error('Failed to fetch staff:', error)
@@ -79,12 +97,12 @@ export default function StaffDirectoryPage() {
 
   const handleDelete = async (id: string) => {
     if (!confirm('Are you sure you want to delete this staff member?')) return
-    
+
     try {
       const response = await fetch(`/api/admin/staff/${id}`, {
         method: 'DELETE',
       })
-      
+
       if (response.ok) {
         await fetchStaff()
       } else {
@@ -134,7 +152,7 @@ export default function StaffDirectoryPage() {
   return (
     <div className="min-h-screen bg-plaster p-4 md:p-6 lg:p-10">
       <div className="max-w-7xl mx-auto">
-        
+
         {/* Header */}
         <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
           <div>
@@ -273,12 +291,21 @@ export default function StaffDirectoryPage() {
                       setShowAddModal(true)
                     }}
                     className="text-rosewood/30 hover:text-chartreuse transition-colors p-1"
+                    title="Edit"
                   >
                     <Edit className="w-4 h-4" />
                   </button>
                   <button
+                    onClick={() => setResetPasswordStaff(member)}
+                    className="text-rosewood/30 hover:text-chartreuse transition-colors p-1"
+                    title="Reset password"
+                  >
+                    <KeyRound className="w-4 h-4" />
+                  </button>
+                  <button
                     onClick={() => handleDelete(member.id)}
                     className="text-rosewood/30 hover:text-poppy transition-colors p-1"
+                    title="Delete"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -327,6 +354,15 @@ export default function StaffDirectoryPage() {
           onSuccess={fetchStaff}
         />
       )}
+
+      {/* Reset Password Modal */}
+      {resetPasswordStaff && (
+        <ResetPasswordModal
+          staff={resetPasswordStaff}
+          onClose={() => setResetPasswordStaff(null)}
+          onSuccess={fetchStaff}
+        />
+      )}
     </div>
   )
 }
@@ -352,9 +388,11 @@ function StaffFormModal({ staff, onClose, onSuccess }: StaffFormModalProps) {
     nonprofitRate: staff?.nonprofitRate || 15,
     isActive: staff?.isActive ?? true,
     notes: staff?.notes || '',
+    tempPassword: '',
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
 
   const isEditing = !!staff
 
@@ -367,10 +405,28 @@ function StaffFormModal({ staff, onClose, onSuccess }: StaffFormModalProps) {
       const url = isEditing ? `/api/admin/staff/${staff.id}` : '/api/admin/staff'
       const method = isEditing ? 'PUT' : 'POST'
 
+      // On create, include tempPassword. On edit, we deliberately do NOT
+      // send a password — that goes through the dedicated reset endpoint.
+      const payload: Record<string, unknown> = {
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        primaryRole: formData.primaryRole,
+        position: formData.position,
+        hourlyRate: formData.hourlyRate,
+        nonprofitRate: formData.nonprofitRate,
+        isActive: formData.isActive,
+        notes: formData.notes,
+      }
+
+      if (!isEditing) {
+        payload.tempPassword = formData.tempPassword
+      }
+
       const response = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(payload),
       })
 
       const data = await response.json()
@@ -382,7 +438,7 @@ function StaffFormModal({ staff, onClose, onSuccess }: StaffFormModalProps) {
 
       onSuccess()
       onClose()
-    } catch (error) {
+    } catch {
       setError('Network error - please try again')
     } finally {
       setIsSubmitting(false)
@@ -524,6 +580,51 @@ function StaffFormModal({ staff, onClose, onSuccess }: StaffFormModalProps) {
             </div>
           </div>
 
+          {/* Temp Password — only on create */}
+          {!isEditing && (
+            <div>
+              <label className="font-host-grotesk font-semibold text-sm text-rosewood/80 block mb-1">
+                Temporary Password <span className="text-poppy">*</span>
+              </label>
+              <p className="font-host-grotesk text-xs text-rosewood/40 mb-1.5">
+                At least 8 characters. Share this with the staff member out-of-band.
+                They&apos;ll be prompted to ask you to change it.
+              </p>
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={formData.tempPassword}
+                    onChange={(e) => setFormData({ ...formData, tempPassword: e.target.value })}
+                    required
+                    minLength={8}
+                    className="w-full px-4 py-2 pr-10 bg-plaster/30 border border-rosewood/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-chartreuse/40 font-host-grotesk text-rosewood font-mono"
+                    placeholder="e.g. Tr0ub4dor"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((v) => !v)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-rosewood/30 hover:text-rosewood/60"
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFormData({ ...formData, tempPassword: generateTempPassword() })
+                    setShowPassword(true)
+                  }}
+                  className="px-4 py-2 bg-plaster/50 hover:bg-plaster/80 text-rosewood/70 rounded-xl font-host-grotesk text-sm flex items-center gap-2 transition-colors"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  Generate
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Active Status */}
           <div>
             <label className="font-host-grotesk font-semibold text-sm text-rosewood/80 block mb-1">
@@ -582,6 +683,162 @@ function StaffFormModal({ staff, onClose, onSuccess }: StaffFormModalProps) {
               className="bg-chartreuse hover:bg-chartreuse/90 text-grove px-6 py-2 rounded-xl font-host-grotesk font-semibold transition-all disabled:opacity-50"
             >
               {isSubmitting ? 'Saving...' : (isEditing ? 'Update Staff' : 'Add Staff')}
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="bg-rosewood/10 hover:bg-rosewood/20 text-rosewood/60 px-6 py-2 rounded-xl font-host-grotesk font-semibold transition-all"
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+// ============================================
+// RESET PASSWORD MODAL
+// ============================================
+
+interface ResetPasswordModalProps {
+  staff: StaffMember
+  onClose: () => void
+  onSuccess: () => void
+}
+
+function ResetPasswordModal({ staff, onClose, onSuccess }: ResetPasswordModalProps) {
+  const [newPassword, setNewPassword] = useState(() => generateTempPassword())
+  const [showPassword, setShowPassword] = useState(true)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState('')
+  const [copied, setCopied] = useState(false)
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError('')
+    setIsSubmitting(true)
+
+    try {
+      const response = await fetch(`/api/admin/staff/${staff.id}/reset-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ newPassword }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        setError(data.error || 'Failed to reset password')
+        return
+      }
+
+      onSuccess()
+      onClose()
+    } catch {
+      setError('Network error - please try again')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(newPassword)
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 2000)
+    } catch {
+      // Clipboard may be unavailable; ignore.
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-rosewood/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-3xl max-w-md w-full shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <div className="p-6 border-b border-rosewood/10 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-chartreuse/10 flex items-center justify-center">
+              <KeyRound className="w-5 h-5 text-chartreuse" />
+            </div>
+            <div>
+              <h3 className="font-host-grotesk font-bold text-xl text-rosewood">
+                Reset Password
+              </h3>
+              <p className="font-host-grotesk text-sm text-rosewood/50">
+                {staff.name}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-2 hover:bg-plaster/50 rounded-full transition-colors"
+          >
+            <X className="w-5 h-5 text-rosewood/60" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <div className="bg-chartreuse/10 border border-chartreuse/30 rounded-xl p-3">
+            <p className="font-host-grotesk text-xs text-cypress">
+              Setting a new password will sign {staff.name} out of any active session.
+            </p>
+          </div>
+
+          <div>
+            <label className="font-host-grotesk font-semibold text-sm text-rosewood/80 block mb-1">
+              New Temporary Password <span className="text-poppy">*</span>
+            </label>
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  required
+                  minLength={8}
+                  className="w-full px-4 py-2 pr-10 bg-plaster/30 border border-rosewood/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-chartreuse/40 font-host-grotesk text-rosewood font-mono"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-rosewood/30 hover:text-rosewood/60"
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+              <button
+                type="button"
+                onClick={() => setNewPassword(generateTempPassword())}
+                className="px-3 py-2 bg-plaster/50 hover:bg-plaster/80 text-rosewood/70 rounded-xl transition-colors"
+                title="Generate new password"
+              >
+                <RefreshCw className="w-4 h-4" />
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={handleCopy}
+              className="mt-2 text-xs font-host-grotesk text-chartreuse hover:text-chartreuse/80 transition-colors"
+            >
+              {copied ? '✓ Copied' : 'Copy to clipboard'}
+            </button>
+          </div>
+
+          {error && (
+            <div className="text-poppy text-sm font-host-grotesk bg-poppy/10 p-3 rounded-xl">
+              {error}
+            </div>
+          )}
+
+          <div className="flex gap-3 pt-2">
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="bg-chartreuse hover:bg-chartreuse/90 text-grove px-6 py-2 rounded-xl font-host-grotesk font-semibold transition-all disabled:opacity-50 flex-1"
+            >
+              {isSubmitting ? 'Resetting...' : 'Set New Password'}
             </button>
             <button
               type="button"

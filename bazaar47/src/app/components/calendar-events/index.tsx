@@ -10,7 +10,7 @@ export { EventsSection } from '@/app/components/calendar-events/Eventssection'
 export function CalendarEventsSection() {
   return (
     <>
-      <EventsSection />
+      {/* <EventsSection /> */}
       <CalendarSection />
     </>
   )

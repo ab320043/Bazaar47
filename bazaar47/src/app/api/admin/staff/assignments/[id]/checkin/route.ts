@@ -1,55 +1,39 @@
+// app/api/staff/assignments/[id]/checkin/route.ts
 import { NextRequest, NextResponse } from 'next/server'
-import { checkInStaff, getAssignments } from '@/lib/storage/staff-assignments'
-
-// ============================================
-// POST - Check in staff member
-// ============================================
+import { getStaffSession } from '@/lib/staff/auth'
+import { checkInAssignment } from '@/lib/staff/assignment-actions'
 
 export async function POST(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await params
-    
-    // Check if assignment exists
-    const assignments = await getAssignments()
-    const assignment = assignments.find(a => a.id === id)
-    
-    if (!assignment) {
-      return NextResponse.json(
-        { error: 'Assignment not found' },
-        { status: 404 }
-      )
+
+    // 1. Resolve the session. Never trust a staffId from the request.
+    const session = await getStaffSession()
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
-    
-    // Check if already checked in
-    if (assignment.checkInTime) {
-      return NextResponse.json(
-        { error: 'Staff already checked in' },
-        { status: 400 }
-      )
+
+    // 2. Delegate to the shared core, passing the session's staffId as the
+    //    required owner. The core enforces assignment.staffId === expectedStaffId
+    //    and returns 403 on mismatch.
+    const result = await checkInAssignment(id, session.staffId)
+
+    if (!result.ok) {
+      return NextResponse.json({ error: result.error }, { status: result.status })
     }
-    
-    // Check if assignment is cancelled
-    if (assignment.status === 'cancelled') {
-      return NextResponse.json(
-        { error: 'Cannot check in cancelled assignment' },
-        { status: 400 }
-      )
-    }
-    
-    const updated = await checkInStaff(id)
-    
+
     return NextResponse.json({
       success: true,
-      message: 'Staff checked in successfully',
-      assignment: updated,
+      message: 'Checked in successfully',
+      assignment: result.assignment,
     })
   } catch (error) {
-    console.error('Error checking in staff:', error)
+    console.error('Error checking in staff (staff route):', error)
     return NextResponse.json(
-      { error: 'Failed to check in staff' },
+      { error: 'Failed to check in' },
       { status: 500 }
     )
   }

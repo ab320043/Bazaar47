@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { 
   Calendar, Clock, DollarSign, Users, 
-  CheckCircle, XCircle, RefreshCw, ArrowRight,
+  CheckCircle, RefreshCw, ArrowRight,
   MapPin, Briefcase, Star, AlertCircle
 } from 'lucide-react'
 import type { StaffMember, StaffAssignment } from '@/types/staff'
@@ -31,17 +31,16 @@ interface DashboardData {
 // MAIN COMPONENT
 // ============================================
 
-export default function StaffDashboardPage() {
-  const router = useRouter()
+export default function AdminStaffDashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null)
+  const [staffList, setStaffList] = useState<StaffMember[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [staffId, setStaffId] = useState('')
 
-  // In a real app, this would come from authentication
-  // For now, we'll show a selector for demo purposes
   const fetchDashboard = useCallback(async (id: string) => {
     if (!id) {
+      setData(null)
       setLoading(false)
       return
     }
@@ -57,7 +56,6 @@ export default function StaffDashboardPage() {
         } else {
           setError('Failed to load dashboard data')
         }
-        setLoading(false)
         return
       }
 
@@ -71,31 +69,39 @@ export default function StaffDashboardPage() {
     }
   }, [])
 
-  // Initial load with first staff member
+  // Load staff list + auto-select the first active staff member
   useEffect(() => {
-    // Fetch list of staff to get first one
-    const loadInitialStaff = async () => {
+    let cancelled = false
+
+    const loadStaffList = async () => {
       try {
         const response = await fetch('/api/admin/staff?status=active')
         if (response.ok) {
           const result = await response.json()
-          if (result.staff && result.staff.length > 0) {
-            const firstStaff = result.staff[0]
-            setStaffId(firstStaff.id)
-            fetchDashboard(firstStaff.id)
+          const list: StaffMember[] = result.staff || []
+          if (cancelled) return
+          setStaffList(list)
+
+          if (list.length > 0) {
+            setStaffId(list[0].id)
+            await fetchDashboard(list[0].id)
           } else {
             setLoading(false)
           }
         } else {
-          setLoading(false)
+          if (!cancelled) setLoading(false)
         }
       } catch (error) {
         console.error('Failed to load staff list:', error)
-        setLoading(false)
+        if (!cancelled) setLoading(false)
       }
     }
 
-    loadInitialStaff()
+    loadStaffList()
+
+    return () => {
+      cancelled = true
+    }
   }, [fetchDashboard])
 
   const handleStaffChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -131,7 +137,33 @@ export default function StaffDashboardPage() {
     )
   }
 
-  if (loading) {
+  // Empty state — no staff at all
+  if (!loading && staffList.length === 0) {
+    return (
+      <div className="min-h-screen bg-plaster p-4 md:p-6 lg:p-10">
+        <div className="max-w-3xl mx-auto pt-20">
+          <div className="bg-white rounded-2xl p-12 border border-rosewood/5 shadow-sm text-center">
+            <Users className="w-16 h-16 text-rosewood/20 mx-auto mb-4" />
+            <h1 className="font-host-grotesk font-bold text-2xl text-rosewood">
+              No staff members yet
+            </h1>
+            <p className="font-host-grotesk text-rosewood/50 mt-2">
+              Add your first staff member to see their dashboard here.
+            </p>
+            <Link
+              href="/admin/staff"
+              className="mt-6 inline-flex items-center gap-2 bg-chartreuse hover:bg-chartreuse/90 text-grove px-6 py-2 rounded-xl font-host-grotesk font-semibold transition-all"
+            >
+              Go to Staff Directory
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (loading && !data) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-plaster">
         <div className="text-rosewood/60 font-host-grotesk">Loading dashboard...</div>
@@ -159,14 +191,22 @@ export default function StaffDashboardPage() {
   return (
     <div className="min-h-screen bg-plaster p-4 md:p-6 lg:p-10">
       <div className="max-w-7xl mx-auto">
-        
+
+        {/* Admin banner */}
+        <div className="bg-rosewood/5 border border-rosewood/10 rounded-xl px-4 py-2 mb-6 flex items-center gap-2">
+          <Users className="w-4 h-4 text-rosewood/50" />
+          <span className="font-host-grotesk text-xs text-rosewood/60">
+            Admin view — impersonating a staff member&apos;s dashboard
+          </span>
+        </div>
+
         {/* Header */}
         <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
           <div className="flex items-center gap-4">
             <span className="text-5xl">{getRoleIcon(staff.primaryRole)}</span>
             <div>
               <h1 className="font-host-grotesk font-bold text-3xl md:text-4xl text-rosewood">
-                Welcome, {staff.name}!
+                {staff.name}
               </h1>
               <p className="font-host-grotesk text-rosewood/50">
                 {getRoleLabel(staff.primaryRole)} • {staff.position}
@@ -177,10 +217,13 @@ export default function StaffDashboardPage() {
             <select
               value={staffId}
               onChange={handleStaffChange}
-              className="px-4 py-2 bg-white border border-rosewood/10 rounded-xl font-host-grotesk text-sm text-rosewood focus:outline-none focus:ring-2 focus:ring-chartreuse/40"
+              className="px-4 py-2 bg-white border border-rosewood/10 rounded-xl font-host-grotesk text-sm text-rosewood focus:outline-none focus:ring-2 focus:ring-chartreuse/40 min-w-[200px]"
             >
-              <option value="">Select Staff Member</option>
-              {/* This would be populated from API */}
+              {staffList.map((member) => (
+                <option key={member.id} value={member.id}>
+                  {member.name}
+                </option>
+              ))}
             </select>
             <button
               onClick={() => fetchDashboard(staffId)}
@@ -192,7 +235,7 @@ export default function StaffDashboardPage() {
           </div>
         </div>
 
-        {/* Stats Cards */}
+        {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
           <div className="bg-white rounded-xl p-5 border border-rosewood/5 shadow-sm">
             <p className="font-host-grotesk text-sm text-rosewood/40">This Month</p>
@@ -220,7 +263,7 @@ export default function StaffDashboardPage() {
           </div>
         </div>
 
-        {/* Current Assignment */}
+        {/* Current assignment */}
         {current && (
           <div className="bg-chartreuse/10 border-2 border-chartreuse/30 rounded-2xl p-6 mb-8">
             <div className="flex items-start justify-between">
@@ -233,9 +276,9 @@ export default function StaffDashboardPage() {
                 <div className="flex flex-wrap items-center gap-4 mt-2 text-sm text-rosewood/60">
                   <span className="flex items-center gap-1">
                     <Calendar className="w-4 h-4" />
-                    {new Date(current.shiftStart).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit'})}
+                    {new Date(current.shiftStart).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     {' - '}
-                    {new Date(current.shiftEnd).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit'})}
+                    {new Date(current.shiftEnd).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </span>
                   <span className="flex items-center gap-1">
                     <Briefcase className="w-4 h-4" />
@@ -247,18 +290,16 @@ export default function StaffDashboardPage() {
                   </span>
                 </div>
               </div>
-              <div className="flex gap-2">
-                <span className="text-sm font-semibold text-chartreuse bg-chartreuse/20 px-3 py-1 rounded-full animate-pulse">
-                  ● Active
-                </span>
-              </div>
+              <span className="text-sm font-semibold text-chartreuse bg-chartreuse/20 px-3 py-1 rounded-full animate-pulse">
+                ● Active
+              </span>
             </div>
           </div>
         )}
 
-        {/* Two Column Layout */}
+        {/* Two column layout */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Upcoming Assignments */}
+          {/* Upcoming */}
           <div>
             <h2 className="font-host-grotesk font-bold text-xl text-rosewood mb-4 flex items-center gap-2">
               <Calendar className="w-5 h-5" />
@@ -282,7 +323,7 @@ export default function StaffDashboardPage() {
                           </span>
                           <span className="flex items-center gap-1">
                             <Clock className="w-3.5 h-3.5" />
-                            {new Date(assignment.shiftStart).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit'})}
+                            {new Date(assignment.shiftStart).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                           </span>
                           <span className="flex items-center gap-1">
                             <MapPin className="w-3.5 h-3.5" />
@@ -299,12 +340,11 @@ export default function StaffDashboardPage() {
               <div className="bg-white rounded-xl p-8 text-center border border-rosewood/5 shadow-sm">
                 <AlertCircle className="w-12 h-12 text-rosewood/20 mx-auto mb-3" />
                 <p className="font-host-grotesk text-rosewood/40">No upcoming events</p>
-                <p className="font-host-grotesk text-sm text-rosewood/30">You Are all caught up!</p>
               </div>
             )}
           </div>
 
-          {/* Past Assignments */}
+          {/* Past */}
           <div>
             <h2 className="font-host-grotesk font-bold text-xl text-rosewood mb-4 flex items-center gap-2">
               <Clock className="w-5 h-5" />

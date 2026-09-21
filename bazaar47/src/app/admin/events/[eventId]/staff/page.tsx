@@ -1,15 +1,16 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { 
   ArrowLeft, UserPlus, Users, Clock, DollarSign,
   CheckCircle, XCircle, RefreshCw, Calendar,
-  Plus, Trash2, Edit, Mail, Phone
+  Plus, Trash2, Edit, Mail, Phone, Download, History
 } from 'lucide-react'
 import type { StaffAssignment, StaffMember, StaffRole, AssignmentStatus, EventType } from '@/types/staff'
 import { STAFF_ROLES, getRolesForEventTier, DEFAULT_STAFF_ASSIGNMENT } from '@/data/staff-roles'
+import { buildStaffAssignmentsCsv, downloadCsv } from '@/lib/staff/csv'
 
 // ============================================
 // TYPES
@@ -23,6 +24,7 @@ interface EventStaffingData {
     date: string
     dateDisplay: string
     location: string
+    status?: string
   }
   assignments: StaffAssignment[]
   stats: {
@@ -44,12 +46,30 @@ interface AvailableStaff {
 }
 
 // ============================================
+// HELPERS
+// ============================================
+
+function isEventPast(eventDate: string): boolean {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const event = new Date(eventDate)
+  event.setHours(0, 0, 0, 0)
+  return event < today
+}
+
+function slugifyEventName(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+}
+
+// ============================================
 // MAIN COMPONENT
 // ============================================
 
 export default function EventStaffingPage() {
   const params = useParams()
-  const router = useRouter()
   const eventId = params.eventId as string
 
   const [data, setData] = useState<EventStaffingData | null>(null)
@@ -57,15 +77,12 @@ export default function EventStaffingPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showAssignModal, setShowAssignModal] = useState(false)
-  const [selectedRole, setSelectedRole] = useState<StaffRole | ''>('')
 
-  // ✅ Use useCallback to memoize fetch function
   const fetchData = useCallback(async () => {
     setLoading(true)
     setError(null)
     
     try {
-      // Fetch event staff
       const staffRes = await fetch(`/api/admin/events/${eventId}/staff`)
       if (!staffRes.ok) {
         setError('Failed to load event staffing data')
@@ -75,7 +92,6 @@ export default function EventStaffingPage() {
       const staffData = await staffRes.json()
       setData(staffData)
 
-      // Fetch available staff (not assigned to this event)
       const availableRes = await fetch('/api/admin/staff?status=active')
       if (availableRes.ok) {
         const availableData = await availableRes.json()
@@ -92,8 +108,6 @@ export default function EventStaffingPage() {
     }
   }, [eventId])
 
-  // Start loading after the effect has completed so its state updates do not
-  // trigger a synchronous cascading render.
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
       void fetchData()
@@ -168,14 +182,22 @@ export default function EventStaffingPage() {
     }
   }
 
+  const handleExportCsv = () => {
+    if (!data || !data.assignments || data.assignments.length === 0) return
+
+    const csv = buildStaffAssignmentsCsv(data.assignments, {
+      eventName: data.event.name,
+      eventDate: data.event.dateDisplay || data.event.date,
+      eventLocation: data.event.location,
+    })
+
+    const filename = `${slugifyEventName(data.event.name)}-staff-${new Date().toISOString().slice(0, 10)}.csv`
+    downloadCsv(filename, csv)
+  }
+
   const getRoleLabel = (roleId: StaffRole) => {
     const role = STAFF_ROLES.find(r => r.id === roleId)
     return role?.label || roleId
-  }
-
-  const getRoleIcon = (roleId: StaffRole) => {
-    const role = STAFF_ROLES.find(r => r.id === roleId)
-    return role?.icon || '👤'
   }
 
   const getStatusBadge = (status: AssignmentStatus) => {
@@ -220,6 +242,15 @@ export default function EventStaffingPage() {
 
   const { event, assignments, stats } = data
 
+  // Past-event detection: prefer an explicit status from the API; fall back
+  // to comparing the event date to today.
+  const isPastEvent =
+    event.status === 'completed' ||
+    event.status === 'past' ||
+    isEventPast(event.date)
+
+  const canExport = assignments.length > 0
+
   // Group assignments by role
   const groupedAssignments = assignments.reduce((acc, assignment) => {
     const role = assignment.role
@@ -228,14 +259,30 @@ export default function EventStaffingPage() {
     return acc
   }, {} as Record<StaffRole, StaffAssignment[]>)
 
-  // Get required roles for this event type
+  // Required roles for this event type
   const requiredRoles: StaffRole[] = (DEFAULT_STAFF_ASSIGNMENT[event.type] || [])
     .filter((role): role is StaffRole => STAFF_ROLES.some(({ id }) => id === role))
 
   return (
     <div className="min-h-screen bg-plaster p-4 md:p-6 lg:p-10">
       <div className="max-w-7xl mx-auto">
-        
+
+        {/* Past event banner */}
+        {isPastEvent && (
+          <div className="bg-rosewood/5 border border-rosewood/15 rounded-2xl px-4 py-3 mb-6 flex items-start gap-3">
+            <History className="w-5 h-5 text-rosewood/50 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-host-grotesk font-semibold text-rosewood text-sm">
+                This event has passed
+              </p>
+              <p className="font-host-grotesk text-rosewood/60 text-xs mt-0.5">
+                Staffing remains editable so you can make corrections, add
+                hours, or fix roles after the fact.
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Header */}
         <div className="flex items-center gap-4 mb-6">
           <Link 
@@ -259,6 +306,15 @@ export default function EventStaffingPage() {
               <span className={stats.isFullyStaffed ? 'text-chartreuse' : 'text-poppy'}>
                 {stats.isFullyStaffed ? '✅ Fully Staffed' : `⚠️ Missing ${stats.missingRoles.length} roles`}
               </span>
+              {isPastEvent && (
+                <>
+                  <span className="text-rosewood/20">•</span>
+                  <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-rosewood/10 text-rosewood/60">
+                    <History className="w-3 h-3" />
+                    Past event
+                  </span>
+                </>
+              )}
             </div>
           </div>
           <div className="flex gap-2">
@@ -268,6 +324,15 @@ export default function EventStaffingPage() {
             >
               <RefreshCw className="w-4 h-4" />
               Refresh
+            </button>
+            <button
+              onClick={handleExportCsv}
+              disabled={!canExport}
+              title={canExport ? 'Export staff to CSV' : 'No staff to export'}
+              className="bg-white hover:bg-white/80 text-rosewood/60 px-4 py-2 rounded-xl font-host-grotesk font-semibold text-sm flex items-center gap-2 transition-all shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <Download className="w-4 h-4" />
+              Export CSV
             </button>
             <button
               onClick={() => setShowAssignModal(true)}
@@ -353,6 +418,12 @@ export default function EventStaffingPage() {
                               <span>{assignment.position}</span>
                               <span>•</span>
                               <span>${assignment.hourlyRate}/hr</span>
+                              {assignment.hoursWorked !== undefined && (
+                                <>
+                                  <span>•</span>
+                                  <span>{assignment.hoursWorked}h worked</span>
+                                </>
+                              )}
                             </div>
                           </div>
                         </div>
