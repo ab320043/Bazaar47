@@ -11,7 +11,7 @@ export const metadata: Metadata = {
     type: 'website',
     images: [
       {
-        url: '/images/big-caf-meetings-og.jpeg', // or any image you want
+        url: '/bazaar47/public/images/big-caf-meetings-og.jpeg', // or any image you want
         width: 1200,
         height: 630,
         alt: 'Big Caf Festival — Meeting Availability',

@@ -14,7 +14,7 @@ export const metadata: Metadata = {
     type: 'website',
     images: [
       {
-        url: '/images/thumbnail.png',
+        url: '/bazaar47/public/images/thumbnail.png',
         width: 1200,
         height: 630,
         alt: 'Bazaar47 — Staff Portal',
