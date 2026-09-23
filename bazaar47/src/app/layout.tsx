@@ -52,7 +52,7 @@ export default async function RootLayout({
   const headersList = await headers()
   const pathname = headersList.get('x-pathname') || ''
   const isAppRoute =
-    pathname.startsWith('/admin') || pathname.startsWith('/staff')
+    pathname.startsWith('/admin') || pathname.startsWith('/staff') || pathname.startsWith('/big-caf-meetings-calendar')
 
   return (
     <html 

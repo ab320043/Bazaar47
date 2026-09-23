@@ -9,6 +9,7 @@ import {
   UserCog,
   LogOut,
   Archive,
+  CalendarDays,
 } from 'lucide-react'
 import { LogoutButton } from './LogoutButton'
 
@@ -22,6 +23,11 @@ const navItems = [
     href: '/admin/archive',
     label: 'Archive',
     icon: Archive,
+  },
+  {
+    href: '/admin/big-caf-meetings',
+    label: 'Big Caf Meetings',
+    icon: CalendarDays,
   },
   {
     href: '/admin/staff',

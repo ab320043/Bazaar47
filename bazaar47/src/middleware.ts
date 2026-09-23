@@ -35,9 +35,6 @@ export function middleware(request: NextRequest) {
     path.startsWith('/staff') || path.startsWith('/api/staff')
 
   if (isStaffRoute) {
-    // Staff routes require a staff_session cookie.
-    // An admin_session alone does NOT grant access to /staff/* —
-    // admin impersonation flows live under /admin/* only.
     const staffSession = request.cookies.get('staff_session')
     const hasStaffSession = !!staffSession?.value
 
@@ -61,13 +58,27 @@ export function middleware(request: NextRequest) {
   }
 
   // ============================================
-  // ADMIN ROUTES
+  // ADMIN ROUTES (includes /api/admin/* AND /api/big-caf-meetings*)
   // ============================================
   const isAdminRoute =
     path.startsWith('/admin') || path.startsWith('/api/admin')
 
-  // If not an admin route, allow (public site)
-  if (!isAdminRoute) {
+  // ✅ Big Caf Meetings: POST to /api/big-caf-meetings is public (form
+  // submissions). GET on the same path and everything on
+  // /api/big-caf-meetings/[id] is admin-only and handled below.
+  const isPublicBigCafSubmit =
+    path === '/api/big-caf-meetings' && method === 'POST'
+
+  if (isPublicBigCafSubmit) {
+    return NextResponse.next({
+      request: { headers: requestHeaders },
+    })
+  }
+
+  // Treat /api/big-caf-meetings* as an admin-gated API surface.
+  const isBigCafApi = path.startsWith('/api/big-caf-meetings')
+
+  if (!isAdminRoute && !isBigCafApi) {
     return NextResponse.next({
       request: { headers: requestHeaders },
     })
@@ -99,13 +110,6 @@ export function middleware(request: NextRequest) {
   const isAuthenticated = sessionCookie?.value === 'authenticated'
 
   if (!isAuthenticated) {
-    // API routes get a real 401 JSON response instead of an
-    // HTML redirect to /login. A redirect is easy for client-side
-    // fetch() code to misread as success (fetch follows it, the final
-    // response can come back 200/OK-ish), which is exactly how a
-    // failed save can end up looking like a successful one to the
-    // frontend. Actual browser page routes (e.g. /admin/dashboard)
-    // still redirect normally, since those need to show the login UI.
     if (path.startsWith('/api/')) {
       return NextResponse.json(
         { error: 'Unauthorized' },
@@ -131,5 +135,7 @@ export const config = {
     '/login',
     '/staff/:path*',
     '/api/staff/:path*',
+    '/api/big-caf-meetings/:path*',
+    '/api/big-caf-meetings',
   ],
 }
