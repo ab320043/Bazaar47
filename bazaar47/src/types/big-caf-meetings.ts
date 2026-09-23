@@ -4,6 +4,22 @@
 // BIG CAF MEETING AVAILABILITY
 // ============================================
 
+/**
+ * A single selected day plus the person's free-text availability window
+ * on that day.
+ *
+ * - `date` is an ISO string 'YYYY-MM-DD', guaranteed to be a valid
+ *   meeting day (Wed/Thu/Fri, inside the window).
+ * - `timeWindow` is free-text like "4 PM", "5-7", "after 6". An empty
+ *   string means "anytime within the meeting window (3 PM – 8 PM)".
+ *   No validation on content — it's a note for the admin, not a
+ *   structured time.
+ */
+export interface BigCafAvailabilityEntry {
+  date: string
+  timeWindow: string
+}
+
 export interface BigCafMeetingResponse {
   id: string
   timestamp: string
@@ -12,22 +28,19 @@ export interface BigCafMeetingResponse {
   phone: string
 
   /**
-   * ISO date strings ('YYYY-MM-DD') the person marked as available.
-   * All entries are guaranteed to be valid meeting days inside the
-   * current window (Wed/Thu/Fri, between window start and 2027-03-26).
-   * Sorted ascending.
+   * Per-day availability. Sorted by date ascending. Never empty for a
+   * valid response — at least one day is required to submit.
    */
-  selectedDays: string[]
+  availability: BigCafAvailabilityEntry[]
 
   /**
-   * Per-person admin flag. Admin marks a response as "confirmed" once
-   * a meeting has been scheduled with that person out-of-band.
+   * Per-person admin flag. Set to true once a meeting has been
+   * scheduled with that person out-of-band.
    */
   confirmed: boolean
 
   /**
-   * Free-text note the admin can attach to a confirmed person, e.g.
-   * "Confirmed for Wed Feb 17, 2pm".
+   * Free-text admin note, e.g. "Confirmed for Wed Feb 17, 2pm".
    */
   confirmedNote?: string
 
@@ -43,7 +56,7 @@ export interface BigCafMeetingSubmitPayload {
   fullName: string
   email: string
   phone: string
-  selectedDays: string[]
+  availability: BigCafAvailabilityEntry[]
 }
 
 export interface BigCafMeetingUpdatePayload {

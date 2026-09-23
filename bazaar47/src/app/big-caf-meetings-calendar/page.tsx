@@ -13,12 +13,14 @@ import {
   Loader2,
   ArrowRight,
   X,
+  Clock,
 } from 'lucide-react'
 import overlay from '@/assets/newAssets/overlay.png'
 import {
-  PAGE_TITLE,
-  PAGE_DESCRIPTION,
   PAGE_INTRO,
+  PAGE_TIME_HINT,
+  MEETING_TIME_WINDOW_START,
+  MEETING_TIME_WINDOW_END,
 } from '@/data/big-caf-meetings'
 import {
   buildMonthGrid,
@@ -26,8 +28,8 @@ import {
   getMonthName,
   getWindowRangeIso,
   formatDayLong,
+  formatDayShort,
   WEEKDAY_HEADERS,
-  toIsoLocal,
   type MonthGridCell,
 } from '@/lib/big-caf-meetings/dates'
 
@@ -41,10 +43,19 @@ interface FormState {
   phone: string
 }
 
+interface AvailabilityDraft {
+  date: string
+  timeWindow: string
+}
+
 type SubmitState =
   | { kind: 'idle' }
   | { kind: 'submitting' }
-  | { kind: 'success'; submittedName: string; submittedDays: string[] }
+  | {
+      kind: 'success'
+      submittedName: string
+      submittedAvailability: AvailabilityDraft[]
+    }
   | { kind: 'error'; message: string }
 
 // ============================================
@@ -65,7 +76,10 @@ export default function BigCafMeetingsCalendarPage() {
   const activeMonth = navigableMonths[monthIndex]
   const windowRange = useMemo(() => getWindowRangeIso(), [])
 
-  const [selectedDays, setSelectedDays] = useState<string[]>([])
+  // Selected days, in the order they were picked. Each entry owns its
+  // own timeWindow draft. We sort on submit, not on toggle, so the list
+  // doesn't jump around while the user is typing.
+  const [selected, setSelected] = useState<AvailabilityDraft[]>([])
   const [form, setForm] = useState<FormState>({
     fullName: '',
     email: '',
@@ -77,6 +91,11 @@ export default function BigCafMeetingsCalendarPage() {
   const grid = useMemo(
     () => buildMonthGrid(activeMonth.year, activeMonth.month),
     [activeMonth]
+  )
+
+  const selectedDates = useMemo(
+    () => new Set(selected.map((s) => s.date)),
+    [selected]
   )
 
   // ---------- Navigation ----------
@@ -100,15 +119,21 @@ export default function BigCafMeetingsCalendarPage() {
 
   const toggleDay = useCallback((iso: string, cell: MonthGridCell) => {
     if (!cell.isMeetingDay) return
-    setSelectedDays((prev) =>
-      prev.includes(iso)
-        ? prev.filter((d) => d !== iso)
-        : [...prev, iso].sort()
-    )
+    setSelected((prev) => {
+      const exists = prev.some((s) => s.date === iso)
+      if (exists) return prev.filter((s) => s.date !== iso)
+      return [...prev, { date: iso, timeWindow: '' }]
+    })
   }, [])
 
   const removeDay = useCallback((iso: string) => {
-    setSelectedDays((prev) => prev.filter((d) => d !== iso))
+    setSelected((prev) => prev.filter((s) => s.date !== iso))
+  }, [])
+
+  const updateTime = useCallback((iso: string, timeWindow: string) => {
+    setSelected((prev) =>
+      prev.map((s) => (s.date === iso ? { ...s, timeWindow } : s))
+    )
   }, [])
 
   // ---------- Form ----------
@@ -121,7 +146,6 @@ export default function BigCafMeetingsCalendarPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    // ---- Client-side validation ----
     if (!form.fullName.trim()) {
       setSubmitState({ kind: 'error', message: 'Please enter your full name' })
       return
@@ -134,13 +158,21 @@ export default function BigCafMeetingsCalendarPage() {
       setSubmitState({ kind: 'error', message: 'Please enter your phone number' })
       return
     }
-    if (selectedDays.length === 0) {
+    if (selected.length === 0) {
       setSubmitState({
         kind: 'error',
         message: 'Please select at least one day',
       })
       return
     }
+
+    // Sort by date, trim time windows before sending.
+    const availability = [...selected]
+      .map((s) => ({
+        date: s.date,
+        timeWindow: s.timeWindow.trim(),
+      }))
+      .sort((a, b) => a.date.localeCompare(b.date))
 
     setSubmitState({ kind: 'submitting' })
 
@@ -152,7 +184,7 @@ export default function BigCafMeetingsCalendarPage() {
           fullName: form.fullName.trim(),
           email: form.email.trim(),
           phone: form.phone.trim(),
-          selectedDays,
+          availability,
         }),
       })
 
@@ -169,7 +201,7 @@ export default function BigCafMeetingsCalendarPage() {
       setSubmitState({
         kind: 'success',
         submittedName: form.fullName.trim(),
-        submittedDays: selectedDays,
+        submittedAvailability: availability,
       })
     } catch (err) {
       console.error('Submit error:', err)
@@ -181,7 +213,7 @@ export default function BigCafMeetingsCalendarPage() {
   }
 
   const handleReset = () => {
-    setSelectedDays([])
+    setSelected([])
     setForm({ fullName: '', email: '', phone: '' })
     setSubmitState({ kind: 'idle' })
     setMonthIndex(0)
@@ -194,7 +226,6 @@ export default function BigCafMeetingsCalendarPage() {
 
   return (
     <div className="relative min-h-screen bg-plaster">
-      {/* Background overlay */}
       <div className="absolute inset-0 opacity-[0.08] pointer-events-none">
         <Image src={overlay} alt="" fill className="object-cover" priority />
       </div>
@@ -223,7 +254,6 @@ export default function BigCafMeetingsCalendarPage() {
           </p>
         </motion.header>
 
-        {/* Success state — replaces the form + calendar entirely */}
         <AnimatePresence mode="wait">
           {submitState.kind === 'success' ? (
             <motion.div
@@ -253,16 +283,24 @@ export default function BigCafMeetingsCalendarPage() {
 
               <div className="mt-6 pt-6 border-t border-rosewood/10">
                 <p className="font-host-grotesk font-semibold text-sm text-rosewood/70 mb-3">
-                  Your selected days ({submitState.submittedDays.length})
+                  Your selected days ({submitState.submittedAvailability.length})
                 </p>
-                <div className="flex flex-wrap gap-2">
-                  {submitState.submittedDays.map((iso) => (
-                    <span
-                      key={iso}
-                      className="inline-flex items-center gap-1.5 bg-chartreuse/15 text-cypress font-host-grotesk text-xs sm:text-sm font-semibold px-3 py-1.5 rounded-full"
+                <div className="space-y-2">
+                  {submitState.submittedAvailability.map((entry) => (
+                    <div
+                      key={entry.date}
+                      className="flex items-center justify-between gap-3 bg-chartreuse/10 rounded-xl px-3 py-2"
                     >
-                      {formatDayLong(iso)}
-                    </span>
+                      <span className="font-host-grotesk text-sm font-semibold text-cypress">
+                        {formatDayLong(entry.date)}
+                      </span>
+                      <span className="font-host-grotesk text-sm text-cypress/80 flex items-center gap-1">
+                        <Clock className="w-3.5 h-3.5" />
+                        {entry.timeWindow.trim() === ''
+                          ? `anytime (${MEETING_TIME_WINDOW_START}–${MEETING_TIME_WINDOW_END})`
+                          : entry.timeWindow}
+                      </span>
+                    </div>
                   ))}
                 </div>
               </div>
@@ -288,14 +326,15 @@ export default function BigCafMeetingsCalendarPage() {
               {/* Window info banner */}
               <div className="bg-olive/15 border border-olive/40 rounded-2xl px-4 py-3 text-center">
                 <p className="font-host-grotesk text-xs sm:text-sm text-grove">
-                  Meetings run <span className="font-semibold">Wednesdays, Thursdays, and Fridays</span> through{' '}
-                  <span className="font-semibold">Friday, March 26, 2027</span>.
+                  Meetings run <span className="font-semibold">Wednesdays, Thursdays, and Fridays</span>,
+                  {' '}
+                  <span className="font-semibold">{MEETING_TIME_WINDOW_START} – {MEETING_TIME_WINDOW_END}</span>,
+                  through <span className="font-semibold">Friday, March 26, 2027</span>.
                 </p>
               </div>
 
               {/* Calendar card */}
               <div className="bg-white rounded-3xl border border-rosewood/5 shadow-sm overflow-hidden">
-                {/* Month navigator */}
                 <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-rosewood/10">
                   <button
                     onClick={goPrev}
@@ -329,7 +368,6 @@ export default function BigCafMeetingsCalendarPage() {
                   </button>
                 </div>
 
-                {/* Weekday headers */}
                 <div className="grid grid-cols-7 px-2 sm:px-4 pt-3">
                   {WEEKDAY_HEADERS.map((day) => (
                     <div
@@ -341,7 +379,6 @@ export default function BigCafMeetingsCalendarPage() {
                   ))}
                 </div>
 
-                {/* Calendar grid — animated on month change */}
                 <div className="px-2 sm:px-4 pb-4">
                   <AnimatePresence mode="wait" initial={false}>
                     <motion.div
@@ -356,7 +393,7 @@ export default function BigCafMeetingsCalendarPage() {
                         <DayCell
                           key={cell.iso ?? `pad-${i}`}
                           cell={cell}
-                          selected={cell.iso ? selectedDays.includes(cell.iso) : false}
+                          selected={cell.iso ? selectedDates.has(cell.iso) : false}
                           onToggle={toggleDay}
                         />
                       ))}
@@ -365,40 +402,67 @@ export default function BigCafMeetingsCalendarPage() {
                 </div>
               </div>
 
-              {/* Selected days chips */}
-              {selectedDays.length > 0 && (
+              {/* Selected days with per-day time input */}
+              {selected.length > 0 && (
                 <motion.div
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="bg-white rounded-2xl border border-rosewood/5 shadow-sm p-4"
+                  className="bg-white rounded-2xl border border-rosewood/5 shadow-sm p-4 sm:p-5"
                 >
                   <div className="flex items-center justify-between mb-3">
                     <p className="font-host-grotesk font-semibold text-sm text-rosewood">
-                      Your selected days ({selectedDays.length})
+                      Your selected days ({selected.length})
                     </p>
                     <button
-                      onClick={() => setSelectedDays([])}
+                      onClick={() => setSelected([])}
                       className="font-host-grotesk text-xs text-rosewood/40 hover:text-poppy transition-colors"
                     >
                       Clear all
                     </button>
                   </div>
-                  <div className="flex flex-wrap gap-2">
-                    <AnimatePresence>
-                      {selectedDays.map((iso) => (
-                        <motion.button
-                          key={iso}
-                          type="button"
-                          onClick={() => removeDay(iso)}
-                          initial={{ opacity: 0, scale: 0.9 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          exit={{ opacity: 0, scale: 0.9 }}
-                          transition={{ duration: 0.15 }}
-                          className="group inline-flex items-center gap-1.5 bg-chartreuse/15 hover:bg-chartreuse/25 text-cypress font-host-grotesk text-xs sm:text-sm font-semibold px-3 py-1.5 rounded-full transition-colors"
+
+                  <p className="font-host-grotesk text-xs text-rosewood/50 mb-3">
+                    {PAGE_TIME_HINT}
+                  </p>
+
+                  <div className="space-y-2">
+                    <AnimatePresence initial={false}>
+                      {selected.map((entry) => (
+                        <motion.div
+                          key={entry.date}
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: 'auto' }}
+                          exit={{ opacity: 0, height: 0 }}
+                          transition={{ duration: 0.2 }}
+                          className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 bg-plaster/40 rounded-xl p-2.5 sm:pr-3"
                         >
-                          {formatDayLong(iso)}
-                          <X className="w-3.5 h-3.5 opacity-40 group-hover:opacity-100" />
-                        </motion.button>
+                          <div className="flex items-center justify-between sm:justify-start gap-2 flex-1 min-w-0">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className="font-host-grotesk text-sm font-semibold text-rosewood truncate">
+                                {formatDayShort(entry.date)}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => removeDay(entry.date)}
+                                className="text-rosewood/30 hover:text-poppy transition-colors shrink-0"
+                                aria-label={`Remove ${formatDayLong(entry.date)}`}
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+
+                          <div className="relative sm:w-64 shrink-0">
+                            <Clock className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-rosewood/30 pointer-events-none" />
+                            <input
+                              type="text"
+                              value={entry.timeWindow}
+                              onChange={(e) => updateTime(entry.date, e.target.value)}
+                              placeholder={`Any time (${MEETING_TIME_WINDOW_START}–${MEETING_TIME_WINDOW_END})`}
+                              className="w-full pl-8 pr-3 py-2 bg-white border border-rosewood/15 rounded-lg font-host-grotesk text-sm text-rosewood placeholder:text-rosewood/30 focus:outline-none focus:ring-2 focus:ring-chartreuse/40 focus:border-chartreuse/60 transition-all"
+                            />
+                          </div>
+                        </motion.div>
                       ))}
                     </AnimatePresence>
                   </div>
@@ -477,7 +541,7 @@ export default function BigCafMeetingsCalendarPage() {
                 <button
                   type="submit"
                   disabled={
-                    submitState.kind === 'submitting' || selectedDays.length === 0
+                    submitState.kind === 'submitting' || selected.length === 0
                   }
                   className="w-full bg-rosewood hover:bg-poppy text-plaster font-host-grotesk font-bold text-base py-3.5 rounded-xl transition-all duration-300 hover:scale-[1.01] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
                 >
@@ -494,7 +558,7 @@ export default function BigCafMeetingsCalendarPage() {
                   )}
                 </button>
 
-                {selectedDays.length === 0 && (
+                {selected.length === 0 && (
                   <p className="text-center font-host-grotesk text-xs text-rosewood/40">
                     Select at least one day above to submit.
                   </p>
@@ -523,14 +587,12 @@ interface DayCellProps {
 }
 
 function DayCell({ cell, selected, onToggle }: DayCellProps) {
-  // Padding cell
   if (cell.iso === null || cell.dayOfMonth === null) {
     return <div className="aspect-square" aria-hidden="true" />
   }
 
   const { iso, dayOfMonth, isMeetingDay, isToday } = cell
 
-  // Non-meeting days: muted, no interaction
   if (!isMeetingDay) {
     return (
       <div
@@ -545,7 +607,6 @@ function DayCell({ cell, selected, onToggle }: DayCellProps) {
     )
   }
 
-  // Meeting day: tappable
   return (
     <motion.button
       type="button"

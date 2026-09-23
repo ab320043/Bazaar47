@@ -4,6 +4,7 @@ import type {
   BigCafMeetingResponse,
   BigCafMeetingSubmitPayload,
   BigCafMeetingUpdatePayload,
+  BigCafAvailabilityEntry,
 } from '@/types/big-caf-meetings'
 
 const redis = Redis.fromEnv()
@@ -35,6 +36,28 @@ async function saveResponses(
 }
 
 // ============================================
+// HELPERS
+// ============================================
+
+/** Stable sort by date, then by timeWindow text. */
+function sortAvailability(
+  entries: BigCafAvailabilityEntry[]
+): BigCafAvailabilityEntry[] {
+  return [...entries].sort((a, b) => {
+    if (a.date !== b.date) return a.date.localeCompare(b.date)
+    return a.timeWindow.localeCompare(b.timeWindow)
+  })
+}
+
+/** Normalize a raw entry — trim the time window, keep the date as-is. */
+function normalizeEntry(entry: BigCafAvailabilityEntry): BigCafAvailabilityEntry {
+  return {
+    date: entry.date.trim(),
+    timeWindow: entry.timeWindow.trim(),
+  }
+}
+
+// ============================================
 // UPSERT BY EMAIL
 // ============================================
 
@@ -42,10 +65,10 @@ async function saveResponses(
  * Create or update a response, keyed on lowercased email.
  *
  * - If no response exists for this email: creates a new one.
- * - If one exists: updates fullName, phone, and selectedDays, and bumps
+ * - If one exists: updates fullName, phone, and availability, and bumps
  *   updatedAt. Preserves the original id, timestamp, createdAt, and any
- *   admin-set confirmed / confirmedNote values (an upsert by the public
- *   form must never clobber admin decisions).
+ *   admin-set confirmed / confirmedNote values — a public resubmission
+ *   must never clobber admin decisions.
  */
 export async function upsertResponseByEmail(
   payload: BigCafMeetingSubmitPayload
@@ -58,8 +81,9 @@ export async function upsertResponseByEmail(
     (r) => r.email.trim().toLowerCase() === normalizedEmail
   )
 
-  // Always sort selectedDays ascending so admin views are stable.
-  const selectedDays = [...payload.selectedDays].sort()
+  const availability = sortAvailability(
+    payload.availability.map(normalizeEntry)
+  )
 
   if (index === -1) {
     const created: BigCafMeetingResponse = {
@@ -68,7 +92,7 @@ export async function upsertResponseByEmail(
       fullName: payload.fullName.trim(),
       email: normalizedEmail,
       phone: payload.phone.trim(),
-      selectedDays,
+      availability,
       confirmed: false,
       createdAt: now,
       updatedAt: now,
@@ -84,7 +108,7 @@ export async function upsertResponseByEmail(
     fullName: payload.fullName.trim(),
     email: normalizedEmail,
     phone: payload.phone.trim(),
-    selectedDays,
+    availability,
     updatedAt: now,
     // Preserve: id, timestamp, createdAt, confirmed, confirmedNote
   }

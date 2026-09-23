@@ -26,10 +26,10 @@ export const metadata: Metadata = {
     icon: '/icons/favicon.ico',
   },
   openGraph: {
-    title: 'Bazaar 47',
+    title: 'Bazaar47',
     description: 'Where Palestinian heritage meets Florida warmth',
     url: 'https://bazaar47.com',
-    siteName: 'Bazaar 47',
+    siteName: 'Bazaar47',
     locale: 'en_US',
     type: 'website',
   },

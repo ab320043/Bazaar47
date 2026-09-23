@@ -34,6 +34,20 @@ function formatTimestamp(iso: string): string {
   })
 }
 
+/**
+ * Format one availability entry for the CSV Days column:
+ *   "Wed, February 17, 2027 @ 4 PM"
+ *   "Wed, February 17, 2027 @ anytime"
+ */
+function formatAvailabilityEntry(
+  date: string,
+  timeWindow: string
+): string {
+  const day = formatDayLong(date)
+  const time = timeWindow.trim() === '' ? 'anytime' : timeWindow.trim()
+  return `${day} @ ${time}`
+}
+
 // ============================================
 // PUBLIC API
 // ============================================
@@ -57,16 +71,15 @@ export function buildBigCafMeetingsCsv(
   ]
 
   const rows = responses.map((r) => {
-    const daysLabel = [...r.selectedDays]
-      .sort()
-      .map((iso) => formatDayLong(iso))
+    const daysLabel = r.availability
+      .map((e) => formatAvailabilityEntry(e.date, e.timeWindow))
       .join('; ')
 
     return [
       r.fullName,
       r.email,
       r.phone,
-      r.selectedDays.length,
+      r.availability.length,
       daysLabel,
       r.confirmed ? 'Yes' : 'No',
       r.confirmedNote || '',

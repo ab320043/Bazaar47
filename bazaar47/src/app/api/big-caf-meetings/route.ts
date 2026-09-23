@@ -6,7 +6,10 @@ import {
 } from '@/lib/storage/big-caf-meetings'
 import { isMeetingDayIso } from '@/lib/big-caf-meetings/dates'
 import { isAdminAuthenticated } from '@/lib/admin/auth'
-import type { BigCafMeetingSubmitPayload } from '@/types/big-caf-meetings'
+import type {
+  BigCafMeetingSubmitPayload,
+  BigCafAvailabilityEntry,
+} from '@/types/big-caf-meetings'
 
 // ============================================
 // HELPERS
@@ -23,6 +26,37 @@ function isNonEmptyString(v: unknown): v is string {
   return typeof v === 'string' && v.trim().length > 0
 }
 
+/**
+ * Validate a raw availability entry from the request body.
+ * Returns the normalized entry, or null if invalid.
+ *
+ * Rules:
+ *   - entry must be an object
+ *   - entry.date must be a string and a valid meeting day in the window
+ *   - entry.timeWindow must be a string (may be empty — means "anytime")
+ */
+function validateAvailabilityEntry(
+  raw: unknown
+): BigCafAvailabilityEntry | null {
+  if (typeof raw !== 'object' || raw === null) return null
+
+  const entry = raw as { date?: unknown; timeWindow?: unknown }
+
+  if (typeof entry.date !== 'string') return null
+  if (!isMeetingDayIso(entry.date)) return null
+
+  if (entry.timeWindow === undefined) {
+    return { date: entry.date, timeWindow: '' }
+  }
+
+  if (typeof entry.timeWindow !== 'string') return null
+
+  return {
+    date: entry.date,
+    timeWindow: entry.timeWindow.trim(),
+  }
+}
+
 // ============================================
 // POST — public submission (create or upsert by email)
 // ============================================
@@ -31,11 +65,11 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
 
-    const { fullName, email, phone, selectedDays } = body as {
+    const { fullName, email, phone, availability } = body as {
       fullName?: unknown
       email?: unknown
       phone?: unknown
-      selectedDays?: unknown
+      availability?: unknown
     }
 
     // ---- Field validation ----
@@ -60,43 +94,37 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // ---- selectedDays validation ----
-    if (!Array.isArray(selectedDays) || selectedDays.length === 0) {
+    // ---- availability validation ----
+    if (!Array.isArray(availability) || availability.length === 0) {
       return NextResponse.json(
         { error: 'Please select at least one day' },
         { status: 400 }
       )
     }
 
-    // Every entry must be a string and a valid meeting day.
-    // This prevents someone from POSTing arbitrary dates or dates
-    // outside the window (including past dates).
-    const cleanedDays: string[] = []
-    for (const day of selectedDays) {
-      if (typeof day !== 'string') {
+    const cleaned: BigCafAvailabilityEntry[] = []
+    for (const raw of availability) {
+      const entry = validateAvailabilityEntry(raw)
+      if (!entry) {
         return NextResponse.json(
-          { error: 'Invalid date in selection' },
+          { error: 'One or more selected days are invalid' },
           { status: 400 }
         )
       }
-      if (!isMeetingDayIso(day)) {
-        return NextResponse.json(
-          { error: `"${day}" is not an available meeting day` },
-          { status: 400 }
-        )
-      }
-      cleanedDays.push(day)
+      cleaned.push(entry)
     }
 
-    // De-dupe in case the client sent duplicates (defensive — the UI
-    // shouldn't, but nothing stops a hand-crafted POST).
-    const uniqueDays = Array.from(new Set(cleanedDays))
+    // De-dupe by date. If a duplicate arrives, the last one wins
+    // (defensive — the UI shouldn't send duplicates).
+    const byDate = new Map<string, BigCafAvailabilityEntry>()
+    for (const e of cleaned) byDate.set(e.date, e)
+    const unique = Array.from(byDate.values())
 
     const payload: BigCafMeetingSubmitPayload = {
       fullName: fullName.trim(),
       email: email.trim().toLowerCase(),
       phone: phone.trim(),
-      selectedDays: uniqueDays,
+      availability: unique,
     }
 
     const saved = await upsertResponseByEmail(payload)
@@ -126,8 +154,7 @@ export async function GET() {
 
   try {
     const responses = await getResponses()
-    // Sort: most-recently-updated first, so newly submitted or changed
-    // responses float to the top of the admin list.
+    // Most-recently-updated first.
     responses.sort(
       (a, b) =>
         new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()

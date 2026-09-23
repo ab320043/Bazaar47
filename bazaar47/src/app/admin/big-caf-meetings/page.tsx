@@ -4,11 +4,15 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { 
   CalendarDays, Users, Search, X, RefreshCw, Download,
-  Trash2, CheckCircle2, Circle, Loader2, AlertCircle,
-  Clock, Mail, Phone, ChevronDown, ChevronUp
+  Trash2, CheckCircle2, Circle, Loader2,
+  Mail, Phone, ChevronDown, ChevronUp, Clock
 } from 'lucide-react'
-import type { BigCafMeetingResponse } from '@/types/big-caf-meetings'
+import type {
+  BigCafMeetingResponse,
+  BigCafAvailabilityEntry,
+} from '@/types/big-caf-meetings'
 import { formatDayLong, formatDayShort } from '@/lib/big-caf-meetings/dates'
+import { MEETING_TIME_WINDOW_START, MEETING_TIME_WINDOW_END } from '@/data/big-caf-meetings'
 import {
   buildBigCafMeetingsCsv,
   downloadCsv,
@@ -20,9 +24,24 @@ import {
 
 type Tab = 'person' | 'day'
 
+interface DayBucketEntry {
+  person: BigCafMeetingResponse
+  timeWindow: string
+}
+
 interface DayBucket {
   iso: string
-  people: BigCafMeetingResponse[]
+  entries: DayBucketEntry[]
+}
+
+// ============================================
+// HELPERS
+// ============================================
+
+/** "4 PM" → "4 PM", "" → "anytime", "  5-7  " → "5-7" */
+function displayTime(timeWindow: string): string {
+  const trimmed = timeWindow.trim()
+  return trimmed === '' ? 'anytime' : trimmed
 }
 
 // ============================================
@@ -61,7 +80,6 @@ export default function AdminBigCafMeetingsPage() {
     return () => window.clearTimeout(timeoutId)
   }, [fetchResponses])
 
-  // Filter by search
   const filteredResponses = useMemo(() => {
     if (!searchTerm.trim()) return responses
     const s = searchTerm.toLowerCase()
@@ -73,19 +91,23 @@ export default function AdminBigCafMeetingsPage() {
     )
   }, [responses, searchTerm])
 
-  // Group by day (only counting selected days)
+  // Group by day (per-day time is now attached to each entry)
   const dayBuckets: DayBucket[] = useMemo(() => {
-    const map = new Map<string, BigCafMeetingResponse[]>()
+    const map = new Map<string, DayBucketEntry[]>()
     for (const r of filteredResponses) {
-      for (const iso of r.selectedDays) {
-        if (!map.has(iso)) map.set(iso, [])
-        map.get(iso)!.push(r)
+      for (const entry of r.availability) {
+        if (!map.has(entry.date)) map.set(entry.date, [])
+        map.get(entry.date)!.push({ person: r, timeWindow: entry.timeWindow })
       }
     }
-    const buckets = Array.from(map.entries()).map(([iso, people]) => ({
-      iso,
-      people: people.sort((a, b) => a.fullName.localeCompare(b.fullName)),
-    }))
+    const buckets: DayBucket[] = Array.from(map.entries()).map(
+      ([iso, entries]) => ({
+        iso,
+        entries: entries.sort((a, b) =>
+          a.person.fullName.localeCompare(b.person.fullName)
+        ),
+      })
+    )
     buckets.sort((a, b) => a.iso.localeCompare(b.iso))
     return buckets
   }, [filteredResponses])
@@ -107,11 +129,7 @@ export default function AdminBigCafMeetingsPage() {
     }
   }
 
-  const handleToggleConfirmed = async (
-    id: string,
-    nextConfirmed: boolean
-  ) => {
-    // Optimistic update
+  const handleToggleConfirmed = async (id: string, nextConfirmed: boolean) => {
     setResponses((prev) =>
       prev.map((r) => (r.id === id ? { ...r, confirmed: nextConfirmed } : r))
     )
@@ -122,9 +140,10 @@ export default function AdminBigCafMeetingsPage() {
         body: JSON.stringify({ confirmed: nextConfirmed }),
       })
       if (!res.ok) {
-        // Revert
         setResponses((prev) =>
-          prev.map((r) => (r.id === id ? { ...r, confirmed: !nextConfirmed } : r))
+          prev.map((r) =>
+            r.id === id ? { ...r, confirmed: !nextConfirmed } : r
+          )
         )
         alert('Failed to update')
       }
@@ -137,7 +156,6 @@ export default function AdminBigCafMeetingsPage() {
   }
 
   const handleSaveNote = async (id: string, note: string) => {
-    // Optimistic
     const previous = responses.find((r) => r.id === id)?.confirmedNote
     setResponses((prev) =>
       prev.map((r) => (r.id === id ? { ...r, confirmedNote: note } : r))
@@ -283,14 +301,14 @@ export default function AdminBigCafMeetingsPage() {
             </div>
           </div>
 
-          {(searchTerm) && (
+          {searchTerm && (
             <span className="font-host-grotesk text-sm text-rosewood/50">
               {filteredResponses.length} of {responses.length} shown
             </span>
           )}
         </div>
 
-        {/* Empty state */}
+        {/* Empty states */}
         {responses.length === 0 && (
           <div className="bg-white rounded-2xl p-12 border border-rosewood/5 shadow-sm text-center">
             <CalendarDays className="w-16 h-16 text-rosewood/20 mx-auto mb-4" />
@@ -304,7 +322,6 @@ export default function AdminBigCafMeetingsPage() {
           </div>
         )}
 
-        {/* Filtered empty state */}
         {responses.length > 0 && filteredResponses.length === 0 && (
           <div className="bg-white rounded-2xl p-12 border border-rosewood/5 shadow-sm text-center">
             <Search className="w-12 h-12 text-rosewood/20 mx-auto mb-3" />
@@ -390,7 +407,7 @@ function PersonTable({
                     onClick={() => setExpandedId(expandedId === r.id ? null : r.id)}
                     className="flex items-center gap-1.5 font-host-grotesk text-sm font-semibold text-rosewood hover:text-poppy transition-colors"
                   >
-                    {r.selectedDays.length} day{r.selectedDays.length === 1 ? '' : 's'}
+                    {r.availability.length} day{r.availability.length === 1 ? '' : 's'}
                     {expandedId === r.id ? (
                       <ChevronUp className="w-3.5 h-3.5" />
                     ) : (
@@ -399,12 +416,18 @@ function PersonTable({
                   </button>
                   {expandedId === r.id && (
                     <div className="mt-2 flex flex-wrap gap-1.5 max-w-xs">
-                      {r.selectedDays.map((iso) => (
+                      {r.availability.map((entry) => (
                         <span
-                          key={iso}
-                          className="bg-chartreuse/15 text-cypress font-host-grotesk text-[11px] font-semibold px-2 py-0.5 rounded-full"
+                          key={entry.date}
+                          className="bg-chartreuse/15 text-cypress font-host-grotesk text-[11px] font-semibold px-2 py-0.5 rounded-full inline-flex items-center gap-1"
                         >
-                          {formatDayShort(iso)}
+                          {formatDayShort(entry.date)}
+                          {entry.timeWindow.trim() !== '' && (
+                            <>
+                              <span className="opacity-40">·</span>
+                              <span>{entry.timeWindow.trim()}</span>
+                            </>
+                          )}
                         </span>
                       ))}
                     </div>
@@ -452,7 +475,7 @@ function PersonTable({
 }
 
 // ============================================
-// NOTE INPUT (inline editable)
+// NOTE INPUT
 // ============================================
 
 function NoteInput({
@@ -502,45 +525,55 @@ function DayTable({ buckets }: { buckets: DayBucket[] }) {
         <table className="w-full">
           <thead className="bg-plaster/40">
             <tr>
-              <th className="text-left px-4 py-3 font-host-grotesk font-semibold text-xs uppercase text-rosewood/50 w-48">Day</th>
+              <th className="text-left px-4 py-3 font-host-grotesk font-semibold text-xs uppercase text-rosewood/50 w-56">Day</th>
               <th className="text-left px-4 py-3 font-host-grotesk font-semibold text-xs uppercase text-rosewood/50 w-32">Available</th>
               <th className="text-left px-4 py-3 font-host-grotesk font-semibold text-xs uppercase text-rosewood/50">People</th>
             </tr>
           </thead>
           <tbody>
-            {buckets.map(({ iso, people }) => (
+            {buckets.map(({ iso, entries }) => (
               <tr key={iso} className="border-t border-rosewood/5 hover:bg-plaster/20 transition-colors">
                 <td className="px-4 py-3 align-top">
                   <div className="flex items-center gap-2">
                     <CalendarDays className="w-4 h-4 text-rosewood/40 shrink-0" />
-                    <div>
-                      <p className="font-host-grotesk font-semibold text-sm text-rosewood">
-                        {formatDayLong(iso)}
-                      </p>
-                    </div>
+                    <p className="font-host-grotesk font-semibold text-sm text-rosewood">
+                      {formatDayLong(iso)}
+                    </p>
                   </div>
                 </td>
                 <td className="px-4 py-3 align-top">
                   <span className="inline-flex items-center gap-1.5 bg-chartreuse/15 text-cypress font-host-grotesk text-sm font-semibold px-2.5 py-1 rounded-full">
                     <Users className="w-3.5 h-3.5" />
-                    {people.length}
+                    {entries.length}
                   </span>
                 </td>
                 <td className="px-4 py-3 align-top">
                   <div className="flex flex-wrap gap-1.5">
-                    {people.map((p) => (
-                      <span
-                        key={p.id}
-                        className={`inline-flex items-center gap-1 font-host-grotesk text-xs font-semibold px-2.5 py-1 rounded-full ${
-                          p.confirmed
-                            ? 'bg-grove/10 text-grove'
-                            : 'bg-plaster text-rosewood/70'
-                        }`}
-                      >
-                        {p.confirmed && <CheckCircle2 className="w-3 h-3" />}
-                        {p.fullName}
-                      </span>
-                    ))}
+                    {entries.map(({ person, timeWindow }) => {
+                      const time = timeWindow.trim()
+                      return (
+                        <span
+                          key={person.id}
+                          className={`inline-flex items-center gap-1 font-host-grotesk text-xs font-semibold px-2.5 py-1 rounded-full ${
+                            person.confirmed
+                              ? 'bg-grove/10 text-grove'
+                              : 'bg-plaster text-rosewood/70'
+                          }`}
+                        >
+                          {person.confirmed && <CheckCircle2 className="w-3 h-3" />}
+                          <span>{person.fullName}</span>
+                          {time !== '' && (
+                            <>
+                              <span className="opacity-40">·</span>
+                              <span className="opacity-75 inline-flex items-center gap-0.5">
+                                <Clock className="w-2.5 h-2.5" />
+                                {time}
+                              </span>
+                            </>
+                          )}
+                        </span>
+                      )
+                    })}
                   </div>
                 </td>
               </tr>
