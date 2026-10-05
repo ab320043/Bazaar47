@@ -8,7 +8,7 @@ import {
   getStaffStats,
 } from '@/lib/storage/staff'
 import { setStaffPassword } from '@/lib/staff/auth'
-import type { StaffMember, StaffFilters } from '@/types/staff'
+import type { StaffMember, StaffFilters, StaffType } from '@/types/staff'
 
 // ============================================
 // GET - List all staff with optional filters
@@ -31,6 +31,11 @@ export async function GET(request: NextRequest) {
 
     const status = searchParams.get('status') as StaffFilters['status']
     if (status) filters.status = status
+
+    const staffTypeParam = searchParams.get('staffType')
+    if (staffTypeParam === 'permanent' || staffTypeParam === 'temp') {
+      filters.staffType = staffTypeParam as StaffType
+    }
 
     const includeStats = searchParams.get('stats') === 'true'
 
@@ -69,6 +74,7 @@ export async function POST(request: NextRequest) {
       name: body.name,
       email: body.email,
       role: body.primaryRole,
+      staffType: body.staffType,
       hasPassword: typeof body.tempPassword === 'string' && body.tempPassword.length > 0,
     })
 
@@ -102,6 +108,18 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Validate staffType if provided
+    let staffType: StaffType = 'permanent'
+    if (body.staffType !== undefined) {
+      if (body.staffType !== 'permanent' && body.staffType !== 'temp') {
+        return NextResponse.json(
+          { error: 'staffType must be "permanent" or "temp"' },
+          { status: 400 }
+        )
+      }
+      staffType = body.staffType
+    }
+
     // Prevent duplicate emails (case-insensitive)
     const existing = await getStaff()
     const emailCollision = existing.find(
@@ -124,14 +142,14 @@ export async function POST(request: NextRequest) {
       hourlyRate: body.hourlyRate,
       nonprofitRate: body.nonprofitRate,
       isActive: body.isActive !== undefined ? body.isActive : true,
-      notes: body.notes || '',
       status: 'active',
+      staffType,
+      notes: body.notes || '',
     })
 
     createdStaffId = newStaff.id
 
-    // Hash + store the temp password. `mustChangePassword: true` so the
-    // staff dashboard shows the "ask an admin to reset" notice.
+    // Hash + store the temp password
     await setStaffPassword(newStaff.id, body.tempPassword, true)
 
     console.log('✅ Staff created successfully:', { id: newStaff.id, name: newStaff.name })
@@ -143,9 +161,6 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('❌ Error creating staff:', error)
 
-    // Best-effort rollback: if we created the staff record but failed to
-    // set the credential, delete the orphan so we don't leave a staff
-    // member who can never log in.
     if (createdStaffId) {
       try {
         await deleteStaff(createdStaffId)

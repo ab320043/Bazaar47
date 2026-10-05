@@ -1,14 +1,39 @@
+// app/api/admin/staff/assignments/route.ts
 import { NextRequest, NextResponse } from 'next/server'
 import { 
   getAssignments, 
-  createAssignment, 
-  getAssignmentsByEvent,
-  getAssignmentsByStatus 
+  createAssignment,
+  getAssignmentForStaffAndEvent,
 } from '@/lib/storage/staff-assignments'
 import { getStaffById } from '@/lib/storage/staff'
 import { getEventById } from '@/data/events'
-import { getRateForRole, getResponsibilitiesForRole } from '@/data/staff-roles'
-import type { StaffAssignment, EventType, AssignmentStatus } from '@/types/staff'
+import { getRateForRole, getResponsibilitiesForRole, STAFF_ROLES } from '@/data/staff-roles'
+import type { StaffAssignment, EventType, AssignmentStatus, StaffRole } from '@/types/staff'
+
+// ============================================
+// HELPERS
+// ============================================
+
+function isStaffRole(v: unknown): v is StaffRole {
+  return typeof v === 'string' && STAFF_ROLES.some((r) => r.id === v)
+}
+
+/**
+ * Accept either the new `roles: StaffRole[]` shape or the legacy
+ * `role: StaffRole` shape (for old clients / scripts).
+ */
+function extractRoles(body: Record<string, unknown>): StaffRole[] | null {
+  if (Array.isArray(body.roles)) {
+    const filtered = body.roles.filter(isStaffRole)
+    if (filtered.length !== body.roles.length) return null
+    if (filtered.length === 0) return null
+    return Array.from(new Set(filtered)) // de-dupe
+  }
+  if (isStaffRole(body.role)) {
+    return [body.role]
+  }
+  return null
+}
 
 // ============================================
 // GET - List all assignments with filters
@@ -20,23 +45,15 @@ export async function GET(request: NextRequest) {
     const eventId = searchParams.get('eventId')
     const staffId = searchParams.get('staffId')
     const status = searchParams.get('status') as AssignmentStatus | null
+    const role = searchParams.get('role') as StaffRole | null
     
     let assignments = await getAssignments()
     
-    // Apply filters
-    if (eventId) {
-      assignments = assignments.filter(a => a.eventId === eventId)
-    }
+    if (eventId) assignments = assignments.filter(a => a.eventId === eventId)
+    if (staffId) assignments = assignments.filter(a => a.staffId === staffId)
+    if (status) assignments = assignments.filter(a => a.status === status)
+    if (role) assignments = assignments.filter(a => a.roles.includes(role))
     
-    if (staffId) {
-      assignments = assignments.filter(a => a.staffId === staffId)
-    }
-    
-    if (status) {
-      assignments = assignments.filter(a => a.status === status)
-    }
-    
-    // Sort by shift start
     assignments.sort((a, b) => {
       return new Date(a.shiftStart).getTime() - new Date(b.shiftStart).getTime()
     })
@@ -62,8 +79,8 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     
-    // Validate required fields
-    const requiredFields = ['eventId', 'staffId', 'role', 'shiftStart', 'shiftEnd']
+    // ---- Required fields ----
+    const requiredFields = ['eventId', 'staffId', 'shiftStart', 'shiftEnd']
     const missingFields = requiredFields.filter(field => !body[field])
     
     if (missingFields.length > 0) {
@@ -73,7 +90,16 @@ export async function POST(request: NextRequest) {
       )
     }
     
-    // Verify staff exists
+    // ---- Roles validation ----
+    const roles = extractRoles(body)
+    if (!roles) {
+      return NextResponse.json(
+        { error: 'At least one valid role is required' },
+        { status: 400 }
+      )
+    }
+    
+    // ---- Verify staff exists ----
     const staff = await getStaffById(body.staffId)
     if (!staff) {
       return NextResponse.json(
@@ -82,7 +108,7 @@ export async function POST(request: NextRequest) {
       )
     }
     
-    // Verify event exists
+    // ---- Verify event exists ----
     const event = getEventById(body.eventId)
     if (!event) {
       return NextResponse.json(
@@ -91,39 +117,66 @@ export async function POST(request: NextRequest) {
       )
     }
     
-    // Determine event type
+    // ---- Enforce one assignment per (staff, event) ----
+    const existingAssignment = await getAssignmentForStaffAndEvent(
+      body.staffId,
+      body.eventId
+    )
+    if (existingAssignment) {
+      return NextResponse.json(
+        {
+          error: `${staff.name} is already assigned to this event. Edit their existing assignment to add or change roles.`,
+          existingAssignmentId: existingAssignment.id,
+        },
+        { status: 409 }
+      )
+    }
+    
+    // ---- Determine rate ----
     const eventType = (body.eventType || event.type) as EventType
+    // Default rate = rate of the first role for this event type.
+    // Q13: multiple roles do NOT stack — one rate applies.
+    const hourlyRate =
+      typeof body.hourlyRate === 'number'
+        ? body.hourlyRate
+        : getRateForRole(roles[0], eventType)
     
-    // Calculate rate based on event type
-    const hourlyRate = body.hourlyRate || getRateForRole(body.role, eventType)
+    // ---- Responsibilities (merged across all roles) ----
+    const responsibilities = body.responsibilities || (() => {
+      const merged = { before: [] as string[], during: [] as string[], after: [] as string[] }
+      for (const role of roles) {
+        const r = getResponsibilitiesForRole(role)
+        merged.before.push(...r.before)
+        merged.during.push(...r.during)
+        merged.after.push(...r.after)
+      }
+      return merged
+    })()
     
-    // Get responsibilities
-    const responsibilities = body.responsibilities || getResponsibilitiesForRole(body.role)
-    
-    // Create assignment
+    // ---- Build assignment ----
     const assignmentData: Omit<StaffAssignment, 'id' | 'createdAt' | 'updatedAt'> = {
       eventId: body.eventId,
       eventName: event.name,
-      eventType: eventType,
+      eventType,
       staffId: body.staffId,
       staffName: staff.name,
-      role: body.role,
+      roles,
       position: body.position || 'team-member',
-      hourlyRate: hourlyRate,
+      hourlyRate,
       shiftStart: body.shiftStart,
       shiftEnd: body.shiftEnd,
       estimatedHours: body.estimatedHours || 0,
       status: body.status || 'assigned',
-      responsibilities: responsibilities,
+      responsibilities,
       notes: body.notes || '',
     }
     
     const assignment = await createAssignment(assignmentData)
     
-    return NextResponse.json({
-      success: true,
-      assignment,
-    }, { status: 201 })
+    return NextResponse.json(
+      { success: true, assignment },
+      { status: 201 }
+    )
   } catch (error) {
     console.error('Error creating assignment:', error)
     return NextResponse.json(

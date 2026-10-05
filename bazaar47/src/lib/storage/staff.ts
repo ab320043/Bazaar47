@@ -2,9 +2,32 @@
 import { Redis } from '@upstash/redis'
 import type { StaffMember, StaffFilters } from '@/types/staff'
 
-// ✅ Use the same Redis instance as submissions
 const redis = Redis.fromEnv()
 const STAFF_KEY = 'staff'
+
+// ============================================
+// LEGACY MIGRATION
+// ============================================
+
+type LegacyStaffMember = Omit<StaffMember, 'staffType'> & {
+  staffType?: string
+}
+
+function migrateStaffMember(raw: LegacyStaffMember): {
+  staff: StaffMember
+  migrated: boolean
+} {
+  if (raw.staffType === 'permanent' || raw.staffType === 'temp') {
+    return { staff: raw as StaffMember, migrated: false }
+  }
+
+  // Missing or invalid staffType → default to 'permanent'.
+  const migrated: StaffMember = {
+    ...(raw as Omit<StaffMember, 'staffType'>),
+    staffType: 'permanent',
+  }
+  return { staff: migrated, migrated: true }
+}
 
 // ============================================
 // READ STAFF
@@ -12,8 +35,25 @@ const STAFF_KEY = 'staff'
 
 export async function getStaff(): Promise<StaffMember[]> {
   try {
-    const staff = await redis.get(STAFF_KEY)
-    return (staff as StaffMember[]) || []
+    const raw = await redis.get(STAFF_KEY)
+    const list = (raw as LegacyStaffMember[]) || []
+
+    let anyMigrated = false
+    const migrated: StaffMember[] = list.map((item) => {
+      const { staff, migrated: didMigrate } = migrateStaffMember(item)
+      if (didMigrate) anyMigrated = true
+      return staff
+    })
+
+    if (anyMigrated) {
+      try {
+        await redis.set(STAFF_KEY, migrated)
+      } catch (error) {
+        console.error('Failed to persist migrated staff:', error)
+      }
+    }
+
+    return migrated
   } catch (error) {
     console.error('Redis get error:', error)
     return []
@@ -34,7 +74,7 @@ export async function saveStaff(staff: StaffMember[]): Promise<void> {
 }
 
 // ============================================
-// CRUD OPERATIONS
+// CRUD
 // ============================================
 
 export async function getStaffById(id: string): Promise<StaffMember | undefined> {
@@ -46,8 +86,15 @@ export async function createStaff(
   staffData: Omit<StaffMember, 'id' | 'createdAt' | 'updatedAt'>
 ): Promise<StaffMember> {
   const existing = await getStaff()
-  const newStaff: StaffMember = {
+
+  // Ensure staffType has a value even if the caller didn't provide one.
+  const withType: Omit<StaffMember, 'id' | 'createdAt' | 'updatedAt'> = {
     ...staffData,
+    staffType: staffData.staffType ?? 'permanent',
+  }
+
+  const newStaff: StaffMember = {
+    ...withType,
     id: crypto.randomUUID(),
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -105,6 +152,10 @@ export async function filterStaff(filters: StaffFilters): Promise<StaffMember[]>
       const isActive = filters.status === 'active'
       if (member.isActive !== isActive) return false
     }
+
+    if (filters.staffType && member.staffType !== filters.staffType) {
+      return false
+    }
     
     return true
   })
@@ -113,6 +164,8 @@ export async function filterStaff(filters: StaffFilters): Promise<StaffMember[]>
 export async function getStaffStats(): Promise<{
   total: number
   active: number
+  permanent: number
+  temp: number
   byRole: Record<string, number>
   byPosition: Record<string, number>
 }> {
@@ -129,6 +182,8 @@ export async function getStaffStats(): Promise<{
   return {
     total: staff.length,
     active: staff.filter(s => s.isActive).length,
+    permanent: staff.filter(s => s.staffType === 'permanent').length,
+    temp: staff.filter(s => s.staffType === 'temp').length,
     byRole,
     byPosition,
   }

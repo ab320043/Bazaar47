@@ -1,18 +1,15 @@
-// app/staff/components/StaffLogoutButton.tsx
 'use client'
 
 import { LogOut } from 'lucide-react'
 
-export function StaffLogoutButton() {
+export function StaffLogoutButton({ showLabel }: { showLabel?: boolean } = {}) {
   const handleLogout = async () => {
     try {
       const response = await fetch('/api/staff/logout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
       })
-
       if (response.ok) {
-        // Hard redirect so the server drops the cookie session cleanly.
         window.location.href = '/staff/login'
       }
     } catch (error) {
@@ -23,10 +20,10 @@ export function StaffLogoutButton() {
   return (
     <button
       onClick={handleLogout}
-      className="flex items-center gap-2 bg-white hover:bg-white/80 text-rosewood/60 hover:text-rosewood px-4 py-2 rounded-xl font-host-grotesk font-semibold text-sm transition-all shadow-sm"
+      className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-plaster/10 transition-all text-sm text-plaster/70 hover:text-plaster w-full"
     >
-      <LogOut className="w-4 h-4" />
-      Sign Out
+      <LogOut className="w-5 h-5 shrink-0" />
+      <span className={showLabel ? 'block' : 'hidden md:block'}>Sign out</span>
     </button>
   )
 }

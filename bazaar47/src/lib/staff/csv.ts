@@ -6,11 +6,6 @@ import { STAFF_ROLES } from '@/data/staff-roles'
 // CSV HELPERS
 // ============================================
 
-/**
- * Escape a single CSV cell.
- * - Wraps in quotes if the value contains a comma, quote, newline, or leading/trailing space
- * - Doubles up embedded quotes per RFC 4180
- */
 function escapeCsvCell(value: string | number | undefined | null): string {
   if (value === undefined || value === null) return ''
   const str = String(value)
@@ -56,6 +51,17 @@ function getStatusLabel(status: StaffAssignment['status']): string {
   }
 }
 
+/**
+ * Break duration in hours, or null if no break was logged.
+ */
+function breakHours(a: StaffAssignment): number | null {
+  if (!a.breakStart || !a.breakEnd) return null
+  const start = new Date(a.breakStart).getTime()
+  const end = new Date(a.breakEnd).getTime()
+  if (Number.isNaN(start) || Number.isNaN(end) || end <= start) return null
+  return (end - start) / (1000 * 60 * 60)
+}
+
 // ============================================
 // PUBLIC API
 // ============================================
@@ -69,9 +75,12 @@ export interface StaffCsvMeta {
 /**
  * Build a CSV string for a set of staff assignments.
  *
- * Columns:
- *   Staff Name, Role, Position, Shift Start, Shift End,
- *   Hourly Rate, Hours Worked, Amount Owed, Status
+ * Columns: Staff Name, Role, Position, Shift Start, Shift End,
+ *          Break, Hourly Rate, Hours Worked, Amount Owed, Status
+ *
+ * `Hours Worked` is already net of any logged break (the storage
+ * layer computes it that way on checkout). The `Break` column shows
+ * the break duration for reference.
  */
 export function buildStaffAssignmentsCsv(
   assignments: StaffAssignment[],
@@ -83,6 +92,7 @@ export function buildStaffAssignmentsCsv(
     'Position',
     'Shift Start',
     'Shift End',
+    'Break',
     'Hourly Rate',
     'Hours Worked',
     'Amount Owed',
@@ -92,13 +102,16 @@ export function buildStaffAssignmentsCsv(
   const rows = assignments.map((a) => {
     const hours = a.hoursWorked ?? 0
     const amount = hours * a.hourlyRate
+    const rolesLabel = a.roles.map(getRoleLabel).join(', ')
+    const brk = breakHours(a)
 
     return [
       a.staffName,
-      getRoleLabel(a.role),
+      rolesLabel,
       a.position,
       formatDateTime(a.shiftStart),
       formatDateTime(a.shiftEnd),
+      brk !== null ? `${brk.toFixed(2)}h` : '',
       a.hourlyRate.toFixed(2),
       hours > 0 ? hours.toFixed(2) : '0.00',
       amount > 0 ? amount.toFixed(2) : '0.00',
@@ -106,12 +119,15 @@ export function buildStaffAssignmentsCsv(
     ]
   })
 
-  // Totals row
   const totalHours = assignments.reduce((sum, a) => sum + (a.hoursWorked ?? 0), 0)
   const totalAmount = assignments.reduce(
     (sum, a) => sum + (a.hoursWorked ?? 0) * a.hourlyRate,
     0
   )
+  const totalBreak = assignments.reduce((sum, a) => {
+    const b = breakHours(a)
+    return sum + (b ?? 0)
+  }, 0)
 
   const totalsRow = [
     'TOTAL',
@@ -119,6 +135,7 @@ export function buildStaffAssignmentsCsv(
     '',
     '',
     '',
+    totalBreak > 0 ? `${totalBreak.toFixed(2)}h` : '',
     '',
     totalHours.toFixed(2),
     totalAmount.toFixed(2),
@@ -131,17 +148,11 @@ export function buildStaffAssignmentsCsv(
     totalsRow.map(escapeCsvCell).join(','),
   ]
 
-  // Prepend a comment-style meta line so the sheet has context when opened.
-  // (Excel treats `#` lines as text; that's fine for a header hint.)
   const metaLine = `# ${meta.eventName} — ${meta.eventDate} — ${meta.eventLocation}`
 
   return [metaLine, ...allRows].join('\n')
 }
 
-/**
- * Trigger a browser download of a CSV string.
- * No-op on the server; safe to import anywhere.
- */
 export function downloadCsv(filename: string, csv: string): void {
   if (typeof window === 'undefined') return
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })

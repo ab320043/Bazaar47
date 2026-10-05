@@ -377,21 +377,32 @@ function AssignmentsTab({ assignments }: { assignments: StaffAssignment[] }) {
             </tr>
           </thead>
           <tbody>
-            {filtered.map((assignment) => {
-              const role = STAFF_ROLES.find(r => r.id === assignment.role)
-              return (
-                <tr key={assignment.id} className="border-t border-rosewood/5 hover:bg-plaster/20 transition-colors">
-                  <td className="px-4 py-3 font-host-grotesk text-sm text-rosewood">
-                    <Link 
-                      href={`/admin/events/${assignment.eventId}`}
-                      className="hover:text-chartreuse transition-colors"
-                    >
-                      {assignment.eventName}
-                    </Link>
-                  </td>
-                  <td className="px-4 py-3 font-host-grotesk text-sm text-rosewood/60">
-                    {role?.icon} {role?.label || assignment.role}
-                  </td>
+              {filtered.map((assignment) => {
+                      return (
+                        <tr key={assignment.id} className="border-t border-rosewood/5 hover:bg-plaster/20 transition-colors">
+                          <td className="px-4 py-3 font-host-grotesk text-sm text-rosewood">
+                            <Link 
+                              href={`/admin/events/${assignment.eventId}`}
+                              className="hover:text-chartreuse transition-colors"
+                            >
+                              {assignment.eventName}
+                            </Link>
+                          </td>
+                          <td className="px-4 py-3 font-host-grotesk text-sm text-rosewood/60">
+                            <div className="flex flex-wrap gap-1">
+                              {assignment.roles.map((roleId) => {
+                                const role = STAFF_ROLES.find((r) => r.id === roleId)
+                                return (
+                                  <span
+                                    key={roleId}
+                                    className="inline-flex items-center gap-1 text-xs"
+                                  >
+                                    {role?.icon} {role?.label || roleId}
+                                  </span>
+                                )
+                              })}
+                            </div>
+                          </td>
                   <td className="px-4 py-3 font-host-grotesk text-sm text-rosewood/50">
                     <div className="flex items-center gap-1">
                       <Clock className="w-3 h-3" />

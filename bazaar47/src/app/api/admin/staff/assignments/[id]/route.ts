@@ -1,10 +1,20 @@
+// app/api/admin/staff/assignments/[id]/route.ts
 import { NextRequest, NextResponse } from 'next/server'
 import { 
   getAssignments, 
   updateAssignment, 
   deleteAssignment 
 } from '@/lib/storage/staff-assignments'
-import type { StaffAssignment } from '@/types/staff'
+import { STAFF_ROLES } from '@/data/staff-roles'
+import type { StaffAssignment, StaffRole } from '@/types/staff'
+
+// ============================================
+// HELPERS
+// ============================================
+
+function isStaffRole(v: unknown): v is StaffRole {
+  return typeof v === 'string' && STAFF_ROLES.some((r) => r.id === v)
+}
 
 // ============================================
 // GET - Get single assignment
@@ -16,7 +26,6 @@ export async function GET(
 ) {
   try {
     const { id } = await params
-    
     const assignments = await getAssignments()
     const assignment = assignments.find(a => a.id === id)
     
@@ -49,7 +58,6 @@ export async function PUT(
     const { id } = await params
     const body = await request.json()
     
-    // Check if assignment exists
     const assignments = await getAssignments()
     const existing = assignments.find(a => a.id === id)
     if (!existing) {
@@ -59,24 +67,33 @@ export async function PUT(
       )
     }
     
-    // Build update object
     const updates: Partial<StaffAssignment> = {}
     
     if (body.status) updates.status = body.status
     if (body.shiftStart) updates.shiftStart = body.shiftStart
     if (body.shiftEnd) updates.shiftEnd = body.shiftEnd
     if (body.hourlyRate !== undefined) updates.hourlyRate = body.hourlyRate
+    if (body.hoursWorked !== undefined) updates.hoursWorked = body.hoursWorked
+    if (body.checkInTime !== undefined) updates.checkInTime = body.checkInTime
+    if (body.checkOutTime !== undefined) updates.checkOutTime = body.checkOutTime
+    if (body.breakStart !== undefined) updates.breakStart = body.breakStart
+    if (body.breakEnd !== undefined) updates.breakEnd = body.breakEnd
     if (body.notes !== undefined) updates.notes = body.notes
     if (body.responsibilities) updates.responsibilities = body.responsibilities
     if (body.position) updates.position = body.position
     
-    // If status is completed, calculate hours
-    if (body.status === 'completed' && existing.checkInTime) {
-      const checkIn = new Date(existing.checkInTime)
-      const now = new Date()
-      const hoursWorked = (now.getTime() - checkIn.getTime()) / (1000 * 60 * 60)
-      updates.hoursWorked = Math.round(hoursWorked * 100) / 100
-      updates.checkOutTime = now.toISOString()
+    // Roles: accept new array shape, or legacy singular
+    if (Array.isArray(body.roles)) {
+      const filtered = body.roles.filter(isStaffRole)
+      if (filtered.length === 0) {
+        return NextResponse.json(
+          { error: 'At least one valid role is required' },
+          { status: 400 }
+        )
+      }
+      updates.roles = Array.from(new Set(filtered))
+    } else if (isStaffRole(body.role)) {
+      updates.roles = [body.role]
     }
     
     const updated = await updateAssignment(id, updates)
@@ -104,7 +121,6 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params
-    
     const deleted = await deleteAssignment(id)
     
     if (!deleted) {

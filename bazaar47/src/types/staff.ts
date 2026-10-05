@@ -17,6 +17,13 @@ export type StaffPosition = 'manager' | 'team-member' | 'lead'
 
 export type StaffStatus = 'active' | 'inactive' | 'on-call' | 'terminated'
 
+/**
+ * Whether a staff member is a permanent hire or a temporary / seasonal
+ * worker. Temp staff can be bulk-archived from the admin directory
+ * once their engagement ends, without deleting their records.
+ */
+export type StaffType = 'permanent' | 'temp'
+
 // ============================================
 // STAFF MEMBER
 // ============================================
@@ -28,11 +35,28 @@ export interface StaffMember {
   phone: string
   primaryRole: StaffRole
   position: StaffPosition
-  hourlyRate: number // Base rate
-  nonprofitRate: number // Reduced rate for nonprofit events
+  hourlyRate: number
+  nonprofitRate: number
   isActive: boolean
   status: StaffStatus
+
+  /**
+   * Permanent vs. temporary. Defaults to 'permanent' for records
+   * created before this field existed.
+   */
+  staffType: StaffType
+
+  // ---- Staff-editable profile fields ----
+  preferredName?: string
+  pronouns?: string
+  bio?: string
+  instagram?: string
+  emergencyContactName?: string
+  emergencyContactPhone?: string
+
+  // ---- Admin-only notes ----
   notes?: string
+
   createdAt: string
   updatedAt: string
 }
@@ -58,15 +82,17 @@ export interface StaffAssignment {
   eventType: EventType
   staffId: string
   staffName: string
-  role: StaffRole
+  roles: StaffRole[]
   position: StaffPosition
-  hourlyRate: number // Rate for this specific event
-  shiftStart: string // ISO datetime
-  shiftEnd: string // ISO datetime
+  hourlyRate: number
+  shiftStart: string
+  shiftEnd: string
   hoursWorked?: number
   estimatedHours?: number
   checkInTime?: string
   checkOutTime?: string
+  breakStart?: string
+  breakEnd?: string
   status: AssignmentStatus
   responsibilities: {
     before: string[]
@@ -74,6 +100,7 @@ export interface StaffAssignment {
     after: string[]
   }
   notes?: string
+  staffNote?: string
   createdAt: string
   updatedAt: string
 }
@@ -88,7 +115,7 @@ export interface RoleDefinition {
   icon: string
   standardRate: number
   nonprofitRate: number
-  defaultHours: number // Minimum hours per shift
+  defaultHours: number
   responsibilities: {
     before: string[]
     during: string[]
@@ -143,5 +170,41 @@ export interface StaffFilters {
   role?: StaffRole
   position?: StaffPosition
   status?: StaffStatus
+  staffType?: StaffType
   eventId?: string
+}
+
+// ============================================
+// NOTES
+// ============================================
+
+export interface StaffNote {
+  id: string
+  staffId: string
+  title: string
+  body: string
+  createdAt: string
+  updatedAt: string
+}
+
+// ============================================
+// CHECKLIST
+// ============================================
+
+export type ChecklistItemKind = 'text' | 'link'
+
+export interface ChecklistItem {
+  id: string
+  kind: ChecklistItemKind
+  title: string
+  detail?: string
+  done: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export interface StaffChecklist {
+  staffId: string
+  items: ChecklistItem[]
+  updatedAt: string
 }

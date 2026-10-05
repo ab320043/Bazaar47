@@ -1,32 +1,14 @@
 // app/staff/(app)/layout.tsx
 import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
-import { getStaffSession } from '@/lib/staff/auth'
+import { getCurrentStaff } from '@/lib/staff/auth'
+import { StaffSidebar } from '@/app/staff/components/StaffSidebar'
+import { StaffMobileTopBar } from '@/app/staff/components/StaffMobileTopBar'
 
 export const metadata: Metadata = {
   title: 'Staff Portal — Bazaar47',
-  description: 'Sign in to view your shifts and clock in or out.',
-  openGraph: {
-    title: 'Staff Portal — Bazaar47',
-    description: 'Sign in to view your shifts and clock in or out.',
-    url: 'https://bazaar47.com/staff/login',
-    siteName: 'Bazaar47',
-    type: 'website',
-    images: [
-      {
-        url: '/bazaar47/public/images/thumbnail.png',
-        width: 1200,
-        height: 630,
-        alt: 'Bazaar47 — Staff Portal',
-      },
-    ],
-  },
-  twitter: {
-    card: 'summary_large_image',
-    title: 'Staff Portal — Bazaar47',
-    description: 'Sign in to view your shifts and clock in or out.',
-    images: ['/images/thumbnail.png'],
-  },
+  description: 'View your shifts, payroll, checklist, and notes.',
+  robots: { index: false, follow: false },
 }
 
 export default async function StaffAppLayout({
@@ -34,15 +16,19 @@ export default async function StaffAppLayout({
 }: {
   children: React.ReactNode
 }) {
-  const session = await getStaffSession()
+  const current = await getCurrentStaff({ refresh: false })
 
-  if (!session) {
+  if (!current) {
     redirect('/staff/login')
   }
 
   return (
     <div className="min-h-screen bg-plaster">
-      {children}
+      <StaffSidebar staff={current.staff} />
+      <StaffMobileTopBar staff={current.staff} />
+      <main className="ml-16 md:ml-56 min-h-screen">
+        {children}
+      </main>
     </div>
   )
 }

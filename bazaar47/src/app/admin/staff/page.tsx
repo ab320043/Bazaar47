@@ -4,10 +4,10 @@ import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { 
   Plus, Search, Edit, Trash2, User, Mail, Phone,
-  CheckCircle, XCircle, Clock, Filter, X,
-  Users, Briefcase, Calendar, KeyRound, RefreshCw, Eye, EyeOff
+  CheckCircle, XCircle, X, Users, Briefcase, Calendar,
+  KeyRound, RefreshCw, Eye, EyeOff, Archive
 } from 'lucide-react'
-import type { StaffMember, StaffRole, StaffPosition } from '@/types/staff'
+import type { StaffMember, StaffRole, StaffPosition, StaffType } from '@/types/staff'
 import { STAFF_ROLES } from '@/data/staff-roles'
 
 // ============================================
@@ -24,8 +24,6 @@ interface StaffWithStats extends StaffMember {
 // ============================================
 
 function generateTempPassword(): string {
-  // 8-char alphanumeric, mixed case. Good enough for a temp password
-  // that the admin reads aloud / pastes to the staff member.
   const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789'
   let out = ''
   const bytes = new Uint8Array(8)
@@ -46,6 +44,7 @@ export default function StaffDirectoryPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [roleFilter, setRoleFilter] = useState<StaffRole | 'all'>('all')
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all')
+  const [typeFilter, setTypeFilter] = useState<'all' | 'permanent' | 'temp'>('all')
   const [showAddModal, setShowAddModal] = useState(false)
   const [editingStaff, setEditingStaff] = useState<StaffMember | null>(null)
   const [resetPasswordStaff, setResetPasswordStaff] = useState<StaffMember | null>(null)
@@ -57,12 +56,12 @@ export default function StaffDirectoryPage() {
       if (searchTerm) params.append('search', searchTerm)
       if (roleFilter !== 'all') params.append('role', roleFilter)
       if (statusFilter !== 'all') params.append('status', statusFilter)
+      if (typeFilter !== 'all') params.append('staffType', typeFilter)
       params.append('stats', 'true')
 
       const response = await fetch(`/api/admin/staff?${params.toString()}`)
       const data = await response.json()
 
-      // Fetch assignments for each staff member
       const staffWithAssignments = await Promise.all(
         (data.staff || []).map(async (member: StaffMember) => {
           const assignmentsRes = await fetch(`/api/admin/staff/${member.id}/assignments`)
@@ -85,7 +84,7 @@ export default function StaffDirectoryPage() {
     } finally {
       setLoading(false)
     }
-  }, [searchTerm, roleFilter, statusFilter])
+  }, [searchTerm, roleFilter, statusFilter, typeFilter])
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -95,8 +94,8 @@ export default function StaffDirectoryPage() {
     return () => window.clearTimeout(timeoutId)
   }, [fetchStaff])
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this staff member?')) return
+  const handleDelete = async (id: string, name: string) => {
+    if (!confirm(`Delete ${name}? This cannot be undone.`)) return
 
     try {
       const response = await fetch(`/api/admin/staff/${id}`, {
@@ -106,11 +105,48 @@ export default function StaffDirectoryPage() {
       if (response.ok) {
         await fetchStaff()
       } else {
-        alert('Failed to delete staff member')
+        const body = await response.json().catch(() => ({}))
+        // 409 = has active assignments
+        if (response.status === 409) {
+          alert(
+            body.error ||
+              'This staff member has active assignments. Cancel or reassign them first.'
+          )
+        } else {
+          alert(body.error || 'Failed to delete staff member')
+        }
       }
     } catch (error) {
       console.error('Delete error:', error)
       alert('Failed to delete staff member')
+    }
+  }
+
+  const handleArchiveTemp = async (member: StaffMember) => {
+    if (member.staffType !== 'temp') return
+    if (
+      !confirm(
+        `Archive ${member.name}? This sets them to inactive and hides them from active staffing. Their records are kept.`
+      )
+    ) {
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/admin/staff/${member.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isActive: false }),
+      })
+
+      if (response.ok) {
+        await fetchStaff()
+      } else {
+        alert('Failed to archive staff member')
+      }
+    } catch (error) {
+      console.error('Archive error:', error)
+      alert('Failed to archive staff member')
     }
   }
 
@@ -124,8 +160,8 @@ export default function StaffDirectoryPage() {
     return role?.icon || '👤'
   }
 
-  const getStatusBadge = (isActive: boolean) => {
-    if (isActive) {
+  const getStatusBadge = (member: StaffMember) => {
+    if (member.isActive) {
       return (
         <span className="flex items-center gap-1 text-xs font-semibold text-chartreuse bg-chartreuse/10 px-2 py-0.5 rounded-full">
           <CheckCircle className="w-3 h-3" />
@@ -149,6 +185,9 @@ export default function StaffDirectoryPage() {
     )
   }
 
+  const hasActiveFilter =
+    searchTerm || roleFilter !== 'all' || statusFilter !== 'all' || typeFilter !== 'all'
+
   return (
     <div className="min-h-screen bg-plaster p-4 md:p-6 lg:p-10">
       <div className="max-w-7xl mx-auto">
@@ -161,6 +200,8 @@ export default function StaffDirectoryPage() {
             </h1>
             <p className="font-host-grotesk text-rosewood/50">
               {staff.length} staff members • {staff.filter(s => s.isActive).length} active
+              {' · '}
+              {staff.filter(s => s.staffType === 'temp').length} temp
             </p>
           </div>
           <button
@@ -204,6 +245,16 @@ export default function StaffDirectoryPage() {
           </select>
 
           <select
+            value={typeFilter}
+            onChange={(e) => setTypeFilter(e.target.value as 'all' | 'permanent' | 'temp')}
+            className="px-4 py-2.5 bg-white border border-rosewood/10 rounded-xl font-host-grotesk text-sm text-rosewood focus:outline-none focus:ring-2 focus:ring-chartreuse/40"
+          >
+            <option value="all">All Types</option>
+            <option value="permanent">Permanent</option>
+            <option value="temp">Temp</option>
+          </select>
+
+          <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value as 'all' | 'active' | 'inactive')}
             className="px-4 py-2.5 bg-white border border-rosewood/10 rounded-xl font-host-grotesk text-sm text-rosewood focus:outline-none focus:ring-2 focus:ring-chartreuse/40"
@@ -213,12 +264,13 @@ export default function StaffDirectoryPage() {
             <option value="inactive">Inactive</option>
           </select>
 
-          {(searchTerm || roleFilter !== 'all' || statusFilter !== 'all') && (
+          {hasActiveFilter && (
             <button
               onClick={() => {
                 setSearchTerm('')
                 setRoleFilter('all')
                 setStatusFilter('all')
+                setTypeFilter('all')
               }}
               className="text-rosewood/40 hover:text-rosewood transition-colors"
             >
@@ -240,21 +292,26 @@ export default function StaffDirectoryPage() {
                     {getRoleIcon(member.primaryRole)}
                   </div>
                   <div>
-                    <h3 className="font-host-grotesk font-bold text-lg text-rosewood">
+                    <h3 className="font-host-grotesk font-bold text-lg text-rosewood flex items-center gap-2">
                       {member.name}
+                      {member.staffType === 'temp' && (
+                        <span className="text-[10px] font-semibold uppercase tracking-wider text-rosewood/60 bg-rosewood/10 px-1.5 py-0.5 rounded">
+                          Temp
+                        </span>
+                      )}
                     </h3>
                     <p className="font-host-grotesk text-sm text-rosewood/50">
                       {getRoleLabel(member.primaryRole)}
                     </p>
                   </div>
                 </div>
-                {getStatusBadge(member.isActive)}
+                {getStatusBadge(member)}
               </div>
 
               <div className="space-y-2 text-sm font-host-grotesk text-rosewood/60">
                 <div className="flex items-center gap-2">
                   <Mail className="w-4 h-4" />
-                  <span>{member.email}</span>
+                  <span className="truncate">{member.email}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Phone className="w-4 h-4" />
@@ -282,6 +339,7 @@ export default function StaffDirectoryPage() {
                   <Link
                     href={`/admin/staff/${member.id}`}
                     className="text-rosewood/30 hover:text-chartreuse transition-colors p-1"
+                    title="View"
                   >
                     <User className="w-4 h-4" />
                   </Link>
@@ -302,8 +360,17 @@ export default function StaffDirectoryPage() {
                   >
                     <KeyRound className="w-4 h-4" />
                   </button>
+                  {member.staffType === 'temp' && member.isActive && (
+                    <button
+                      onClick={() => handleArchiveTemp(member)}
+                      className="text-rosewood/30 hover:text-rosewood transition-colors p-1"
+                      title="Archive temp staff"
+                    >
+                      <Archive className="w-4 h-4" />
+                    </button>
+                  )}
                   <button
-                    onClick={() => handleDelete(member.id)}
+                    onClick={() => handleDelete(member.id, member.name)}
                     className="text-rosewood/30 hover:text-poppy transition-colors p-1"
                     title="Delete"
                   >
@@ -322,11 +389,11 @@ export default function StaffDirectoryPage() {
               <Users className="w-16 h-16 text-rosewood/20 mx-auto mb-4" />
               <h3 className="font-host-grotesk font-bold text-2xl text-rosewood">No staff found</h3>
               <p className="font-host-grotesk text-rosewood/40 mt-2">
-                {searchTerm || roleFilter !== 'all' || statusFilter !== 'all'
+                {hasActiveFilter
                   ? 'Try adjusting your filters'
                   : 'Start by adding your first staff member'}
               </p>
-              {!searchTerm && roleFilter === 'all' && statusFilter === 'all' && (
+              {!hasActiveFilter && (
                 <button
                   onClick={() => {
                     setEditingStaff(null)
@@ -387,6 +454,7 @@ function StaffFormModal({ staff, onClose, onSuccess }: StaffFormModalProps) {
     hourlyRate: staff?.hourlyRate || 20,
     nonprofitRate: staff?.nonprofitRate || 15,
     isActive: staff?.isActive ?? true,
+    staffType: (staff?.staffType || 'permanent') as StaffType,
     notes: staff?.notes || '',
     tempPassword: '',
   })
@@ -405,8 +473,6 @@ function StaffFormModal({ staff, onClose, onSuccess }: StaffFormModalProps) {
       const url = isEditing ? `/api/admin/staff/${staff.id}` : '/api/admin/staff'
       const method = isEditing ? 'PUT' : 'POST'
 
-      // On create, include tempPassword. On edit, we deliberately do NOT
-      // send a password — that goes through the dedicated reset endpoint.
       const payload: Record<string, unknown> = {
         name: formData.name,
         email: formData.email,
@@ -416,6 +482,7 @@ function StaffFormModal({ staff, onClose, onSuccess }: StaffFormModalProps) {
         hourlyRate: formData.hourlyRate,
         nonprofitRate: formData.nonprofitRate,
         isActive: formData.isActive,
+        staffType: formData.staffType,
         notes: formData.notes,
       }
 
@@ -466,7 +533,6 @@ function StaffFormModal({ staff, onClose, onSuccess }: StaffFormModalProps) {
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          {/* Name */}
           <div>
             <label className="font-host-grotesk font-semibold text-sm text-rosewood/80 block mb-1">
               Full Name <span className="text-poppy">*</span>
@@ -481,7 +547,6 @@ function StaffFormModal({ staff, onClose, onSuccess }: StaffFormModalProps) {
             />
           </div>
 
-          {/* Email & Phone */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="font-host-grotesk font-semibold text-sm text-rosewood/80 block mb-1">
@@ -511,7 +576,6 @@ function StaffFormModal({ staff, onClose, onSuccess }: StaffFormModalProps) {
             </div>
           </div>
 
-          {/* Role & Position */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="font-host-grotesk font-semibold text-sm text-rosewood/80 block mb-1">
@@ -546,7 +610,6 @@ function StaffFormModal({ staff, onClose, onSuccess }: StaffFormModalProps) {
             </div>
           </div>
 
-          {/* Rates */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="font-host-grotesk font-semibold text-sm text-rosewood/80 block mb-1">
@@ -580,7 +643,41 @@ function StaffFormModal({ staff, onClose, onSuccess }: StaffFormModalProps) {
             </div>
           </div>
 
-          {/* Temp Password — only on create */}
+          {/* Staff type */}
+          <div>
+            <label className="font-host-grotesk font-semibold text-sm text-rosewood/80 block mb-1.5">
+              Staff Type
+            </label>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setFormData({ ...formData, staffType: 'permanent' })}
+                className={`px-4 py-2 rounded-xl font-host-grotesk font-semibold text-sm transition-all ${
+                  formData.staffType === 'permanent'
+                    ? 'bg-rosewood text-plaster'
+                    : 'bg-plaster/30 text-rosewood/40 hover:bg-plaster/50'
+                }`}
+              >
+                Permanent
+              </button>
+              <button
+                type="button"
+                onClick={() => setFormData({ ...formData, staffType: 'temp' })}
+                className={`px-4 py-2 rounded-xl font-host-grotesk font-semibold text-sm transition-all ${
+                  formData.staffType === 'temp'
+                    ? 'bg-rosewood text-plaster'
+                    : 'bg-plaster/30 text-rosewood/40 hover:bg-plaster/50'
+                }`}
+              >
+                Temp
+              </button>
+            </div>
+            <p className="font-host-grotesk text-xs text-rosewood/40 mt-1.5">
+              Temp staff can be archived from the directory once their engagement ends.
+            </p>
+          </div>
+
+          {/* Temp password — only on create */}
           {!isEditing && (
             <div>
               <label className="font-host-grotesk font-semibold text-sm text-rosewood/80 block mb-1">
@@ -588,7 +685,6 @@ function StaffFormModal({ staff, onClose, onSuccess }: StaffFormModalProps) {
               </label>
               <p className="font-host-grotesk text-xs text-rosewood/40 mb-1.5">
                 At least 8 characters. Share this with the staff member out-of-band.
-                They&apos;ll be prompted to ask you to change it.
               </p>
               <div className="flex gap-2">
                 <div className="relative flex-1">
@@ -625,7 +721,7 @@ function StaffFormModal({ staff, onClose, onSuccess }: StaffFormModalProps) {
             </div>
           )}
 
-          {/* Active Status */}
+          {/* Active */}
           <div>
             <label className="font-host-grotesk font-semibold text-sm text-rosewood/80 block mb-1">
               Status
@@ -656,7 +752,6 @@ function StaffFormModal({ staff, onClose, onSuccess }: StaffFormModalProps) {
             </div>
           </div>
 
-          {/* Notes */}
           <div>
             <label className="font-host-grotesk font-semibold text-sm text-rosewood/80 block mb-1">
               Notes
@@ -749,7 +844,7 @@ function ResetPasswordModal({ staff, onClose, onSuccess }: ResetPasswordModalPro
       setCopied(true)
       window.setTimeout(() => setCopied(false), 2000)
     } catch {
-      // Clipboard may be unavailable; ignore.
+      // ignore
     }
   }
 

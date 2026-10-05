@@ -282,7 +282,7 @@ export default function AdminStaffDashboardPage() {
                   </span>
                   <span className="flex items-center gap-1">
                     <Briefcase className="w-4 h-4" />
-                    {getRoleLabel(current.role)}
+                    {current.roles.map((r) => getRoleLabel(r)).join(' · ')}
                   </span>
                   <span className="flex items-center gap-1">
                     <DollarSign className="w-4 h-4" />
@@ -327,7 +327,7 @@ export default function AdminStaffDashboardPage() {
                           </span>
                           <span className="flex items-center gap-1">
                             <MapPin className="w-3.5 h-3.5" />
-                            {getRoleLabel(assignment.role)}
+                            {assignment.roles.map((r) => getRoleLabel(r)).join(' · ')}
                           </span>
                         </div>
                       </div>

@@ -1,12 +1,9 @@
+// app/api/admin/events/[eventId]/staff/route.ts
 import { NextRequest, NextResponse } from 'next/server'
 import { getEventById } from '@/data/events'
 import { getAssignmentsByEvent } from '@/lib/storage/staff-assignments'
-import { getRolesForEventTier, DEFAULT_STAFF_ASSIGNMENT } from '@/data/staff-roles'
+import { DEFAULT_STAFF_ASSIGNMENT } from '@/data/staff-roles'
 import type { EventType, StaffRole } from '@/types/staff'
-
-// ============================================
-// GET - Get all staff assigned to an event
-// ============================================
 
 export async function GET(
   request: NextRequest,
@@ -15,7 +12,6 @@ export async function GET(
   try {
     const { eventId } = await params
     
-    // Verify event exists
     const event = getEventById(eventId)
     if (!event) {
       return NextResponse.json(
@@ -26,21 +22,29 @@ export async function GET(
     
     const assignments = await getAssignmentsByEvent(eventId)
     
-    // Get required roles for this event type
+    // Required roles for this event type
     const eventType = event.type as EventType
     const requiredRoles = DEFAULT_STAFF_ASSIGNMENT[eventType] || []
     
-    // Check which roles are missing
-    const assignedRoles = assignments.map(a => a.role as StaffRole)
+    // Flatten every role across every assignment. A person with two
+    // roles covers both.
+    const assignedRoles = new Set<StaffRole>()
+    assignments.forEach((a) => {
+      a.roles.forEach((r) => assignedRoles.add(r as StaffRole))
+    })
+    
     const missingRoles = requiredRoles.filter(
-      role => !assignedRoles.includes(role as StaffRole)
+      (role) => !assignedRoles.has(role as StaffRole)
     )
     
-    // Calculate totals
+    // "Total staff" is unique people, not assignments. One assignment
+    // per (staff, event), so this is just assignments.length.
     const totalStaff = assignments.length
+    
     const totalHours = assignments.reduce((sum, a) => {
       return sum + (a.hoursWorked || 0)
     }, 0)
+    
     const totalCost = assignments.reduce((sum, a) => {
       const hours = a.hoursWorked || 0
       return sum + (hours * a.hourlyRate)
