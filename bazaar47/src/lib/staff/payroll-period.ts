@@ -5,19 +5,24 @@
 // ============================================
 
 /**
- * Anchor date for bi-weekly pay periods. Periods run from this date
- * forward/backward in exactly 14-day chunks. Confirmed with admin:
- * periods begin November 24th. If the business ever changes the
- * cadence, only this constant needs to change.
+ * Pay periods are two calendar weeks, Sunday → Saturday.
+ * The anchor is the Sunday on or before the business's stated start
+ * date (Nov 24, 2026 → Sun Nov 22, 2026). Every period is exactly
+ * 14 days, computed forward and backward from this anchor.
+ *
+ * Example periods:
+ *   Sun Nov 22 2026 → Sat Dec 5 2026
+ *   Sun Dec 6 2026  → Sat Dec 19 2026
+ *   Sun Dec 20 2026 → Sat Jan 2 2027
  */
-export const PAYROLL_ANCHOR_ISO = '2026-11-24'
+export const PAYROLL_ANCHOR_ISO = '2026-11-22'
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000
 const PERIOD_DAYS = 14
 const PERIOD_MS = PERIOD_DAYS * MS_PER_DAY
 
 // ============================================
-// HELPERS
+// INTERNAL HELPERS
 // ============================================
 
 function toIsoLocal(d: Date): string {
@@ -44,8 +49,24 @@ function parseIsoLocal(iso: string): Date | null {
   return date
 }
 
+function formatPeriodLabel(start: Date, end: Date): string {
+  const sameMonth = start.getMonth() === end.getMonth()
+  const sameYear = start.getFullYear() === end.getFullYear()
+
+  const startMonth = start.toLocaleDateString('en-US', { month: 'short' })
+  const endMonth = end.toLocaleDateString('en-US', { month: 'short' })
+
+  if (sameMonth && sameYear) {
+    return `${startMonth} ${start.getDate()} – ${end.getDate()}, ${end.getFullYear()}`
+  }
+  if (sameYear) {
+    return `${startMonth} ${start.getDate()} – ${endMonth} ${end.getDate()}, ${end.getFullYear()}`
+  }
+  return `${startMonth} ${start.getDate()}, ${start.getFullYear()} – ${endMonth} ${end.getDate()}, ${end.getFullYear()}`
+}
+
 // ============================================
-// PERIOD MATH
+// PUBLIC API
 // ============================================
 
 export interface PayrollPeriod {
@@ -63,7 +84,6 @@ export interface PayrollPeriod {
 export function getPeriodForDate(referenceDate: Date = new Date()): PayrollPeriod {
   const anchor = parseIsoLocal(PAYROLL_ANCHOR_ISO)
   if (!anchor) {
-    // Should never happen — anchor is a constant. Fail gracefully.
     return {
       startIso: PAYROLL_ANCHOR_ISO,
       endIso: PAYROLL_ANCHOR_ISO,
@@ -118,24 +138,4 @@ export function shiftPeriod(period: PayrollPeriod, direction: -1 | 1): PayrollPe
  */
 export function isDateInPeriod(iso: string, period: PayrollPeriod): boolean {
   return iso >= period.startIso && iso <= period.endIso
-}
-
-// ============================================
-// LABEL
-// ============================================
-
-function formatPeriodLabel(start: Date, end: Date): string {
-  const sameMonth = start.getMonth() === end.getMonth()
-  const sameYear = start.getFullYear() === end.getFullYear()
-
-  const startMonth = start.toLocaleDateString('en-US', { month: 'short' })
-  const endMonth = end.toLocaleDateString('en-US', { month: 'short' })
-
-  if (sameMonth && sameYear) {
-    return `${startMonth} ${start.getDate()} – ${end.getDate()}, ${end.getFullYear()}`
-  }
-  if (sameYear) {
-    return `${startMonth} ${start.getDate()} – ${endMonth} ${end.getDate()}, ${end.getFullYear()}`
-  }
-  return `${startMonth} ${start.getDate()}, ${start.getFullYear()} – ${endMonth} ${end.getDate()}, ${end.getFullYear()}`
 }

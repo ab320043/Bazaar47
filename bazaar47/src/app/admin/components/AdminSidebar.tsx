@@ -10,6 +10,7 @@ import {
   LogOut,
   Archive,
   CalendarDays,
+  DollarSign,
 } from 'lucide-react'
 import { LogoutButton } from './LogoutButton'
 
@@ -18,6 +19,11 @@ const navItems = [
     href: '/admin/dashboard',
     label: 'Dashboard',
     icon: LayoutDashboard,
+  },
+  {
+    href: '/admin/payroll',
+    label: 'Payroll',
+    icon: DollarSign,
   },
   {
     href: '/admin/archive',
