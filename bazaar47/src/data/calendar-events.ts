@@ -32,4 +32,29 @@ export const externalCalendarEvents: ExternalCalendarEventConfig[] = [
   //   externalUrl: 'https://example.com/tickets',
   //   category: 'concert',
   // },
+/// ==========================================
+  // ADD YOUR OWN EVENTS BELOW THIS LINE
+  // ==========================================
+    {
+        id: 'yankelEvent',        // any unique string, no spaces
+        title: 'Ritmo Caribe',
+        date: '2026-10-17',          // ISO 'YYYY-MM-DD'
+        timeStart: '9:00 PM',
+        timeEnd: '2:00 AM',         // optional
+        venue: 'Bazaar47',           // optional, defaults to 'Bazaar47'
+        description: 'Hispanic Heritage Night! We can\'t wait to dance and celebrate with you all!',  // optional
+        externalUrl: 'https://www.instagram.com/p/DeSMdR9BNZE/?exln=MTRwa3IxeTlueG1ycQ==',   // REQUIRED — where the link goes
+        category: 'concert',          // optional, free-form tag
+    },
+    {
+        id: 'writteninthestars',        // any unique string, no spaces
+        title: 'Gator Awaaz Showcase: Written in the Stars',
+        date: '2026-10-18',          // ISO 'YYYY-MM-DD'
+        timeStart: '6:00 PM',
+        timeEnd: '9:00 PM',         // optional
+        venue: 'Bazaar47',           // optional, defaults to 'Bazaar47'
+        description: 'Some night are written in the stars!',  // optional
+        externalUrl: 'https://www.instagram.com/p/DeSot7NGMqm/?psln=NXVrcXQwdXFqdnYy',   // REQUIRED — where the link goes
+        category: 'concert',          // optional, free-form tag
+    },
 ]
