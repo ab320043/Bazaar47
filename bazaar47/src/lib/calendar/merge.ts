@@ -129,7 +129,7 @@ function openMicEventsToCalendarEvents(monthsAhead = 15): CalendarEvent[] {
         title: 'Open Mic',
         date: toIsoLocal(cursor),
         timeStart: '8:00 PM',
-        timeEnd: '11:00 PM',
+        timeEnd: '10:00 PM',
         venue: 'Bazaar47',
         description: 'Weekly open mic — music, poetry, spoken word, art.',
         internalUrl: '/open-mic',
