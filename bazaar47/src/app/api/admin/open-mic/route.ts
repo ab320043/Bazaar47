@@ -33,6 +33,18 @@ function isWednesday(iso: string): boolean {
   return d.getDay() === 3
 }
 
+function normalizeOptionalUrl(v: unknown): string | undefined {
+  if (typeof v !== 'string' || v.trim() === '') return undefined
+  const trimmed = v.trim()
+  try {
+    const url = new URL(trimmed)
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') return undefined
+    return trimmed
+  } catch {
+    return undefined
+  }
+}
+
 /**
  * Merge every session from FIRST_SESSION up through the current week
  * with the stored submissions. Sessions with no submissions still
@@ -40,7 +52,7 @@ function isWednesday(iso: string): boolean {
  * including the first session.
  */
 function buildFullSessionList(
-  stored: Record<string, { id: string; sessionDate: string; submittedAt: string; fullName: string; artistName: string; genre: string; instagram?: string; email: string; confirmationNumber: string; addedByAdmin?: boolean; createdAt: string; updatedAt: string }[]>
+  stored: Record<string, { id: string; sessionDate: string; submittedAt: string; fullName: string; artistName: string; genre: string; musicLink?: string; instagram?: string; email: string; confirmationNumber: string; addedByAdmin?: boolean; createdAt: string; updatedAt: string }[]>
 ): string[] {
   const first = fromIsoLocal(FIRST_SESSION_ISO)
   if (!first) return []
@@ -54,7 +66,6 @@ function buildFullSessionList(
   const set = new Set<string>()
   const cursor = new Date(first)
 
-  // Ensure we include the first session even if current < first
   const endDate =
     currentDate.getTime() < first.getTime() ? first : currentDate
 
@@ -63,8 +74,6 @@ function buildFullSessionList(
     cursor.setDate(cursor.getDate() + 7)
   }
 
-  // Union with any session dates present in storage (covers admin-created
-  // future sessions)
   for (const iso of Object.keys(stored)) {
     set.add(iso)
   }
@@ -145,6 +154,7 @@ export async function POST(request: NextRequest) {
       fullName,
       artistName,
       genre,
+      musicLink,
       instagram,
       email,
       sendConfirmation,
@@ -187,6 +197,7 @@ export async function POST(request: NextRequest) {
       fullName: fullName.trim(),
       artistName: artistName.trim(),
       genre: genre.trim(),
+      musicLink: normalizeOptionalUrl(musicLink),
       instagram: instagram?.trim() || undefined,
       email: email.trim().toLowerCase(),
       confirmationNumber,
@@ -205,6 +216,7 @@ export async function POST(request: NextRequest) {
               fullName: submission.fullName,
               artistName: submission.artistName,
               genre: submission.genre,
+              musicLink: submission.musicLink,
               instagram: submission.instagram,
               email: submission.email,
               sessionDate,

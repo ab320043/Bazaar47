@@ -12,11 +12,12 @@ import {
   Pencil,
   Calendar,
   Mail,
+  // Instagram,
   Music2,
+  Link as LinkIcon,
   X,
   Loader2,
   AlertCircle,
-  CheckCircle2,
 } from 'lucide-react'
 import type { OpenMicSubmission, OpenMicSession } from '@/types/open-mic'
 
@@ -93,7 +94,6 @@ export default function AdminOpenMicPage() {
       const body = (await res.json()) as ApiResponse
       setData(body)
 
-      // Auto-expand the current/next session on first load
       if (!opts?.silent && body.nextSessionIso) {
         setExpandedSessions((prev) => {
           if (prev.size === 0) {
@@ -148,6 +148,7 @@ export default function AdminOpenMicPage() {
       fullName: string
       artistName: string
       genre: string
+      musicLink?: string
       instagram?: string
       email: string
       sendConfirmation: boolean
@@ -171,6 +172,7 @@ export default function AdminOpenMicPage() {
       fullName: string
       artistName: string
       genre: string
+      musicLink?: string
       instagram?: string
       email: string
     }
@@ -296,10 +298,19 @@ export default function AdminOpenMicPage() {
                       : 'border-rosewood/5'
                   }`}
                 >
-                  {/* Session header row */}
-                  <button
+                  {/* Session header row — clickable div (not a button,
+                      so the inner Add button is valid HTML) */}
+                  <div
+                    role="button"
+                    tabIndex={0}
                     onClick={() => toggleSession(session.sessionDate)}
-                    className="w-full text-left p-4 hover:bg-plaster/20 transition-colors"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault()
+                        toggleSession(session.sessionDate)
+                      }
+                    }}
+                    className="w-full text-left p-4 hover:bg-plaster/20 transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-chartreuse/40 focus-visible:ring-inset"
                   >
                     <div className="flex items-center justify-between gap-3 flex-wrap">
                       <div className="flex items-center gap-3 min-w-0">
@@ -354,6 +365,7 @@ export default function AdminOpenMicPage() {
 
                       <div className="flex items-center gap-2">
                         <button
+                          type="button"
                           onClick={(e) => {
                             e.stopPropagation()
                             setShowAddModal(session.sessionDate)
@@ -370,7 +382,7 @@ export default function AdminOpenMicPage() {
                         )}
                       </div>
                     </div>
-                  </button>
+                  </div>
 
                   {/* Submissions */}
                   {isExpanded && (
@@ -475,6 +487,17 @@ function SubmissionRow({
             </span>
           )}
         </div>
+        {submission.musicLink && (
+          <a
+            href={submission.musicLink}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 text-xs text-chartreuse hover:text-chartreuse/80 mt-1.5 transition-colors"
+          >
+            <LinkIcon className="w-3 h-3" />
+            {submission.musicLink}
+          </a>
+        )}
       </div>
       <div className="flex items-center gap-1 shrink-0">
         <span className="text-[10px] text-rosewood/30 font-mono mr-2 hidden sm:block">
@@ -516,6 +539,7 @@ function AddSubmissionModal({
       fullName: string
       artistName: string
       genre: string
+      musicLink?: string
       instagram?: string
       email: string
       sendConfirmation: boolean
@@ -526,6 +550,7 @@ function AddSubmissionModal({
     fullName: '',
     artistName: '',
     genre: '',
+    musicLink: '',
     instagram: '',
     email: '',
   })
@@ -536,8 +561,13 @@ function AddSubmissionModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
-    if (!form.fullName.trim() || !form.artistName.trim() || !form.genre.trim() || !form.email.trim()) {
-      setError('All fields except Instagram are required')
+    if (
+      !form.fullName.trim() ||
+      !form.artistName.trim() ||
+      !form.genre.trim() ||
+      !form.email.trim()
+    ) {
+      setError('All fields except Music link and Instagram are required')
       return
     }
     setSubmitting(true)
@@ -546,6 +576,7 @@ function AddSubmissionModal({
         fullName: form.fullName.trim(),
         artistName: form.artistName.trim(),
         genre: form.genre.trim(),
+        musicLink: form.musicLink.trim() || undefined,
         instagram: form.instagram.trim() || undefined,
         email: form.email.trim(),
         sendConfirmation,
@@ -564,10 +595,10 @@ function AddSubmissionModal({
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-3xl max-w-md w-full shadow-2xl"
+        className="bg-white rounded-3xl max-w-md w-full max-h-[90vh] overflow-y-auto shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="p-6 border-b border-rosewood/10 flex items-center justify-between">
+        <div className="sticky top-0 bg-white p-6 border-b border-rosewood/10 flex items-center justify-between">
           <div>
             <h3 className="font-host-grotesk font-bold text-xl text-rosewood">
               Add submission
@@ -627,6 +658,20 @@ function AddSubmissionModal({
           </div>
           <div>
             <label className="font-host-grotesk font-semibold text-sm text-rosewood/80 block mb-1">
+              Link to Music
+            </label>
+            <input
+              type="url"
+              value={form.musicLink}
+              onChange={(e) =>
+                setForm({ ...form, musicLink: e.target.value })
+              }
+              className="w-full px-4 py-2 bg-plaster/30 border border-rosewood/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-chartreuse/40 font-host-grotesk text-rosewood"
+              placeholder="https://... (optional)"
+            />
+          </div>
+          <div>
+            <label className="font-host-grotesk font-semibold text-sm text-rosewood/80 block mb-1">
               Instagram
             </label>
             <input
@@ -636,6 +681,7 @@ function AddSubmissionModal({
                 setForm({ ...form, instagram: e.target.value })
               }
               className="w-full px-4 py-2 bg-plaster/30 border border-rosewood/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-chartreuse/40 font-host-grotesk text-rosewood"
+              placeholder="yourhandle"
             />
           </div>
           <div>
@@ -710,6 +756,7 @@ function EditSubmissionModal({
       fullName: string
       artistName: string
       genre: string
+      musicLink?: string
       instagram?: string
       email: string
     }
@@ -719,6 +766,7 @@ function EditSubmissionModal({
     fullName: submission.fullName,
     artistName: submission.artistName,
     genre: submission.genre,
+    musicLink: submission.musicLink || '',
     instagram: submission.instagram || '',
     email: submission.email,
   })
@@ -734,6 +782,8 @@ function EditSubmissionModal({
         fullName: form.fullName.trim(),
         artistName: form.artistName.trim(),
         genre: form.genre.trim(),
+        // Send empty string to explicitly clear the field
+        musicLink: form.musicLink.trim(),
         instagram: form.instagram.trim() || undefined,
         email: form.email.trim(),
       })
@@ -751,10 +801,10 @@ function EditSubmissionModal({
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-3xl max-w-md w-full shadow-2xl"
+        className="bg-white rounded-3xl max-w-md w-full max-h-[90vh] overflow-y-auto shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="p-6 border-b border-rosewood/10 flex items-center justify-between">
+        <div className="sticky top-0 bg-white p-6 border-b border-rosewood/10 flex items-center justify-between">
           <h3 className="font-host-grotesk font-bold text-xl text-rosewood">
             Edit submission
           </h3>
@@ -767,7 +817,6 @@ function EditSubmissionModal({
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          {/* Same fields as AddSubmissionModal, prefilled */}
           <div>
             <label className="font-host-grotesk font-semibold text-sm text-rosewood/80 block mb-1">
               Full name
@@ -806,6 +855,20 @@ function EditSubmissionModal({
               onChange={(e) => setForm({ ...form, genre: e.target.value })}
               required
               className="w-full px-4 py-2 bg-plaster/30 border border-rosewood/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-chartreuse/40 font-host-grotesk text-rosewood"
+            />
+          </div>
+          <div>
+            <label className="font-host-grotesk font-semibold text-sm text-rosewood/80 block mb-1">
+              Link to Music
+            </label>
+            <input
+              type="url"
+              value={form.musicLink}
+              onChange={(e) =>
+                setForm({ ...form, musicLink: e.target.value })
+              }
+              className="w-full px-4 py-2 bg-plaster/30 border border-rosewood/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-chartreuse/40 font-host-grotesk text-rosewood"
+              placeholder="https://... (optional)"
             />
           </div>
           <div>

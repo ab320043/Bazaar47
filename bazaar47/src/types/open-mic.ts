@@ -17,6 +17,8 @@ export interface OpenMicSubmission {
   fullName: string
   artistName: string
   genre: string
+  /** Optional URL to the artist's music (Spotify, SoundCloud, etc). */
+  musicLink?: string
   instagram?: string
   email: string
   /** Short human-readable confirmation code shown to the artist. */
@@ -51,6 +53,7 @@ export interface OpenMicSubmitPayload {
   fullName: string
   artistName: string
   genre: string
+  musicLink?: string
   instagram?: string
   email: string
 }
@@ -60,6 +63,7 @@ export interface OpenMicAdminCreatePayload {
   fullName: string
   artistName: string
   genre: string
+  musicLink?: string
   instagram?: string
   email: string
   /** If true, send a confirmation email to the artist. */

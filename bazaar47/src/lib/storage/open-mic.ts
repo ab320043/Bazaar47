@@ -44,10 +44,6 @@ async function saveMap(map: SubmissionsBySession): Promise<void> {
 // PUBLIC API
 // ============================================
 
-/**
- * All submissions for a given session date, in the order they were
- * submitted.
- */
 export async function getSubmissionsForSession(
   sessionIso: string
 ): Promise<OpenMicSubmission[]> {
@@ -55,20 +51,12 @@ export async function getSubmissionsForSession(
   return map[sessionIso] || []
 }
 
-/**
- * Every session that has at least one submission, sorted by date
- * (newest first).
- */
 export async function getAllSessionsWithSubmissions(): Promise<
   Record<string, OpenMicSubmission[]>
 > {
   return await getMap()
 }
 
-/**
- * A single submission by its ID. Returns the submission plus the
- * session date it belongs to.
- */
 export async function getSubmissionById(
   id: string
 ): Promise<{ sessionIso: string; submission: OpenMicSubmission } | null> {
@@ -82,11 +70,6 @@ export async function getSubmissionById(
   return null
 }
 
-/**
- * Create a new submission for the given session. Throws if the session
- * already has a submission with the same email (case-insensitive) —
- * prevents accidental double-signups for the same night.
- */
 export async function createSubmission(
   sessionIso: string,
   input: Omit<
@@ -97,7 +80,6 @@ export async function createSubmission(
   const map = await getMap()
   const existing = map[sessionIso] || []
 
-  // Prevent duplicate emails for the same session
   const normalizedEmail = input.email.trim().toLowerCase()
   const duplicate = existing.find(
     (s) => s.email.trim().toLowerCase() === normalizedEmail
@@ -125,14 +107,15 @@ export async function createSubmission(
 }
 
 /**
- * Update an existing submission. Only the artist-editable fields.
+ * Update an existing submission. Only admin-editable fields.
+ * Passing an empty string for musicLink clears it.
  */
 export async function updateSubmission(
   id: string,
   updates: Partial<
     Pick<
       OpenMicSubmission,
-      'fullName' | 'artistName' | 'genre' | 'instagram' | 'email'
+      'fullName' | 'artistName' | 'genre' | 'musicLink' | 'instagram' | 'email'
     >
   >
 ): Promise<OpenMicSubmission | null> {
@@ -156,9 +139,6 @@ export async function updateSubmission(
   return null
 }
 
-/**
- * Delete a submission. Returns true if something was deleted.
- */
 export async function deleteSubmission(id: string): Promise<boolean> {
   const map = await getMap()
   for (const sessionIso of Object.keys(map)) {

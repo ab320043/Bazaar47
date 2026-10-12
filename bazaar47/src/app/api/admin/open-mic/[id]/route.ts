@@ -7,6 +7,27 @@ import {
 import { isAdminAuthenticated } from '@/lib/admin/auth'
 
 // ============================================
+// HELPERS
+// ============================================
+
+function normalizeOptionalUrl(v: unknown): string | undefined | null {
+  // null signals "explicitly clear this field"
+  if (v === null || v === '') return null
+  if (typeof v !== 'string') return undefined
+
+  const trimmed = v.trim()
+  if (trimmed === '') return null
+
+  try {
+    const url = new URL(trimmed)
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') return undefined
+    return trimmed
+  } catch {
+    return undefined
+  }
+}
+
+// ============================================
 // PATCH — edit a submission
 // ============================================
 
@@ -26,6 +47,7 @@ export async function PATCH(
       fullName?: string
       artistName?: string
       genre?: string
+      musicLink?: string
       instagram?: string
       email?: string
     } = {}
@@ -44,6 +66,16 @@ export async function PATCH(
     }
     if (typeof body.email === 'string' && body.email.trim()) {
       updates.email = body.email.trim().toLowerCase()
+    }
+    if ('musicLink' in body) {
+      const normalized = normalizeOptionalUrl(body.musicLink)
+      if (normalized === null) {
+        // Explicit clear
+        updates.musicLink = ''
+      } else if (normalized !== undefined) {
+        updates.musicLink = normalized
+      }
+      // If invalid (undefined), silently ignore
     }
 
     if (Object.keys(updates).length === 0) {

@@ -5,6 +5,7 @@ interface OpenMicConfirmationProps {
   fullName: string
   artistName: string
   genre: string
+  musicLink?: string
   instagram?: string
   email: string
   sessionDate: string
@@ -16,6 +17,7 @@ export function OpenMicConfirmation({
   fullName,
   artistName,
   genre,
+  musicLink,
   instagram,
   email,
   sessionLabel,
@@ -163,6 +165,24 @@ export function OpenMicConfirmation({
                   {genre}
                 </td>
               </tr>
+              {musicLink && (
+                <tr>
+                  <td style={{ color: '#6A2630', padding: '4px 0' }}>
+                    Your music
+                  </td>
+                  <td style={{ color: '#341B1C', textAlign: 'right' }}>
+                    <a
+                      href={musicLink}
+                      style={{
+                        color: '#295211',
+                        textDecoration: 'underline',
+                      }}
+                    >
+                      Link
+                    </a>
+                  </td>
+                </tr>
+              )}
               {instagram && (
                 <tr>
                   <td style={{ color: '#6A2630', padding: '4px 0' }}>

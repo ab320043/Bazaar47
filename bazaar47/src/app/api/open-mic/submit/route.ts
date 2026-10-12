@@ -23,6 +23,23 @@ function generateConfirmationNumber(): string {
   return `OM-${Date.now().toString(36).toUpperCase()}`
 }
 
+/**
+ * Basic URL validation for the optional musicLink field. Accepts
+ * http(s) URLs only. Returns undefined for anything else — we don't
+ * reject the submission over it, we just drop invalid values silently.
+ */
+function normalizeOptionalUrl(v: unknown): string | undefined {
+  if (typeof v !== 'string' || v.trim() === '') return undefined
+  const trimmed = v.trim()
+  try {
+    const url = new URL(trimmed)
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') return undefined
+    return trimmed
+  } catch {
+    return undefined
+  }
+}
+
 // ============================================
 // POST — public submission
 // ============================================
@@ -31,7 +48,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
 
-    const { fullName, artistName, genre, instagram, email } =
+    const { fullName, artistName, genre, musicLink, instagram, email } =
       body as Partial<OpenMicSubmitPayload>
 
     // ---- Field validation ----
@@ -85,6 +102,7 @@ export async function POST(request: NextRequest) {
       fullName: fullName.trim(),
       artistName: artistName.trim(),
       genre: genre.trim(),
+      musicLink: normalizeOptionalUrl(musicLink),
       instagram: instagram?.trim() ? instagram.trim() : undefined,
       email: email.trim().toLowerCase(),
       confirmationNumber,
@@ -103,6 +121,7 @@ export async function POST(request: NextRequest) {
             fullName: submission.fullName,
             artistName: submission.artistName,
             genre: submission.genre,
+            musicLink: submission.musicLink,
             instagram: submission.instagram,
             email: submission.email,
             sessionDate: sessionIso,

@@ -11,7 +11,6 @@ import {
   Clock,
   MapPin,
   Mic2,
-  Music2,
   Sparkles,
   CheckCircle2,
   AlertCircle,
@@ -28,6 +27,7 @@ interface FormState {
   fullName: string
   artistName: string
   genre: string
+  musicLink: string
   instagram: string
   email: string
 }
@@ -42,21 +42,6 @@ type SubmitState =
       sessionLabel: string
     }
   | { kind: 'error'; message: string }
-
-const GENRE_OPTIONS = [
-  'Indie',
-  'Hip-Hop',
-  'Jazz',
-  'Folk',
-  'Electronic',
-  'Rock',
-  'R&B',
-  'Pop',
-  'Classical',
-  'Spoken Word',
-  'Poetry',
-  'Other',
-]
 
 const FIRST_SESSION = new Date(2026, 9, 21) // Oct 21, 2026
 
@@ -160,6 +145,7 @@ export default function OpenMicPage() {
     fullName: '',
     artistName: '',
     genre: '',
+    musicLink: '',
     instagram: '',
     email: '',
   })
@@ -213,6 +199,7 @@ export default function OpenMicPage() {
           fullName: form.fullName.trim(),
           artistName: form.artistName.trim(),
           genre: form.genre.trim(),
+          musicLink: form.musicLink.trim() || undefined,
           instagram: instagramDisplay,
           email: form.email.trim(),
         }),
@@ -248,6 +235,7 @@ export default function OpenMicPage() {
       fullName: '',
       artistName: '',
       genre: '',
+      musicLink: '',
       instagram: '',
       email: '',
     })
@@ -331,7 +319,7 @@ export default function OpenMicPage() {
               Doors
             </span>
             <span className="font-host-grotesk font-bold text-plaster text-sm mt-1">
-              8:00 PM – 11:00 PM
+              8:00 PM – 10:00 PM
             </span>
           </div>
           <div className="flex flex-col items-center text-center p-5 bg-plaster/5 rounded-2xl border border-plaster/10 backdrop-blur-sm">
@@ -464,14 +452,12 @@ export default function OpenMicPage() {
                     </div>
 
                     <div>
-                      <label className="font-host-grotesk font-semibold text-sm text-rosewood/80 mb-1.5 flex items-center gap-2">
-                        <Music2 className="w-4 h-4" />
+                      <label className="font-host-grotesk font-semibold text-sm text-rosewood/80 block mb-1.5">
                         Music genre <span className="text-poppy">*</span>
                       </label>
                       <input
                         type="text"
                         name="genre"
-                        list="open-mic-genres"
                         value={form.genre}
                         onChange={handleChange}
                         required
@@ -479,11 +465,25 @@ export default function OpenMicPage() {
                         className="w-full px-4 py-3 bg-white border border-rosewood/15 rounded-xl focus:outline-none focus:ring-2 focus:ring-chartreuse/40 focus:border-chartreuse/60 font-host-grotesk text-rosewood transition-all"
                         placeholder="e.g. Indie, Hip-Hop, Jazz, Poetry…"
                       />
-                      <datalist id="open-mic-genres">
-                        {GENRE_OPTIONS.map((g) => (
-                          <option key={g} value={g} />
-                        ))}
-                      </datalist>
+                    </div>
+
+                    <div>
+                      <label className="font-host-grotesk font-semibold text-sm text-rosewood/80 block mb-1.5">
+                        Link to Music
+                      </label>
+                      <input
+                        type="url"
+                        name="musicLink"
+                        value={form.musicLink}
+                        onChange={handleChange}
+                        autoComplete="off"
+                        className="w-full px-4 py-3 bg-white border border-rosewood/15 rounded-xl focus:outline-none focus:ring-2 focus:ring-chartreuse/40 focus:border-chartreuse/60 font-host-grotesk text-rosewood transition-all"
+                        placeholder="https://soundcloud.com/you — optional"
+                      />
+                      <p className="font-host-grotesk text-xs text-rosewood/40 mt-1">
+                        Optional. Share a link to your music, Spotify, SoundCloud,
+                        Bandcamp, YouTube — whatever you want us to hear.
+                      </p>
                     </div>
 
                     <div>
