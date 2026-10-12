@@ -13,12 +13,14 @@ import cardLocationIcon from '@/assets/newAssets/cardLocationIcon.png'
 export function TourSection() {
   const tourCities = getTourCities()
 
-  // Filter out completed events
+  // Filter out completed events (Jacksonville, Orlando, South Florida)
   const activeCities = tourCities.filter(stop => stop.status !== 'completed')
 
   return (
-    <section className="relative w-full overflow-hidden bg-[#6A2630]" id="tour-section">
-
+    <section
+      className="relative w-full overflow-hidden bg-[#6A2630]"
+      id="tour-section"
+    >
       {/* OVERLAY LAYER */}
       <div className="absolute inset-0 opacity-30">
         <Image
@@ -30,17 +32,19 @@ export function TourSection() {
         />
       </div>
 
-      <div className="relative z-10 container mx-auto px-4 md:px-8 lg:px-12 py-16 md:py-20">
-
+      <div className="relative z-10 container mx-auto px-4 md:px-8 lg:px-12 py-12 md:py-16">
         {/* HEADER */}
-        <div className="flex flex-col items-center md:flex-row md:items-start md:justify-between gap-6 mb-12">
+        <div className="flex flex-col items-center md:flex-row md:items-start md:justify-between gap-6 mb-10 md:mb-12">
           <div className="w-full md:w-1/2 text-center md:text-left">
-            <h2 className="font-host-grotesk font-bold text-[40px] md:text-[58px] leading-[108%] tracking-normal text-plaster mt-12">
+            <h2 className="font-host-grotesk font-bold text-[40px] md:text-[58px] leading-[108%] tracking-normal text-plaster mt-8 md:mt-6">
               Tickets + Dates
             </h2>
           </div>
           <div className="w-full md:w-1/2 flex justify-center md:justify-end">
-            <div className="relative w-full max-w-[150px] md:max-w-[180px] h-auto" style={{ right: '0px', top: '6px' }}>
+            <div
+              className="relative w-full max-w-[150px] md:max-w-[180px] h-auto"
+              style={{ right: '0px', top: '6px' }}
+            >
               <Image
                 src={floridaTourText}
                 alt="Bazaar À La Carte"
@@ -51,8 +55,8 @@ export function TourSection() {
           </div>
         </div>
 
-        {/* TOUR CARDS - 4 columns on large screens */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8">
+        {/* TOUR CARDS — 2 columns for the final stops */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 md:gap-8">
           {activeCities.map((stop, index) => {
             return (
               <motion.div
@@ -93,12 +97,22 @@ export function TourSection() {
                   {/* Location + Time */}
                   <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-[#341B1C]">
                     <div className="flex items-center gap-2">
-                      <Image src={cardLocationIcon} alt="Location" width={18} height={18} className="text-poppy" />
-                      <span className="font-host-grotesk text-sm font-semibold">{stop.location}</span>
+                      <Image
+                        src={cardLocationIcon}
+                        alt="Location"
+                        width={18}
+                        height={18}
+                        className="text-poppy"
+                      />
+                      <span className="font-host-grotesk text-sm font-semibold">
+                        {stop.location}
+                      </span>
                     </div>
                     <div className="flex items-center gap-2">
                       <Clock size={18} className="text-poppy" />
-                      <span className="font-host-grotesk text-sm font-semibold">{stop.time}</span>
+                      <span className="font-host-grotesk text-sm font-semibold">
+                        {stop.time}
+                      </span>
                     </div>
                   </div>
 

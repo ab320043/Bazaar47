@@ -20,16 +20,6 @@ function EventCard({ event, index }: { event: Event; index: number }) {
       className="group bg-henna rounded-2xl overflow-hidden border border-plaster/10 hover:border-plaster/30 transition-all duration-300 hover:shadow-2xl hover:-translate-y-1"
     >
       <div className="flex flex-col md:flex-row">
-        {/* Flyer - Left
-        <div className="relative md:w-56 lg:w-64 h-56 md:h-auto flex-shrink-0 overflow-hidden">
-          <Image
-            src={event.flyerImage}
-            alt={event.title}
-            fill
-            className="object-cover transition-transform duration-500 group-hover:scale-105"
-          />
-        </div> */}
-
         {/* Content - Right */}
         <div className="flex-1 p-6 md:p-8 flex flex-col bg-henna">
           <div className="flex-1">
@@ -92,7 +82,7 @@ function EventCard({ event, index }: { event: Event; index: number }) {
 
 export function EventsListing() {
   return (
-    <section id="events" className="relative w-full bg-sand-dune py-16 md:py-20">
+    <section className="relative w-full bg-sand-dune py-16 md:py-20">
       <div className="absolute inset-0 opacity-30 pointer-events-none">
         <Image
           src={overlay}

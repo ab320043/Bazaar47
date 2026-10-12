@@ -70,6 +70,11 @@ export function Header() {
       href: '/#about',
       sectionId: 'about'
     },
+    {
+      label: 'Events',
+      href: '/events',
+      sectionId: null,
+    },
     { 
       label: 'Tickets', 
       href: '/#tickets',
