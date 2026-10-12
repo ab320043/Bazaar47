@@ -48,11 +48,16 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode
 }) {
-  // Detect admin or staff routes to suppress the public header/footer.
+  // Detect admin, staff, or standalone-app routes to suppress the
+  // public header/footer chrome.
   const headersList = await headers()
   const pathname = headersList.get('x-pathname') || ''
   const isAppRoute =
-    pathname.startsWith('/admin') || pathname.startsWith('/staff') || pathname.startsWith('/big-caf-meetings-calendar')
+    pathname.startsWith('/admin') ||
+    pathname.startsWith('/staff') ||
+    pathname.startsWith('/big-caf-meetings-calendar') ||
+    pathname.startsWith('/reopening') ||
+    pathname.startsWith('/open-mic')
 
   return (
     <html 

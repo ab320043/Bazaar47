@@ -11,6 +11,7 @@ import {
   Archive,
   CalendarDays,
   DollarSign,
+  Mic2,
 } from 'lucide-react'
 import { LogoutButton } from './LogoutButton'
 
@@ -29,6 +30,11 @@ const navItems = [
     href: '/admin/archive',
     label: 'Archive',
     icon: Archive,
+  },
+  {
+    href: '/admin/open-mic',
+    label: 'Open Mic',
+    icon: Mic2,
   },
   {
     href: '/admin/big-caf-meetings',

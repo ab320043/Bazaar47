@@ -11,6 +11,8 @@ const PUBLIC_ROUTES = [
   // Staff auth
   '/staff/login',
   '/api/staff/login',
+  // Open Mic public submission
+  '/api/open-mic/submit',
 ]
 
 export function middleware(request: NextRequest) {
@@ -88,14 +90,7 @@ export function middleware(request: NextRequest) {
   // dance-signup forms POST their entries. It only lives under
   // /api/admin because it reuses the same storage helpers as the admin
   // dashboard — creating a submission is not itself an admin-only
-  // action. Requiring `admin_session` for POST here meant anyone who
-  // wasn't already logged into /admin (i.e. every real customer, and
-  // reliably anyone in a fresh/incognito session) got silently
-  // redirected to /login instead of having their submission saved.
-  //
-  // GET (listing/reading submissions), PUT, and DELETE on this same
-  // path are still admin-only and continue to require auth below —
-  // only anonymous *writes* (new submissions) are allowed through.
+  // action.
   const isPublicSubmissionWrite =
     path === '/api/admin/submissions' && method === 'POST'
 
@@ -137,5 +132,6 @@ export const config = {
     '/api/staff/:path*',
     '/api/big-caf-meetings/:path*',
     '/api/big-caf-meetings',
+    '/api/open-mic/submit',
   ],
 }

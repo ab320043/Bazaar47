@@ -20,7 +20,7 @@ export const MEETING_WINDOW_END_ISO = '2027-03-26'
 export const MEETING_WEEKDAYS: readonly number[] = [3, 4, 5] as const
 
 // Time window each meeting day (copy only — not validated against input).
-export const MEETING_TIME_WINDOW_START = '3 PM'
+export const MEETING_TIME_WINDOW_START = '2 PM'
 export const MEETING_TIME_WINDOW_END = '8 PM'
 
 // ============================================
@@ -30,14 +30,14 @@ export const MEETING_TIME_WINDOW_END = '8 PM'
 export const PAGE_TITLE = 'Big Caf Festival — Meeting Availability'
 
 export const PAGE_DESCRIPTION =
-  'Pick the days and times you are available to meet with us. Meetings happen on Wednesdays, Thursdays, and Fridays, between 3 PM and 8 PM.'
+  'Pick the days and times you are available to meet with us. Meetings happen on Wednesdays, Thursdays, and Fridays, between 2 PM and 8 PM.'
 
 export const PAGE_INTRO =
-  'We are preparing for The Big Caf Festival in April 2027. Choose any of the highlighted days below that work for you, and let us know what time you are free on each day. Leave the time blank if you are flexible. Meetings run 3 PM – 8 PM.'
+  'We are preparing for The Big Culture & Arts Festival in April 2027. Choose any of the highlighted days below that work for you, and let us know what time you are free on each day. Leave the time blank if you are flexible. Meetings run 2 PM – 8 PM.'
 
 // Helper line shown under the selected-days section.
 export const PAGE_TIME_HINT =
-  'Leave a day blank if you are free any time between 3 PM and 8 PM.'
+  'Leave a day blank if you are free any time between 2 PM and 8 PM.'
 
 // ============================================
 // ROLLING WINDOW START

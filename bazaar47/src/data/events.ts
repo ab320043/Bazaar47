@@ -73,7 +73,7 @@ const tourCities: EventDefinition[] = [
     highlights: ['Live Music', 'Art Exhibitions', 'Local Vendors', 'Food Trucks'],
   },
 
-  // 2. SOUTH FLORIDA - ACTIVE
+  // 2. SOUTH FLORIDA - COMPLETED
   {
     id: 'south-florida-tour',
     slug: 'south-florida',
@@ -100,13 +100,13 @@ const tourCities: EventDefinition[] = [
     highlights: ['Live Performances', 'Art Installations', 'Local Artists', 'Night Market'],
   },
 
-  // 3. JACKSONVILLE - ACTIVE
+  // 3. JACKSONVILLE - COMPLETED (date already passed)
   {
     id: 'jacksonville-tour',
     slug: 'jacksonville',
     name: 'Jacksonville',
     type: 'tour',
-    status: 'active',
+    status: 'completed',
     date: '2026-10-07',
     dateDisplay: 'Wednesday, October 7',
     time: '5-9pm',
@@ -152,7 +152,7 @@ const tourCities: EventDefinition[] = [
     highlights: ['The FEST Festival', 'Local Artists', 'Music', 'Community Gathering'],
   },
 
-  // 5. GULF COAST - ACTIVE
+  // 5. GULF COAST — commented out
   // {
   //   id: 'gulf-coast-tour',
   //   slug: 'gulf-coast',
@@ -210,7 +210,38 @@ const tourCities: EventDefinition[] = [
 // ============================================
 
 const standaloneEvents: EventDefinition[] = [
-  // 7. BLOCK PARTY - ACTIVE
+  // ============================
+  // GRAND (RE)OPENING — Oct 15 2026
+  // Two-in-one: reopening + Laila's birthday
+  // ============================
+  {
+    id: 'grand-reopening',
+    slug: 'reopening',
+    name: 'Bazaar47 Grand (Re)Opening',
+    type: 'custom',
+    status: 'active',
+    date: '2026-10-15',
+    dateDisplay: 'Thursday, October 15, 2026',
+    time: '8:00 PM – 11:00 PM',
+    location: 'Bazaar47',
+    address: '60 SW 2nd Street, Gainesville, FL 32601',
+    city: 'Gainesville',
+    capacity: 300,
+    hasVendors: false,
+    hasRSVP: true,
+    hasDanceSignup: false,
+    isFree: true,
+    description:
+      "Bazaar47 is back. Join us for the Grand (Re)Opening — a night of music, drinks, and community. And yes, it's also Laila's birthday.",
+    ticketUrl: '/reopening',
+    venueDetails:
+      'Bazaar47 reopens its doors at 60 SW 2nd Street. The Grand (Re)Opening is a two-in-one celebration: our return, and Laila\'s birthday party.',
+    highlights: ['Grand (Re)Opening', "Laila's Birthday Party", 'Live Music', 'Full Bar'],
+  },
+
+  // ============================
+  // BLOCK PARTY — completed
+  // ============================
   {
     id: 'block-party',
     slug: 'block-party',
