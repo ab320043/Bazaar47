@@ -90,7 +90,7 @@ export function OpenMicSection() {
             Open Mic
           </h2>
           <p className="font-host-grotesk text-lg sm:text-xl md:text-2xl text-chartreuse mt-3 font-semibold">
-            ✦ Bring your sound to the circle ✦
+            ✦ Bring your sound to the Stage ✦
           </p>
 
           <p className="font-host-grotesk text-sm sm:text-base text-plaster/70 mt-5 max-w-2xl mx-auto">
