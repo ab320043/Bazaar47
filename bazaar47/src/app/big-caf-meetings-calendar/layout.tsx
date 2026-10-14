@@ -4,7 +4,7 @@ export const metadata: Metadata = {
   title: 'Big Caf Festival — Meeting Availability',
   description: 'Pick the days and times you are available to meet with us.',
   openGraph: {
-    title: 'Big Caf Festival — Meeting Availability',
+    title: 'Big 2027 Meetings',
     description: 'Pick the days and times you are available to meet with us.',
     url: 'https://bazaar47.com/big-caf-meetings-calendar',
     siteName: 'Bazaar47',

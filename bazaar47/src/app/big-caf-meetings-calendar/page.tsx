@@ -242,7 +242,7 @@ export default function BigCafMeetingsCalendarPage() {
           <div className="flex items-center justify-center gap-3 mb-3">
             <span className="w-8 h-px bg-rosewood/30" />
             <span className="font-host-grotesk text-[10px] sm:text-xs text-rosewood/50 uppercase tracking-[0.3em] font-bold">
-              The Big Caf Festival
+              Big: Culture & Arts Festival
             </span>
             <span className="w-8 h-px bg-rosewood/30" />
           </div>

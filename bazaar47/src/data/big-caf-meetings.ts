@@ -33,7 +33,7 @@ export const PAGE_DESCRIPTION =
   'Pick the days and times you are available to meet with us. Meetings happen on Wednesdays, Thursdays, and Fridays, between 2 PM and 8 PM.'
 
 export const PAGE_INTRO =
-  'We are preparing for The Big Culture & Arts Festival in April 2027. Choose any of the highlighted days below that work for you, and let us know what time you are free on each day. Leave the time blank if you are flexible. Meetings run 2 PM – 8 PM.'
+    'We are already wowrking hard to prepare for Big: Culture & Arts Festival 2027. I\'d love to meet with you! Please choose any of the highlighted days below that work for you. Please feel free to schedule a time to meet between 2 PM and 8 PM on available dates.'
 
 // Helper line shown under the selected-days section.
 export const PAGE_TIME_HINT =
