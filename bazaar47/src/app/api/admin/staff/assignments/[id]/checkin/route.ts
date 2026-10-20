@@ -10,19 +10,30 @@ export async function POST(
   try {
     const { id } = await params
 
-    // 1. Resolve the session. Never trust a staffId from the request.
+    // 1. Session check
     const session = await getStaffSession()
     if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      console.warn('[checkin] 401: no valid session')
+      return NextResponse.json(
+        { error: 'Your session has expired. Please log in again.' },
+        { status: 401 }
+      )
     }
 
-    // 2. Delegate to the shared core, passing the session's staffId as the
-    //    required owner. The core enforces assignment.staffId === expectedStaffId
-    //    and returns 403 on mismatch.
+    // 2. Core ownership-gated check-in
     const result = await checkInAssignment(id, session.staffId)
 
     if (!result.ok) {
-      return NextResponse.json({ error: result.error }, { status: result.status })
+      console.warn('[checkin] failed:', {
+        status: result.status,
+        error: result.error,
+        assignmentId: id,
+        staffId: session.staffId,
+      })
+      return NextResponse.json(
+        { error: result.error },
+        { status: result.status }
+      )
     }
 
     return NextResponse.json({
@@ -31,9 +42,9 @@ export async function POST(
       assignment: result.assignment,
     })
   } catch (error) {
-    console.error('Error checking in staff (staff route):', error)
+    console.error('[checkin] unexpected error:', error)
     return NextResponse.json(
-      { error: 'Failed to check in' },
+      { error: 'Something went wrong on our end. Please try again.' },
       { status: 500 }
     )
   }

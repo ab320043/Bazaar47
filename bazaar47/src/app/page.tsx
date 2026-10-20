@@ -3,7 +3,7 @@ import { Hero } from '@/app/components/hero/hero'
 import { TourSection } from '@/app/components/tour/tour-section'
 import { About } from '@/app/components/About/index'
 // import { CalendarEventsSection } from '@/app/components/calendar-events/index'
-import { ReopeningSection } from '@/app/components/reopening/reopening-section'
+// import { ReopeningSection } from '@/app/components/reopening/reopening-section'
 import { OpenMicSection } from '@/app/components/open-mic/open-mic-section'
 
 export default function HomePage() {
@@ -16,7 +16,7 @@ export default function HomePage() {
       </section>
 
       {/* Grand Reopening — two-in-one celebration */}
-      <ReopeningSection />
+      {/* <ReopeningSection /> */}
 
       {/* Open Mic — every Wednesday */}
       <OpenMicSection />

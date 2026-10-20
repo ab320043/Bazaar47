@@ -33,6 +33,7 @@ interface EventStaffingData {
     type: EventType
     date: string
     dateDisplay: string
+    time: string
     location: string
     status?: string
   }
@@ -91,6 +92,42 @@ function formatBreakSummary(a: StaffAssignment): string {
   return m === 0 ? `${h}h break` : `${h}h ${m}m break`
 }
 
+/**
+ * Compute shift start and end times from an event's date.
+ * Default: 8:00 PM local to 11:00 PM local on the event day.
+ *
+ * This replaces the old behavior of using `new Date()` (which set the
+ * shift start to whenever the admin clicked Assign).
+ */
+function computeDefaultShiftTimes(eventDateIso: string): {
+  shiftStart: string
+  shiftEnd: string
+} {
+  // Parse the event date (which is YYYY-MM-DD from data/events.ts)
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(eventDateIso)
+  if (!match) {
+    // Fallback: now + 6 hours (should never happen with valid event data)
+    return {
+      shiftStart: new Date().toISOString(),
+      shiftEnd: new Date(Date.now() + 6 * 60 * 60 * 1000).toISOString(),
+    }
+  }
+
+  const year = Number(match[1])
+  const month = Number(match[2]) - 1
+  const day = Number(match[3])
+
+  // 8:00 PM local start
+  const start = new Date(year, month, day, 20, 0, 0, 0)
+  // 11:00 PM local end
+  const end = new Date(year, month, day, 23, 0, 0, 0)
+
+  return {
+    shiftStart: start.toISOString(),
+    shiftEnd: end.toISOString(),
+  }
+}
+
 // ============================================
 // MAIN COMPONENT
 // ============================================
@@ -143,7 +180,16 @@ export default function EventStaffingPage() {
     roles: StaffRole[],
     hourlyRateOverride?: number
   ) => {
+    if (!data) return
+
     try {
+      // ✅ Compute shift times from the EVENT DATE, not from "now".
+      // This ensures the shift is on the event's day, not on the day
+      // the admin happened to click "Assign".
+      const { shiftStart, shiftEnd } = computeDefaultShiftTimes(
+        data.event.date
+      )
+
       const response = await fetch('/api/admin/staff/assignments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -151,9 +197,11 @@ export default function EventStaffingPage() {
           eventId,
           staffId,
           roles,
-          ...(hourlyRateOverride !== undefined && { hourlyRate: hourlyRateOverride }),
-          shiftStart: new Date().toISOString(),
-          shiftEnd: new Date(Date.now() + 6 * 60 * 60 * 1000).toISOString(),
+          ...(hourlyRateOverride !== undefined && {
+            hourlyRate: hourlyRateOverride,
+          }),
+          shiftStart,
+          shiftEnd,
           status: 'assigned',
         }),
       })
@@ -174,9 +222,10 @@ export default function EventStaffingPage() {
   const handleRemoveAssignment = async (assignmentId: string) => {
     if (!confirm('Remove this staff member from the event?')) return
     try {
-      const response = await fetch(`/api/admin/staff/assignments/${assignmentId}`, {
-        method: 'DELETE',
-      })
+      const response = await fetch(
+        `/api/admin/staff/assignments/${assignmentId}`,
+        { method: 'DELETE' }
+      )
       if (response.ok) {
         await fetchData()
       } else {
@@ -188,13 +237,19 @@ export default function EventStaffingPage() {
     }
   }
 
-  const handleStatusUpdate = async (assignmentId: string, status: AssignmentStatus) => {
+  const handleStatusUpdate = async (
+    assignmentId: string,
+    status: AssignmentStatus
+  ) => {
     try {
-      const response = await fetch(`/api/admin/staff/assignments/${assignmentId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status }),
-      })
+      const response = await fetch(
+        `/api/admin/staff/assignments/${assignmentId}`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status }),
+        }
+      )
       if (response.ok) {
         await fetchData()
       } else {
@@ -206,13 +261,19 @@ export default function EventStaffingPage() {
     }
   }
 
-  const handleHoursWorkedUpdate = async (assignmentId: string, hoursWorked: number) => {
+  const handleHoursWorkedUpdate = async (
+    assignmentId: string,
+    hoursWorked: number
+  ) => {
     try {
-      const response = await fetch(`/api/admin/staff/assignments/${assignmentId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ hoursWorked }),
-      })
+      const response = await fetch(
+        `/api/admin/staff/assignments/${assignmentId}`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ hoursWorked }),
+        }
+      )
       if (response.ok) {
         await fetchData()
       } else {
@@ -230,14 +291,17 @@ export default function EventStaffingPage() {
     breakEnd: string | null
   ) => {
     try {
-      const response = await fetch(`/api/admin/staff/assignments/${assignmentId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          breakStart: breakStart || '',
-          breakEnd: breakEnd || '',
-        }),
-      })
+      const response = await fetch(
+        `/api/admin/staff/assignments/${assignmentId}`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            breakStart: breakStart || '',
+            breakEnd: breakEnd || '',
+          }),
+        }
+      )
       if (response.ok) {
         await fetchData()
       } else {
@@ -261,17 +325,46 @@ export default function EventStaffingPage() {
   }
 
   const getStatusBadge = (status: AssignmentStatus) => {
-    const styles: Record<AssignmentStatus, { bg: string; text: string; label: string }> = {
-      'assigned': { bg: 'bg-rosewood/10', text: 'text-rosewood/60', label: 'Assigned' },
-      'confirmed': { bg: 'bg-hippie/10', text: 'text-hippie', label: 'Confirmed' },
-      'checked-in': { bg: 'bg-chartreuse/10', text: 'text-chartreuse', label: 'Checked In' },
-      'in-progress': { bg: 'bg-chartreuse/20', text: 'text-chartreuse', label: 'In Progress' },
-      'completed': { bg: 'bg-grove/10', text: 'text-grove', label: 'Completed' },
-      'cancelled': { bg: 'bg-poppy/10', text: 'text-poppy', label: 'Cancelled' },
+    const styles: Record<
+      AssignmentStatus,
+      { bg: string; text: string; label: string }
+    > = {
+      assigned: {
+        bg: 'bg-rosewood/10',
+        text: 'text-rosewood/60',
+        label: 'Assigned',
+      },
+      confirmed: {
+        bg: 'bg-hippie/10',
+        text: 'text-hippie',
+        label: 'Confirmed',
+      },
+      'checked-in': {
+        bg: 'bg-chartreuse/10',
+        text: 'text-chartreuse',
+        label: 'Checked In',
+      },
+      'in-progress': {
+        bg: 'bg-chartreuse/20',
+        text: 'text-chartreuse',
+        label: 'In Progress',
+      },
+      completed: {
+        bg: 'bg-grove/10',
+        text: 'text-grove',
+        label: 'Completed',
+      },
+      cancelled: {
+        bg: 'bg-poppy/10',
+        text: 'text-poppy',
+        label: 'Cancelled',
+      },
     }
     const style = styles[status]
     return (
-      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${style.bg} ${style.text}`}>
+      <span
+        className={`text-xs font-semibold px-2 py-0.5 rounded-full ${style.bg} ${style.text}`}
+      >
         {style.label}
       </span>
     )
@@ -280,7 +373,9 @@ export default function EventStaffingPage() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-plaster">
-        <div className="text-rosewood/60 font-host-grotesk">Loading staffing data...</div>
+        <div className="text-rosewood/60 font-host-grotesk">
+          Loading staffing data...
+        </div>
       </div>
     )
   }
@@ -288,10 +383,14 @@ export default function EventStaffingPage() {
   if (error || !data) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-plaster p-4">
-        <div className="text-poppy text-xl font-host-grotesk font-bold mb-2">⚠️ Error</div>
-        <div className="text-rosewood/60 font-host-grotesk">{error || 'Event not found'}</div>
-        <Link 
-          href="/admin" 
+        <div className="text-poppy text-xl font-host-grotesk font-bold mb-2">
+          ⚠️ Error
+        </div>
+        <div className="text-rosewood/60 font-host-grotesk">
+          {error || 'Event not found'}
+        </div>
+        <Link
+          href="/admin"
           className="mt-6 bg-rosewood text-plaster px-6 py-2 rounded-xl font-host-grotesk font-semibold hover:bg-rosewood/80 transition-colors"
         >
           ← Back to Dashboard
@@ -315,13 +414,15 @@ export default function EventStaffingPage() {
     }
   }
 
-  const requiredRoles: StaffRole[] = (DEFAULT_STAFF_ASSIGNMENT[event.type] || [])
-    .filter((role): role is StaffRole => STAFF_ROLES.some(({ id }) => id === role))
+  const requiredRoles: StaffRole[] = (
+    DEFAULT_STAFF_ASSIGNMENT[event.type] || []
+  ).filter((role): role is StaffRole =>
+    STAFF_ROLES.some(({ id }) => id === role)
+  )
 
   return (
     <div className="min-h-screen bg-plaster p-4 md:p-6 lg:p-10">
       <div className="max-w-7xl mx-auto">
-
         {isPastEvent && (
           <div className="bg-rosewood/5 border border-rosewood/15 rounded-2xl px-4 py-3 mb-6 flex items-start gap-3">
             <History className="w-5 h-5 text-rosewood/50 shrink-0 mt-0.5" />
@@ -338,8 +439,8 @@ export default function EventStaffingPage() {
         )}
 
         <div className="flex items-center gap-4 mb-6">
-          <Link 
-            href={`/admin/events/${eventId}`} 
+          <Link
+            href={`/admin/events/${eventId}`}
             className="text-rosewood/60 hover:text-rosewood transition-colors"
           >
             <ArrowLeft className="w-5 h-5" />
@@ -356,8 +457,14 @@ export default function EventStaffingPage() {
               <span className="text-rosewood/20">•</span>
               <span>{event.location}</span>
               <span className="text-rosewood/20">•</span>
-              <span className={stats.isFullyStaffed ? 'text-chartreuse' : 'text-poppy'}>
-                {stats.isFullyStaffed ? '✅ Fully Staffed' : `⚠️ Missing ${stats.missingRoles.length} roles`}
+              <span
+                className={
+                  stats.isFullyStaffed ? 'text-chartreuse' : 'text-poppy'
+                }
+              >
+                {stats.isFullyStaffed
+                  ? '✅ Fully Staffed'
+                  : `⚠️ Missing ${stats.missingRoles.length} roles`}
               </span>
               {isPastEvent && (
                 <>
@@ -399,30 +506,44 @@ export default function EventStaffingPage() {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
           <div className="bg-white rounded-xl p-4 border border-rosewood/5 shadow-sm">
-            <p className="font-host-grotesk text-xs text-rosewood/40">Total Staff</p>
-            <p className="font-host-grotesk text-2xl font-bold text-rosewood">{stats.totalStaff}</p>
+            <p className="font-host-grotesk text-xs text-rosewood/40">
+              Total Staff
+            </p>
+            <p className="font-host-grotesk text-2xl font-bold text-rosewood">
+              {stats.totalStaff}
+            </p>
           </div>
           <div className="bg-white rounded-xl p-4 border border-rosewood/5 shadow-sm">
-            <p className="font-host-grotesk text-xs text-rosewood/40">Total Hours</p>
-            <p className="font-host-grotesk text-2xl font-bold text-rosewood">{stats.totalHours}h</p>
+            <p className="font-host-grotesk text-xs text-rosewood/40">
+              Total Hours
+            </p>
+            <p className="font-host-grotesk text-2xl font-bold text-rosewood">
+              {stats.totalHours}h
+            </p>
           </div>
           <div className="bg-white rounded-xl p-4 border border-rosewood/5 shadow-sm">
-            <p className="font-host-grotesk text-xs text-rosewood/40">Total Cost</p>
-            <p className="font-host-grotesk text-2xl font-bold text-rosewood">${stats.totalCost}</p>
+            <p className="font-host-grotesk text-xs text-rosewood/40">
+              Total Cost
+            </p>
+            <p className="font-host-grotesk text-2xl font-bold text-rosewood">
+              ${stats.totalCost}
+            </p>
           </div>
         </div>
 
         <div className="space-y-4">
           {requiredRoles.map((roleId) => {
             const roleAssignments = assignmentsByRole.get(roleId) || []
-            const roleDef = STAFF_ROLES.find(r => r.id === roleId)
+            const roleDef = STAFF_ROLES.find((r) => r.id === roleId)
             const isMissing = roleAssignments.length === 0
 
             return (
-              <div 
+              <div
                 key={roleId}
                 className={`bg-white rounded-2xl border p-6 shadow-sm transition-all ${
-                  isMissing ? 'border-poppy/30 bg-poppy/5' : 'border-rosewood/5'
+                  isMissing
+                    ? 'border-poppy/30 bg-poppy/5'
+                    : 'border-rosewood/5'
                 }`}
               >
                 <div className="flex items-center justify-between mb-4">
@@ -487,7 +608,7 @@ export default function EventStaffingPage() {
 }
 
 // ============================================
-// ASSIGNMENT ROW
+// ASSIGNMENT ROW (unchanged from previous version)
 // ============================================
 
 function AssignmentRow({
@@ -501,7 +622,11 @@ function AssignmentRow({
   assignment: StaffAssignment
   onStatusUpdate: (id: string, status: AssignmentStatus) => void
   onHoursUpdate: (id: string, hours: number) => void
-  onBreakUpdate: (id: string, breakStart: string | null, breakEnd: string | null) => void
+  onBreakUpdate: (
+    id: string,
+    breakStart: string | null,
+    breakEnd: string | null
+  ) => void
   onRemove: (id: string) => void
   getStatusBadge: (status: AssignmentStatus) => React.ReactNode
 }) {
@@ -513,7 +638,7 @@ function AssignmentRow({
     <div className="flex flex-wrap items-center justify-between p-3 bg-plaster/30 rounded-xl gap-3">
       <div className="flex items-center gap-3 min-w-0">
         <div className="w-10 h-10 rounded-full bg-rosewood/10 flex items-center justify-center text-lg shrink-0">
-          {STAFF_ROLES.find(r => r.id === assignment.roles[0])?.icon || '👤'}
+          {STAFF_ROLES.find((r) => r.id === assignment.roles[0])?.icon || '👤'}
         </div>
         <div className="min-w-0">
           <p className="font-host-grotesk font-semibold text-rosewood truncate">
@@ -568,7 +693,12 @@ function AssignmentRow({
         <div className="flex items-center gap-1">
           <select
             value={assignment.status}
-            onChange={(e) => onStatusUpdate(assignment.id, e.target.value as AssignmentStatus)}
+            onChange={(e) =>
+              onStatusUpdate(
+                assignment.id,
+                e.target.value as AssignmentStatus
+              )
+            }
             className="text-xs bg-white border border-rosewood/10 rounded-lg px-2 py-1 font-host-grotesk text-rosewood focus:outline-none focus:ring-2 focus:ring-chartreuse/40"
           >
             <option value="assigned">Assigned</option>
@@ -602,7 +732,7 @@ function AssignmentRow({
 }
 
 // ============================================
-// BREAK EDITOR (inline)
+// BREAK EDITOR (unchanged)
 // ============================================
 
 function BreakEditor({
@@ -625,8 +755,6 @@ function BreakEditor({
 
   const handleSave = async () => {
     setError(null)
-
-    // Both empty → clear break
     if (start === '' && end === '') {
       setSaving(true)
       try {
@@ -636,13 +764,10 @@ function BreakEditor({
       }
       return
     }
-
-    // One-sided breaks aren't allowed — require both or neither
     if ((start === '') !== (end === '')) {
       setError('Enter both break start and end, or leave both empty')
       return
     }
-
     const startMs = new Date(start).getTime()
     const endMs = new Date(end).getTime()
     if (Number.isNaN(startMs) || Number.isNaN(endMs)) {
@@ -653,7 +778,6 @@ function BreakEditor({
       setError('Break end must be after break start')
       return
     }
-
     setSaving(true)
     try {
       await onSave(new Date(start).toISOString(), new Date(end).toISOString())
@@ -670,7 +794,6 @@ function BreakEditor({
           Break window
         </span>
       </div>
-
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
         <div>
           <label className="font-host-grotesk text-[10px] uppercase tracking-wider text-rosewood/40 block mb-1">
@@ -695,11 +818,9 @@ function BreakEditor({
           />
         </div>
       </div>
-
       {error && (
         <p className="font-host-grotesk text-[11px] text-poppy mt-2">{error}</p>
       )}
-
       <div className="flex gap-2 mt-2">
         <button
           onClick={handleSave}
@@ -736,7 +857,7 @@ function BreakEditor({
 }
 
 // ============================================
-// HOURS WORKED INPUT
+// HOURS WORKED INPUT (unchanged)
 // ============================================
 
 function HoursWorkedInput({
@@ -779,14 +900,18 @@ function HoursWorkedInput({
 }
 
 // ============================================
-// ASSIGN MODAL
+// ASSIGN MODAL (unchanged)
 // ============================================
 
 interface AssignModalProps {
   availableStaff: AvailableStaff[]
   eventType: EventType
   existingAssignments: StaffAssignment[]
-  onAssign: (staffId: string, roles: StaffRole[], hourlyRateOverride?: number) => void
+  onAssign: (
+    staffId: string,
+    roles: StaffRole[],
+    hourlyRateOverride?: number
+  ) => void
   onClose: () => void
 }
 
@@ -809,9 +934,8 @@ function AssignModal({
     [existingAssignments, selectedStaffId]
   )
 
-  const firstSelectedRole = selectedRoles.size > 0
-    ? Array.from(selectedRoles)[0]
-    : null
+  const firstSelectedRole =
+    selectedRoles.size > 0 ? Array.from(selectedRoles)[0] : null
   const autoRate = firstSelectedRole
     ? getRateForRole(firstSelectedRole, eventType)
     : null
@@ -827,7 +951,8 @@ function AssignModal({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!selectedStaffId || selectedRoles.size === 0 || existingAssignment) return
+    if (!selectedStaffId || selectedRoles.size === 0 || existingAssignment)
+      return
 
     let override: number | undefined
     if (rateOverridden && rateOverride.trim() !== '') {
@@ -839,11 +964,19 @@ function AssignModal({
   }
 
   return (
-    <div className="fixed inset-0 bg-rosewood/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white rounded-3xl max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-2xl" onClick={(e) => e.stopPropagation()}>
+    <div
+      className="fixed inset-0 bg-rosewood/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-3xl max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="sticky top-0 bg-white border-b border-rosewood/10 p-6 flex items-center justify-between">
           <div>
-            <h3 className="font-host-grotesk font-bold text-2xl text-rosewood">Assign Staff</h3>
+            <h3 className="font-host-grotesk font-bold text-2xl text-rosewood">
+              Assign Staff
+            </h3>
             <p className="font-host-grotesk text-sm text-rosewood/50">
               One assignment per staff member. Pick all roles they&apos;ll cover.
             </p>
@@ -870,7 +1003,9 @@ function AssignModal({
               <option value="">Select a staff member...</option>
               {availableStaff.map((staff) => (
                 <option key={staff.id} value={staff.id}>
-                  {staff.name} - {STAFF_ROLES.find(r => r.id === staff.primaryRole)?.label || staff.primaryRole}
+                  {staff.name} -{' '}
+                  {STAFF_ROLES.find((r) => r.id === staff.primaryRole)
+                    ?.label || staff.primaryRole}
                 </option>
               ))}
             </select>

@@ -6,7 +6,7 @@ import {
   Calendar, Clock, DollarSign, Briefcase,
   RefreshCw, Star, AlertCircle, LogIn, LogOut,
   Loader2, Bell, Users, MessageSquare,
-  CheckCircle2
+  CheckCircle2, X, CheckCircle,
 } from 'lucide-react'
 import type { StaffMember, StaffAssignment, StaffRole } from '@/types/staff'
 import { STAFF_ROLES } from '@/data/staff-roles'
@@ -54,6 +54,15 @@ type ShiftState =
   | 'in-progress'
   | 'clocked-in'
   | 'ended'
+
+type ToastKind = 'success' | 'error'
+
+interface Toast {
+  id: number
+  kind: ToastKind
+  title: string
+  message?: string
+}
 
 // ============================================
 // CONSTANTS
@@ -120,6 +129,10 @@ function formatDate(iso: string): string {
   })
 }
 
+/**
+ * Date-strict check: is the given ISO timestamp on the same calendar
+ * day as the reference `now`?
+ */
 function isToday(iso: string, referenceNow: number): boolean {
   const d = new Date(iso)
   const today = new Date(referenceNow)
@@ -148,10 +161,23 @@ export default function StaffShiftsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [actionId, setActionId] = useState<string | null>(null)
-  const [actionError, setActionError] = useState<string | null>(null)
   const [now, setNow] = useState<number>(0)
+  const [toasts, setToasts] = useState<Toast[]>([])
 
   const tickRef = useRef<number | null>(null)
+
+  // ---- Toast helpers ----
+  const pushToast = useCallback((toast: Omit<Toast, 'id'>) => {
+    const id = Date.now() + Math.random()
+    setToasts((prev) => [...prev, { id, ...toast }])
+    window.setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id))
+    }, 5000)
+  }, [])
+
+  const dismissToast = useCallback((id: number) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id))
+  }, [])
 
   const fetchDashboard = useCallback(async (opts?: { silent?: boolean }) => {
     if (!opts?.silent) setError(null)
@@ -200,21 +226,36 @@ export default function StaffShiftsPage() {
 
   const handleCheckIn = async (assignmentId: string) => {
     setActionId(assignmentId)
-    setActionError(null)
     try {
       const res = await fetch(
         `/api/staff/assignments/${assignmentId}/checkin`,
         { method: 'POST', headers: { 'Content-Type': 'application/json' } }
       )
-      const body = await res.json()
+      const body = await res.json().catch(() => ({}))
+
       if (!res.ok) {
-        setActionError(body.error || 'Failed to check in')
+        pushToast({
+          kind: 'error',
+          title: 'Could not clock in',
+          message: body.error || `Server responded with ${res.status}`,
+        })
         return
       }
+
+      pushToast({
+        kind: 'success',
+        title: "You're clocked in!",
+        message: 'Your shift timer is running. Have a great shift.',
+      })
       await fetchDashboard({ silent: true })
       window.setTimeout(() => setNow(Date.now()), 0)
-    } catch {
-      setActionError('Network error while checking in')
+    } catch (err) {
+      console.error('Check-in error:', err)
+      pushToast({
+        kind: 'error',
+        title: 'Network error',
+        message: 'Could not reach the server. Please try again.',
+      })
     } finally {
       setActionId(null)
     }
@@ -222,21 +263,40 @@ export default function StaffShiftsPage() {
 
   const handleCheckOut = async (assignmentId: string) => {
     setActionId(assignmentId)
-    setActionError(null)
     try {
       const res = await fetch(
         `/api/staff/assignments/${assignmentId}/checkout`,
         { method: 'POST', headers: { 'Content-Type': 'application/json' } }
       )
-      const body = await res.json()
+      const body = await res.json().catch(() => ({}))
+
       if (!res.ok) {
-        setActionError(body.error || 'Failed to check out')
+        pushToast({
+          kind: 'error',
+          title: 'Could not clock out',
+          message: body.error || `Server responded with ${res.status}`,
+        })
         return
       }
+
+      const hours = body.hoursWorked
+      pushToast({
+        kind: 'success',
+        title: "You're clocked out!",
+        message:
+          typeof hours === 'number'
+            ? `Logged ${hours.toFixed(2)}h for this shift.`
+            : 'Your hours have been saved.',
+      })
       await fetchDashboard({ silent: true })
       window.setTimeout(() => setNow(Date.now()), 0)
-    } catch {
-      setActionError('Network error while checking out')
+    } catch (err) {
+      console.error('Check-out error:', err)
+      pushToast({
+        kind: 'error',
+        title: 'Network error',
+        message: 'Could not reach the server. Please try again.',
+      })
     } finally {
       setActionId(null)
     }
@@ -254,7 +314,11 @@ export default function StaffShiftsPage() {
       )
       if (!res.ok) {
         const body = await res.json().catch(() => ({}))
-        setActionError(body.error || 'Failed to save note')
+        pushToast({
+          kind: 'error',
+          title: 'Could not save note',
+          message: body.error || 'Please try again.',
+        })
         return
       }
       setData((prev) => {
@@ -287,7 +351,11 @@ export default function StaffShiftsPage() {
         }
       })
     } catch {
-      setActionError('Network error while saving note')
+      pushToast({
+        kind: 'error',
+        title: 'Network error',
+        message: 'Could not save your note.',
+      })
     }
   }
 
@@ -296,6 +364,7 @@ export default function StaffShiftsPage() {
     void fetchDashboard()
   }
 
+  // Shifts happening today (date-strict on shiftStart)
   const todayAssignments = (() => {
     if (!data) return []
     const all: StaffAssignment[] = [
@@ -318,8 +387,12 @@ export default function StaffShiftsPage() {
   if (error || !data) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center p-4">
-        <div className="text-poppy text-xl font-host-grotesk font-bold mb-2">⚠️ Error</div>
-        <div className="text-rosewood/60 font-host-grotesk">{error || 'No data available'}</div>
+        <div className="text-poppy text-xl font-host-grotesk font-bold mb-2">
+          ⚠️ Error
+        </div>
+        <div className="text-rosewood/60 font-host-grotesk">
+          {error || 'No data available'}
+        </div>
         <button
           onClick={handleManualRefresh}
           className="mt-6 bg-rosewood text-plaster px-6 py-2 rounded-xl font-host-grotesk font-semibold hover:bg-rosewood/80 transition-colors"
@@ -335,6 +408,42 @@ export default function StaffShiftsPage() {
 
   return (
     <div className="p-4 md:p-6 lg:p-10 max-w-7xl mx-auto">
+
+      {/* Toast stack — fixed top-right */}
+      <div className="fixed top-4 right-4 z-50 space-y-2 max-w-sm">
+        {toasts.map((toast) => (
+          <div
+            key={toast.id}
+            className={`flex items-start gap-3 p-4 rounded-xl shadow-lg border transition-all animate-in slide-in-from-top-2 ${
+              toast.kind === 'success'
+                ? 'bg-white border-chartreuse/40'
+                : 'bg-white border-poppy/40'
+            }`}
+          >
+            {toast.kind === 'success' ? (
+              <CheckCircle className="w-5 h-5 text-chartreuse shrink-0 mt-0.5" />
+            ) : (
+              <AlertCircle className="w-5 h-5 text-poppy shrink-0 mt-0.5" />
+            )}
+            <div className="flex-1 min-w-0">
+              <p className="font-host-grotesk font-semibold text-sm text-rosewood">
+                {toast.title}
+              </p>
+              {toast.message && (
+                <p className="font-host-grotesk text-xs text-rosewood/60 mt-0.5">
+                  {toast.message}
+                </p>
+              )}
+            </div>
+            <button
+              onClick={() => dismissToast(toast.id)}
+              className="text-rosewood/30 hover:text-rosewood/60 transition-colors shrink-0"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        ))}
+      </div>
 
       {/* Page title + refresh */}
       <div className="flex items-center justify-between gap-4 mb-6">
@@ -355,7 +464,7 @@ export default function StaffShiftsPage() {
         </button>
       </div>
 
-      {/* Today banner */}
+      {/* Today banner — date-strict */}
       {todayAssignments.length > 0 && (
         <div className="bg-chartreuse/15 border border-chartreuse/40 rounded-2xl p-4 mb-6 flex items-start gap-3">
           <Bell className="w-5 h-5 text-cypress shrink-0 mt-0.5" />
@@ -372,27 +481,7 @@ export default function StaffShiftsPage() {
         </div>
       )}
 
-      {data.mustChangePassword && (
-        <div className="bg-chartreuse/10 border border-chartreuse/30 rounded-2xl p-4 mb-6 flex items-start gap-3">
-          <AlertCircle className="w-5 h-5 text-cypress shrink-0 mt-0.5" />
-          <div>
-            <p className="font-host-grotesk font-semibold text-cypress text-sm">
-              You&apos;re using a temporary password
-            </p>
-            <p className="font-host-grotesk text-cypress/70 text-sm mt-0.5">
-              Ask an admin to reset it to something only you know.
-            </p>
-          </div>
-        </div>
-      )}
-
-      {actionError && (
-        <div className="bg-poppy/10 border border-poppy/20 rounded-xl p-3 mb-6">
-          <p className="text-poppy text-sm font-host-grotesk">{actionError}</p>
-        </div>
-      )}
-
-      {/* Stats — compact, all four in a row */}
+      {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-3">
         <div className="bg-white rounded-xl p-4 border border-rosewood/5 shadow-sm">
           <p className="font-host-grotesk text-[10px] text-rosewood/40 uppercase tracking-wider">
@@ -456,7 +545,9 @@ export default function StaffShiftsPage() {
                 <div className="flex items-center gap-2">
                   <Star className="w-5 h-5 text-chartreuse fill-chartreuse" />
                   <h2 className="font-host-grotesk font-bold text-xl text-rosewood">
-                    {state === 'clocked-in' ? 'Currently Working' : 'Shift In Progress'}
+                    {state === 'clocked-in'
+                      ? 'Currently Working'
+                      : 'Shift In Progress'}
                   </h2>
                 </div>
                 <h3 className="font-host-grotesk font-bold text-2xl text-rosewood mt-1">
@@ -514,7 +605,11 @@ export default function StaffShiftsPage() {
                       disabled={isActing}
                       className="bg-rosewood hover:bg-rosewood/90 text-plaster px-4 py-2 rounded-xl font-host-grotesk font-semibold text-sm flex items-center gap-2 transition-all shadow-sm disabled:opacity-50"
                     >
-                      {isActing ? <Loader2 className="w-4 h-4 animate-spin" /> : <LogOut className="w-4 h-4" />}
+                      {isActing ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <LogOut className="w-4 h-4" />
+                      )}
                       Clock Out
                     </button>
                   </>
@@ -524,7 +619,11 @@ export default function StaffShiftsPage() {
                     disabled={isActing}
                     className="bg-chartreuse hover:bg-chartreuse/90 text-grove px-4 py-2 rounded-xl font-host-grotesk font-semibold text-sm flex items-center gap-2 transition-all shadow-sm disabled:opacity-50"
                   >
-                    {isActing ? <Loader2 className="w-4 h-4 animate-spin" /> : <LogIn className="w-4 h-4" />}
+                    {isActing ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <LogIn className="w-4 h-4" />
+                    )}
                     Clock In
                   </button>
                 )}
@@ -556,13 +655,18 @@ export default function StaffShiftsPage() {
                 let buttonTitle: string | undefined
 
                 if (state === 'upcoming-far') {
-                  buttonLabel = msUntilOpen > 0 ? `Opens in ${formatCountdown(msUntilOpen)}` : 'Clock In'
+                  buttonLabel =
+                    msUntilOpen > 0
+                      ? `Opens in ${formatCountdown(msUntilOpen)}`
+                      : 'Clock In'
                   buttonDisabled = true
                   buttonTitle = 'Clock In opens 10 minutes before shift start'
                 } else if (state === 'clocked-in') {
                   buttonLabel = 'Clocked In'
                   buttonDisabled = true
-                  buttonTitle = assignment.checkInTime ? `You clocked in at ${formatTime(assignment.checkInTime)}` : undefined
+                  buttonTitle = assignment.checkInTime
+                    ? `You clocked in at ${formatTime(assignment.checkInTime)}`
+                    : undefined
                 } else if (state === 'ended') {
                   buttonLabel = 'Ended'
                   buttonDisabled = true
@@ -589,7 +693,8 @@ export default function StaffShiftsPage() {
                           </span>
                           <span className="flex items-center gap-1">
                             <Clock className="w-3.5 h-3.5" />
-                            {formatTime(assignment.shiftStart)} – {formatTime(assignment.shiftEnd)}
+                            {formatTime(assignment.shiftStart)} –{' '}
+                            {formatTime(assignment.shiftEnd)}
                           </span>
                           <span className="flex items-center gap-1">
                             <Briefcase className="w-3.5 h-3.5" />
@@ -611,18 +716,23 @@ export default function StaffShiftsPage() {
 
                         {state === 'upcoming-far' && msUntilOpen > 0 && (
                           <p className="font-host-grotesk text-xs text-rosewood/40 mt-2">
-                            Starts in {formatCountdown(startMs - now)} · Clock In opens in {formatCountdown(msUntilOpen)}
+                            Starts in {formatCountdown(startMs - now)} · Clock
+                            In opens in {formatCountdown(msUntilOpen)}
                           </p>
                         )}
                         {(state === 'open' || state === 'late-window') && (
                           <p className="font-host-grotesk text-xs text-cypress font-semibold mt-2">
-                            Shift starts in {formatCountdown(Math.max(0, startMs - now))} — you can clock in now
+                            Shift starts in{' '}
+                            {formatCountdown(Math.max(0, startMs - now))} — you
+                            can clock in now
                           </p>
                         )}
 
                         <StaffNoteEditor
                           initialValue={assignment.staffNote || ''}
-                          onSave={(note) => handleStaffNoteSave(assignment.id, note)}
+                          onSave={(note) =>
+                            handleStaffNoteSave(assignment.id, note)
+                          }
                         />
                       </div>
 
@@ -634,7 +744,9 @@ export default function StaffShiftsPage() {
                               : 'bg-rosewood/10 text-rosewood/60'
                           }`}
                         >
-                          {assignment.status === 'confirmed' ? 'Confirmed' : 'Assigned'}
+                          {assignment.status === 'confirmed'
+                            ? 'Confirmed'
+                            : 'Assigned'}
                         </span>
                         <button
                           onClick={() => handleCheckIn(assignment.id)}
@@ -662,8 +774,12 @@ export default function StaffShiftsPage() {
           ) : (
             <div className="bg-white rounded-xl p-8 text-center border border-rosewood/5 shadow-sm">
               <AlertCircle className="w-12 h-12 text-rosewood/20 mx-auto mb-3" />
-              <p className="font-host-grotesk text-rosewood/40">No upcoming shifts</p>
-              <p className="font-host-grotesk text-sm text-rosewood/30">You&apos;re all caught up!</p>
+              <p className="font-host-grotesk text-rosewood/40">
+                No upcoming shifts
+              </p>
+              <p className="font-host-grotesk text-sm text-rosewood/30">
+                You&apos;re all caught up!
+              </p>
             </div>
           )}
         </div>
@@ -699,8 +815,10 @@ export default function StaffShiftsPage() {
                         )}
                         {assignment.hoursWorked !== undefined && (
                           <span className="flex items-center gap-1">
-                            <DollarSign className="w-3.5 h-3.5" />
-                            ${(assignment.hoursWorked * assignment.hourlyRate).toFixed(2)}
+                            <DollarSign className="w-3.5 h-3.5" />$
+                            {(
+                              assignment.hoursWorked * assignment.hourlyRate
+                            ).toFixed(2)}
                           </span>
                         )}
                       </div>
@@ -715,13 +833,16 @@ export default function StaffShiftsPage() {
               ))}
               {past.length > 10 && (
                 <p className="text-center text-rosewood/30 font-host-grotesk text-sm">
-                  +{past.length - 10} more — see the Payroll page for the full ledger
+                  +{past.length - 10} more — see the Payroll page for the full
+                  ledger
                 </p>
               )}
             </div>
           ) : (
             <div className="bg-white rounded-xl p-8 text-center border border-rosewood/5 shadow-sm">
-              <p className="font-host-grotesk text-rosewood/40">No past shifts yet</p>
+              <p className="font-host-grotesk text-rosewood/40">
+                No past shifts yet
+              </p>
             </div>
           )}
         </div>
@@ -731,7 +852,7 @@ export default function StaffShiftsPage() {
 }
 
 // ============================================
-// STAFF NOTE EDITOR (per-shift note)
+// STAFF NOTE EDITOR
 // ============================================
 
 function StaffNoteEditor({
@@ -775,7 +896,9 @@ function StaffNoteEditor({
       <div className="flex items-center gap-1.5 text-xs text-rosewood/50 mb-1">
         <MessageSquare className="w-3 h-3" />
         <span>Shift note</span>
-        {isSaving && <Loader2 className="w-3 h-3 animate-spin text-rosewood/40" />}
+        {isSaving && (
+          <Loader2 className="w-3 h-3 animate-spin text-rosewood/40" />
+        )}
         {justSaved && !isSaving && (
           <span className="inline-flex items-center gap-0.5 text-chartreuse">
             <CheckCircle2 className="w-3 h-3" />
