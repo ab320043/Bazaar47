@@ -1,0 +1,30 @@
+{
+  "name": "Bazaar47 Admin",
+  "short_name": "B47 Admin",
+  "description": "Manage events, staff, and business operations.",
+  "id": "/admin",
+  "start_url": "/admin/dashboard",
+  "scope": "/admin",
+  "display": "standalone",
+  "background_color": "#EFEADE",
+  "theme_color": "#341B1C",
+  "icons": [
+    {
+      "src": "/icons/admin-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/admin-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/admin-apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    }
+  ]
+}

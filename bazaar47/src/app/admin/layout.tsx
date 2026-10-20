@@ -1,3 +1,4 @@
+// app/admin/layout.tsx
 import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { AdminSidebar } from './components/AdminSidebar'
@@ -32,11 +33,14 @@ export default async function AdminLayout({
   }
 
   return (
-    <div className="min-h-screen bg-plaster">
-      <AdminSidebar />
-      <main className="ml-16 md:ml-56 min-h-screen">
-        {children}
-      </main>
-    </div>
+    <>
+      <link rel="manifest" href="/admin.webmanifest" />
+      <div className="min-h-screen bg-plaster">
+        <AdminSidebar />
+        <main className="ml-16 md:ml-56 min-h-screen">
+          {children}
+        </main>
+      </div>
+    </>
   )
 }
