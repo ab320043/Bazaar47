@@ -12,7 +12,7 @@ import {
   FIRST_SESSION_ISO,
   fromIsoLocal,
   toIsoLocal,
-} from '@/lib/open-mic/sessions'
+} from '../../../../../public/open-mic/sessions'
 import type { OpenMicAdminCreatePayload } from '@/types/open-mic'
 
 // ============================================

@@ -25,7 +25,7 @@ import {
   groupEventsByDate,
   filterEventsByCategory,
 } from '@/lib/calendar/merge'
-import { toIsoLocal } from '@/lib/open-mic/sessions'
+import { toIsoLocal } from '../../../public/open-mic/sessions'
 
 // ============================================
 // CONSTANTS

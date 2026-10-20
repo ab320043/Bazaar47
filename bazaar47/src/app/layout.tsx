@@ -4,6 +4,7 @@ import { Providers } from './providers'
 import { Header } from '@/app/components/layout/header'
 import { Footer } from '@/app/components/layout/footer'
 import { headers } from 'next/headers'
+import { IosInstallPrompt } from '@/app/components/pwa/ios-install-prompt'
 import './globals.css'
 
 const hostGrotesk = Host_Grotesk({
@@ -24,6 +25,7 @@ export const metadata: Metadata = {
   description: 'Where Palestinian heritage meets Florida warmth',
   icons: {
     icon: '/icons/favicon.ico',
+    apple: '/icons/apple-touch-icon.png',
   },
   openGraph: {
     title: 'Bazaar47',
@@ -41,6 +43,7 @@ export const metadata: Metadata = {
       follow: true,
     },
   },
+  manifest: '/manifest.webmanifest',
 }
 
 export default async function RootLayout({
@@ -48,8 +51,6 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode
 }) {
-  // Detect admin, staff, or standalone-app routes to suppress the
-  // public header/footer chrome.
   const headersList = await headers()
   const pathname = headersList.get('x-pathname') || ''
   const isAppRoute =
@@ -65,17 +66,23 @@ export default async function RootLayout({
       className={`${hostGrotesk.variable} ${reemKufi.variable}`}
       suppressHydrationWarning
     >
+      <head>
+        <meta name="application-name" content="Bazaar47" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="apple-mobile-web-app-title" content="Bazaar47" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="theme-color" content="#341B1C" />
+        <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+      </head>
       <body suppressHydrationWarning>
         <Providers>
-          {/* Only show Header if NOT on an app route */}
           {!isAppRoute && <Header />}
-          
           <main className={!isAppRoute ? 'pt-20' : ''}>
             {children}
           </main>
-          
-          {/* Only show Footer if NOT on an app route */}
           {!isAppRoute && <Footer />}
+          {!isAppRoute && <IosInstallPrompt />}
         </Providers>
       </body>
     </html>

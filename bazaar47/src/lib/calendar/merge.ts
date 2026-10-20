@@ -8,7 +8,7 @@ import {
   FIRST_SESSION_ISO,
   fromIsoLocal,
   toIsoLocal,
-} from '@/lib/open-mic/sessions'
+} from '../../../public/open-mic/sessions'
 
 // ============================================
 // NATIVE EVENTS (from data/events.ts)

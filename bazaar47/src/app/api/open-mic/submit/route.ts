@@ -4,7 +4,7 @@ import { createSubmission } from '@/lib/storage/open-mic'
 import {
   getNextSessionIso,
   isSessionOpen,
-} from '@/lib/open-mic/sessions'
+} from '../../../../../public/open-mic/sessions'
 import type { OpenMicSubmitPayload } from '@/types/open-mic'
 
 // ============================================
