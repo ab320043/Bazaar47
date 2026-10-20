@@ -1,18 +1,13 @@
 // app/api/staff/assignments/[id]/staff-note/route.ts
 import { NextRequest, NextResponse } from 'next/server'
 import { getStaffSession } from '@/lib/staff/auth'
-import { getAssignments, updateAssignment } from '@/lib/storage/staff-assignments'
+import {
+  getAssignments,
+  updateAssignment,
+} from '@/lib/storage/staff-assignments'
 
 const MAX_STAFF_NOTE_LENGTH = 500
 
-/**
- * PATCH /api/staff/assignments/[id]/staff-note
- *
- * Update the logged-in staff member's own note on their assignment.
- * Ownership is enforced: a staff member can only edit the note on
- * their own assignment. Admin routes are separate and never touch
- * this field.
- */
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -22,7 +17,10 @@ export async function PATCH(
 
     const session = await getStaffSession()
     if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json(
+        { error: 'Your session has expired. Please log in again.' },
+        { status: 401 }
+      )
     }
 
     const assignments = await getAssignments()
@@ -34,7 +32,6 @@ export async function PATCH(
       )
     }
 
-    // Ownership gate — same pattern as check-in/out
     if (assignment.staffId !== session.staffId) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }

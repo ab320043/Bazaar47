@@ -10,7 +10,6 @@ export async function POST(
   try {
     const { id } = await params
 
-    // 1. Session check
     const session = await getStaffSession()
     if (!session) {
       console.warn('[checkin] 401: no valid session')
@@ -20,7 +19,6 @@ export async function POST(
       )
     }
 
-    // 2. Core ownership-gated check-in
     const result = await checkInAssignment(id, session.staffId)
 
     if (!result.ok) {

@@ -3,7 +3,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { 
   getAssignments, 
   createAssignment,
-  getAssignmentForStaffAndEvent,
 } from '@/lib/storage/staff-assignments'
 import { getStaffById } from '@/lib/storage/staff'
 import { getEventById } from '@/data/events'
@@ -27,7 +26,7 @@ function extractRoles(body: Record<string, unknown>): StaffRole[] | null {
     const filtered = body.roles.filter(isStaffRole)
     if (filtered.length !== body.roles.length) return null
     if (filtered.length === 0) return null
-    return Array.from(new Set(filtered)) // de-dupe
+    return Array.from(new Set(filtered))
   }
   if (isStaffRole(body.role)) {
     return [body.role]
@@ -72,7 +71,12 @@ export async function GET(request: NextRequest) {
 }
 
 // ============================================
-// POST - Create new assignment
+// POST - Create new assignment (shift)
+//
+// One shift = one assignment. A staff member can have MULTIPLE
+// assignments on the same event (e.g. Josh works 3-9 PM and 9 PM-3 AM
+// on the same day for a festival). The old "one per staff per event"
+// restriction has been removed.
 // ============================================
 
 export async function POST(request: NextRequest) {
@@ -117,25 +121,8 @@ export async function POST(request: NextRequest) {
       )
     }
     
-    // ---- Enforce one assignment per (staff, event) ----
-    const existingAssignment = await getAssignmentForStaffAndEvent(
-      body.staffId,
-      body.eventId
-    )
-    if (existingAssignment) {
-      return NextResponse.json(
-        {
-          error: `${staff.name} is already assigned to this event. Edit their existing assignment to add or change roles.`,
-          existingAssignmentId: existingAssignment.id,
-        },
-        { status: 409 }
-      )
-    }
-    
     // ---- Determine rate ----
     const eventType = (body.eventType || event.type) as EventType
-    // Default rate = rate of the first role for this event type.
-    // Q13: multiple roles do NOT stack — one rate applies.
     const hourlyRate =
       typeof body.hourlyRate === 'number'
         ? body.hourlyRate

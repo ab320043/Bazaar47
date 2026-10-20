@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { 
   ArrowLeft, UserPlus, Users, Clock, DollarSign,
   RefreshCw, Calendar, Trash2, Download, History,
-  XCircle, Coffee
+  XCircle, Coffee, LayoutGrid, List,
 } from 'lucide-react'
 import type {
   StaffAssignment,
@@ -21,6 +21,7 @@ import {
   getRateForRole,
 } from '@/data/staff-roles'
 import { buildStaffAssignmentsCsv, downloadCsv } from '@/lib/staff/csv'
+import { ShiftsView } from './shifts-view'
 
 // ============================================
 // TYPES
@@ -55,6 +56,8 @@ interface AvailableStaff {
   phone: string
   isActive: boolean
 }
+
+type Tab = 'by-role' | 'shifts'
 
 // ============================================
 // HELPERS
@@ -92,36 +95,22 @@ function formatBreakSummary(a: StaffAssignment): string {
   return m === 0 ? `${h}h break` : `${h}h ${m}m break`
 }
 
-/**
- * Compute shift start and end times from an event's date.
- * Default: 8:00 PM local to 11:00 PM local on the event day.
- *
- * This replaces the old behavior of using `new Date()` (which set the
- * shift start to whenever the admin clicked Assign).
- */
 function computeDefaultShiftTimes(eventDateIso: string): {
   shiftStart: string
   shiftEnd: string
 } {
-  // Parse the event date (which is YYYY-MM-DD from data/events.ts)
   const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(eventDateIso)
   if (!match) {
-    // Fallback: now + 6 hours (should never happen with valid event data)
     return {
       shiftStart: new Date().toISOString(),
       shiftEnd: new Date(Date.now() + 6 * 60 * 60 * 1000).toISOString(),
     }
   }
-
   const year = Number(match[1])
   const month = Number(match[2]) - 1
   const day = Number(match[3])
-
-  // 8:00 PM local start
   const start = new Date(year, month, day, 20, 0, 0, 0)
-  // 11:00 PM local end
   const end = new Date(year, month, day, 23, 0, 0, 0)
-
   return {
     shiftStart: start.toISOString(),
     shiftEnd: end.toISOString(),
@@ -141,6 +130,7 @@ export default function EventStaffingPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showAssignModal, setShowAssignModal] = useState(false)
+  const [activeTab, setActiveTab] = useState<Tab>('by-role')
 
   const fetchData = useCallback(async () => {
     setLoading(true)
@@ -183,9 +173,6 @@ export default function EventStaffingPage() {
     if (!data) return
 
     try {
-      // ✅ Compute shift times from the EVENT DATE, not from "now".
-      // This ensures the shift is on the event's day, not on the day
-      // the admin happened to click "Assign".
       const { shiftStart, shiftEnd } = computeDefaultShiftTimes(
         data.event.date
       )
@@ -220,7 +207,7 @@ export default function EventStaffingPage() {
   }
 
   const handleRemoveAssignment = async (assignmentId: string) => {
-    if (!confirm('Remove this staff member from the event?')) return
+    if (!confirm('Remove this shift?')) return
     try {
       const response = await fetch(
         `/api/admin/staff/assignments/${assignmentId}`,
@@ -229,11 +216,11 @@ export default function EventStaffingPage() {
       if (response.ok) {
         await fetchData()
       } else {
-        alert('Failed to remove staff')
+        alert('Failed to remove shift')
       }
     } catch (error) {
       console.error('Remove error:', error)
-      alert('Failed to remove staff')
+      alert('Failed to remove shift')
     }
   }
 
@@ -485,29 +472,34 @@ export default function EventStaffingPage() {
               <RefreshCw className="w-4 h-4" />
               Refresh
             </button>
-            <button
-              onClick={handleExportCsv}
-              disabled={!canExport}
-              title={canExport ? 'Export staff to CSV' : 'No staff to export'}
-              className="bg-white hover:bg-white/80 text-rosewood/60 px-4 py-2 rounded-xl font-host-grotesk font-semibold text-sm flex items-center gap-2 transition-all shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              <Download className="w-4 h-4" />
-              Export CSV
-            </button>
-            <button
-              onClick={() => setShowAssignModal(true)}
-              className="bg-chartreuse hover:bg-chartreuse/90 text-grove px-4 py-2 rounded-xl font-host-grotesk font-semibold text-sm flex items-center gap-2 transition-all shadow-sm"
-            >
-              <UserPlus className="w-4 h-4" />
-              Assign Staff
-            </button>
+            {activeTab === 'by-role' && (
+              <>
+                <button
+                  onClick={handleExportCsv}
+                  disabled={!canExport}
+                  title={canExport ? 'Export staff to CSV' : 'No staff to export'}
+                  className="bg-white hover:bg-white/80 text-rosewood/60 px-4 py-2 rounded-xl font-host-grotesk font-semibold text-sm flex items-center gap-2 transition-all shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <Download className="w-4 h-4" />
+                  Export CSV
+                </button>
+                <button
+                  onClick={() => setShowAssignModal(true)}
+                  className="bg-chartreuse hover:bg-chartreuse/90 text-grove px-4 py-2 rounded-xl font-host-grotesk font-semibold text-sm flex items-center gap-2 transition-all shadow-sm"
+                >
+                  <UserPlus className="w-4 h-4" />
+                  Assign Staff
+                </button>
+              </>
+            )}
           </div>
         </div>
 
+        {/* Stats cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
           <div className="bg-white rounded-xl p-4 border border-rosewood/5 shadow-sm">
             <p className="font-host-grotesk text-xs text-rosewood/40">
-              Total Staff
+              {activeTab === 'by-role' ? 'Total Staff' : 'Total Shifts'}
             </p>
             <p className="font-host-grotesk text-2xl font-bold text-rosewood">
               {stats.totalStaff}
@@ -531,67 +523,108 @@ export default function EventStaffingPage() {
           </div>
         </div>
 
-        <div className="space-y-4">
-          {requiredRoles.map((roleId) => {
-            const roleAssignments = assignmentsByRole.get(roleId) || []
-            const roleDef = STAFF_ROLES.find((r) => r.id === roleId)
-            const isMissing = roleAssignments.length === 0
+        {/* Tabs */}
+        <div className="flex gap-2 border-b border-rosewood/10 mb-6">
+          <button
+            onClick={() => setActiveTab('by-role')}
+            className={`px-4 py-2 font-host-grotesk font-semibold text-sm transition-all flex items-center gap-1.5 ${
+              activeTab === 'by-role'
+                ? 'text-rosewood border-b-2 border-rosewood'
+                : 'text-rosewood/40 hover:text-rosewood/60'
+            }`}
+          >
+            <LayoutGrid className="w-4 h-4" />
+            By Role
+          </button>
+          <button
+            onClick={() => setActiveTab('shifts')}
+            className={`px-4 py-2 font-host-grotesk font-semibold text-sm transition-all flex items-center gap-1.5 ${
+              activeTab === 'shifts'
+                ? 'text-rosewood border-b-2 border-rosewood'
+                : 'text-rosewood/40 hover:text-rosewood/60'
+            }`}
+          >
+            <List className="w-4 h-4" />
+            Shifts
+          </button>
+        </div>
 
-            return (
-              <div
-                key={roleId}
-                className={`bg-white rounded-2xl border p-6 shadow-sm transition-all ${
-                  isMissing
-                    ? 'border-poppy/30 bg-poppy/5'
-                    : 'border-rosewood/5'
-                }`}
-              >
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <span className="text-2xl">{roleDef?.icon || '👤'}</span>
-                    <div>
-                      <h3 className="font-host-grotesk font-bold text-lg text-rosewood">
-                        {roleDef?.label || roleId}
-                      </h3>
-                      <p className="font-host-grotesk text-sm text-rosewood/40">
-                        {roleAssignments.length} assigned
-                      </p>
+        {/* Tab content */}
+        {activeTab === 'by-role' && (
+          <div className="space-y-4">
+            {requiredRoles.map((roleId) => {
+              const roleAssignments = assignmentsByRole.get(roleId) || []
+              const roleDef = STAFF_ROLES.find((r) => r.id === roleId)
+              const isMissing = roleAssignments.length === 0
+
+              return (
+                <div
+                  key={roleId}
+                  className={`bg-white rounded-2xl border p-6 shadow-sm transition-all ${
+                    isMissing
+                      ? 'border-poppy/30 bg-poppy/5'
+                      : 'border-rosewood/5'
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <span className="text-2xl">{roleDef?.icon || '👤'}</span>
+                      <div>
+                        <h3 className="font-host-grotesk font-bold text-lg text-rosewood">
+                          {roleDef?.label || roleId}
+                        </h3>
+                        <p className="font-host-grotesk text-sm text-rosewood/40">
+                          {roleAssignments.length} assigned
+                        </p>
+                      </div>
                     </div>
+                    {isMissing ? (
+                      <span className="text-xs font-semibold text-poppy bg-poppy/10 px-3 py-1 rounded-full">
+                        ⚠️ Missing
+                      </span>
+                    ) : (
+                      <span className="text-xs font-semibold text-chartreuse bg-chartreuse/10 px-3 py-1 rounded-full">
+                        ✅ Staffed
+                      </span>
+                    )}
                   </div>
-                  {isMissing ? (
-                    <span className="text-xs font-semibold text-poppy bg-poppy/10 px-3 py-1 rounded-full">
-                      ⚠️ Missing
-                    </span>
+
+                  {roleAssignments.length > 0 ? (
+                    <div className="space-y-3">
+                      {roleAssignments.map((assignment) => (
+                        <AssignmentRow
+                          key={`${roleId}-${assignment.id}`}
+                          assignment={assignment}
+                          onStatusUpdate={handleStatusUpdate}
+                          onHoursUpdate={handleHoursWorkedUpdate}
+                          onBreakUpdate={handleBreakUpdate}
+                          onRemove={handleRemoveAssignment}
+                          getStatusBadge={getStatusBadge}
+                        />
+                      ))}
+                    </div>
                   ) : (
-                    <span className="text-xs font-semibold text-chartreuse bg-chartreuse/10 px-3 py-1 rounded-full">
-                      ✅ Staffed
-                    </span>
+                    <div className="text-center py-4 text-rosewood/40 font-host-grotesk text-sm">
+                      No staff assigned yet
+                    </div>
                   )}
                 </div>
+              )
+            })}
+          </div>
+        )}
 
-                {roleAssignments.length > 0 ? (
-                  <div className="space-y-3">
-                    {roleAssignments.map((assignment) => (
-                      <AssignmentRow
-                        key={`${roleId}-${assignment.id}`}
-                        assignment={assignment}
-                        onStatusUpdate={handleStatusUpdate}
-                        onHoursUpdate={handleHoursWorkedUpdate}
-                        onBreakUpdate={handleBreakUpdate}
-                        onRemove={handleRemoveAssignment}
-                        getStatusBadge={getStatusBadge}
-                      />
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-4 text-rosewood/40 font-host-grotesk text-sm">
-                    No staff assigned yet
-                  </div>
-                )}
-              </div>
-            )
-          })}
-        </div>
+        {activeTab === 'shifts' && (
+          <ShiftsView
+            eventId={eventId}
+            eventType={event.type}
+            eventDate={event.date}
+            eventName={event.name}
+            assignments={assignments}
+            availableStaff={availableStaff}
+            onRefresh={fetchData}
+          />
+        )}
       </div>
 
       {showAssignModal && (
@@ -608,7 +641,7 @@ export default function EventStaffingPage() {
 }
 
 // ============================================
-// ASSIGNMENT ROW (unchanged from previous version)
+// ASSIGNMENT ROW (By Role view — unchanged)
 // ============================================
 
 function AssignmentRow({
@@ -900,7 +933,7 @@ function HoursWorkedInput({
 }
 
 // ============================================
-// ASSIGN MODAL (unchanged)
+// ASSIGN MODAL (unchanged — By Role view only)
 // ============================================
 
 interface AssignModalProps {
@@ -929,11 +962,6 @@ function AssignModal({
 
   const availableRoles = getRolesForEventTier(eventType)
 
-  const existingAssignment = useMemo(
-    () => existingAssignments.find((a) => a.staffId === selectedStaffId),
-    [existingAssignments, selectedStaffId]
-  )
-
   const firstSelectedRole =
     selectedRoles.size > 0 ? Array.from(selectedRoles)[0] : null
   const autoRate = firstSelectedRole
@@ -951,8 +979,7 @@ function AssignModal({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!selectedStaffId || selectedRoles.size === 0 || existingAssignment)
-      return
+    if (!selectedStaffId || selectedRoles.size === 0) return
 
     let override: number | undefined
     if (rateOverridden && rateOverride.trim() !== '') {
@@ -978,7 +1005,7 @@ function AssignModal({
               Assign Staff
             </h3>
             <p className="font-host-grotesk text-sm text-rosewood/50">
-              One assignment per staff member. Pick all roles they&apos;ll cover.
+              One assignment per role block. Add more shifts from the Shifts tab.
             </p>
           </div>
           <button
@@ -1009,15 +1036,6 @@ function AssignModal({
                 </option>
               ))}
             </select>
-            {existingAssignment && (
-              <p className="font-host-grotesk text-xs text-poppy mt-1.5">
-                ⚠️ Already assigned to this event as:{' '}
-                {existingAssignment.roles
-                  .map((r) => STAFF_ROLES.find((x) => x.id === r)?.label || r)
-                  .join(', ')}
-                . Edit their existing assignment instead.
-              </p>
-            )}
           </div>
 
           <div>
@@ -1104,11 +1122,7 @@ function AssignModal({
           <div className="flex gap-3 pt-4 border-t border-rosewood/10">
             <button
               type="submit"
-              disabled={
-                !selectedStaffId ||
-                selectedRoles.size === 0 ||
-                !!existingAssignment
-              }
+              disabled={!selectedStaffId || selectedRoles.size === 0}
               className="bg-chartreuse hover:bg-chartreuse/90 text-grove px-6 py-2 rounded-xl font-host-grotesk font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex-1"
             >
               Assign Staff
