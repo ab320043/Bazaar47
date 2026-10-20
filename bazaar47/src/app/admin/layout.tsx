@@ -9,6 +9,7 @@ export const metadata: Metadata = {
   icons: {
     icon: '/icons/favicon.ico',
   },
+  manifest: '/admin.webmanifest',
 }
 
 async function isAuthenticated(): Promise<boolean> {
@@ -33,14 +34,11 @@ export default async function AdminLayout({
   }
 
   return (
-    <>
-      <link rel="manifest" href="/admin.webmanifest" />
-      <div className="min-h-screen bg-plaster">
-        <AdminSidebar />
-        <main className="ml-16 md:ml-56 min-h-screen">
-          {children}
-        </main>
-      </div>
-    </>
+    <div className="min-h-screen bg-plaster">
+      <AdminSidebar />
+      <main className="ml-16 md:ml-56 min-h-screen">
+        {children}
+      </main>
+    </div>
   )
 }
