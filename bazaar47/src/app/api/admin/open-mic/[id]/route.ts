@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import {
   updatePoolSubmission,
-  deleteSubmission,
+  deletePoolSubmission,
 } from '@/lib/storage/open-mic'
 import { isAdminAuthenticated } from '@/lib/admin/auth'
 
@@ -85,7 +85,7 @@ export async function PATCH(
       )
     }
 
-    const updated = await updateSubmission(id, updates)
+    const updated = await updatePoolSubmission(id, updates)
     if (!updated) {
       return NextResponse.json(
         { error: 'Submission not found' },
@@ -117,7 +117,7 @@ export async function DELETE(
 
   try {
     const { id } = await params
-    const deleted = await deleteSubmission(id)
+    const deleted = await deletePoolSubmission(id)
     if (!deleted) {
       return NextResponse.json(
         { error: 'Submission not found' },
