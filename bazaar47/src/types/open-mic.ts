@@ -1,48 +1,41 @@
 // types/open-mic.ts
 
 // ============================================
-// OPEN MIC — RECURRING WEEKLY EVENT
+// OPEN MIC — RAW SUBMISSION (THE POOL)
 // ============================================
 
-/**
- * A single Open Mic submission. Attached to a specific session date
- * (always a Wednesday) at submission time.
- */
 export interface OpenMicSubmission {
   id: string
-  /** ISO date 'YYYY-MM-DD' — the Wednesday this submission is for. */
-  sessionDate: string
-  /** ISO timestamp of when the submission was created. */
   submittedAt: string
   fullName: string
   artistName: string
   genre: string
-  /** Optional URL to the artist's music (Spotify, SoundCloud, etc). */
   musicLink?: string
   instagram?: string
   email: string
-  /** Short human-readable confirmation code shown to the artist. */
-  confirmationNumber: string
-  /** Set if an admin added this submission on behalf of the artist. */
   addedByAdmin?: boolean
   createdAt: string
   updatedAt: string
 }
 
-/**
- * A derived view of one session: its date plus the submissions attached
- * to it. Sessions themselves are not stored — only submissions are.
- */
+// ============================================
+// OPEN MIC — SCHEDULED LINEUP
+// ============================================
+
+export interface LineupSlot {
+  id: string // unique slot id
+  submissionId: string // links to OpenMicSubmission
+  artistName: string
+  startTime: string // ISO string for the specific date
+  durationMinutes: number
+}
+
 export interface OpenMicSession {
-  /** ISO date 'YYYY-MM-DD' — a Wednesday. */
-  sessionDate: string
-  submissions: OpenMicSubmission[]
-  /** True if this session's submission window is currently open. */
-  isOpen: boolean
-  /** True if this is the Wednesday currently happening (session day). */
-  isToday: boolean
-  /** True if this session already happened (sessionDate < today). */
-  isPast: boolean
+  id: string // ISO date of the session 'YYYY-MM-DD'
+  date: string // 'YYYY-MM-DD'
+  lineup: LineupSlot[]
+  createdAt: string
+  updatedAt: string
 }
 
 // ============================================
@@ -58,14 +51,6 @@ export interface OpenMicSubmitPayload {
   email: string
 }
 
-export interface OpenMicAdminCreatePayload {
-  sessionDate: string
-  fullName: string
-  artistName: string
-  genre: string
-  musicLink?: string
-  instagram?: string
-  email: string
-  /** If true, send a confirmation email to the artist. */
-  sendConfirmation: boolean
+export interface OpenMicLineupUpdatePayload {
+  lineup: LineupSlot[]
 }

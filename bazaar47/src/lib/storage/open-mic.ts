@@ -1,93 +1,32 @@
 // lib/storage/open-mic.ts
 import { Redis } from '@upstash/redis'
-import type { OpenMicSubmission } from '@/types/open-mic'
+import type { OpenMicSubmission, OpenMicSession } from '@/types/open-mic'
 
 const redis = Redis.fromEnv()
-const OPEN_MIC_KEY = 'open_mic_submissions'
-
-/**
- * Storage shape:
- *   {
- *     "2026-10-21": [submission, submission, ...],
- *     "2026-10-28": [...],
- *   }
- *
- * Keyed by session ISO date. Submissions are never removed even when
- * a session is in the past.
- */
-type SubmissionsBySession = Record<string, OpenMicSubmission[]>
+const POOL_KEY = 'open_mic_pool'
+const SESSIONS_KEY = 'open_mic_sessions'
 
 // ============================================
-// READ / WRITE
+// THE POOL (Raw Submissions)
 // ============================================
 
-async function getMap(): Promise<SubmissionsBySession> {
+export async function getPool(): Promise<OpenMicSubmission[]> {
   try {
-    const raw = await redis.get(OPEN_MIC_KEY)
-    return (raw as SubmissionsBySession) || {}
+    const raw = await redis.get(POOL_KEY)
+    return (raw as OpenMicSubmission[]) || []
   } catch (error) {
-    console.error('Redis get error (open_mic_submissions):', error)
-    return {}
+    console.error('Redis get error (open_mic_pool):', error)
+    return []
   }
 }
 
-async function saveMap(map: SubmissionsBySession): Promise<void> {
-  try {
-    await redis.set(OPEN_MIC_KEY, map)
-  } catch (error) {
-    console.error('Redis set error (open_mic_submissions):', error)
-    throw new Error('Failed to save Open Mic submissions')
-  }
-}
-
-// ============================================
-// PUBLIC API
-// ============================================
-
-export async function getSubmissionsForSession(
-  sessionIso: string
-): Promise<OpenMicSubmission[]> {
-  const map = await getMap()
-  return map[sessionIso] || []
-}
-
-export async function getAllSessionsWithSubmissions(): Promise<
-  Record<string, OpenMicSubmission[]>
-> {
-  return await getMap()
-}
-
-export async function getSubmissionById(
-  id: string
-): Promise<{ sessionIso: string; submission: OpenMicSubmission } | null> {
-  const map = await getMap()
-  for (const [sessionIso, submissions] of Object.entries(map)) {
-    const found = submissions.find((s) => s.id === id)
-    if (found) {
-      return { sessionIso, submission: found }
-    }
-  }
-  return null
-}
-
-export async function createSubmission(
-  sessionIso: string,
-  input: Omit<
-    OpenMicSubmission,
-    'id' | 'sessionDate' | 'createdAt' | 'updatedAt'
-  >
-): Promise<OpenMicSubmission> {
-  const map = await getMap()
-  const existing = map[sessionIso] || []
-
+export async function createSubmission(input: Omit<OpenMicSubmission, 'id' | 'createdAt' | 'updatedAt'>): Promise<OpenMicSubmission> {
+  const pool = await getPool()
+  
+  // Check for duplicates in the pool
   const normalizedEmail = input.email.trim().toLowerCase()
-  const duplicate = existing.find(
-    (s) => s.email.trim().toLowerCase() === normalizedEmail
-  )
-  if (duplicate) {
-    const err = new Error(
-      'This email is already signed up for this session'
-    )
+  if (pool.some((s) => s.email.trim().toLowerCase() === normalizedEmail)) {
+    const err = new Error('This email is already in the submission pool')
     err.name = 'DuplicateSubmission'
     throw err
   }
@@ -96,59 +35,72 @@ export async function createSubmission(
   const submission: OpenMicSubmission = {
     ...input,
     id: crypto.randomUUID(),
-    sessionDate: sessionIso,
     createdAt: now,
     updatedAt: now,
   }
 
-  map[sessionIso] = [...existing, submission]
-  await saveMap(map)
+  await redis.set(POOL_KEY, [...pool, submission])
   return submission
 }
 
-/**
- * Update an existing submission. Only admin-editable fields.
- * Passing an empty string for musicLink clears it.
- */
-export async function updateSubmission(
-  id: string,
-  updates: Partial<
-    Pick<
-      OpenMicSubmission,
-      'fullName' | 'artistName' | 'genre' | 'musicLink' | 'instagram' | 'email'
-    >
-  >
-): Promise<OpenMicSubmission | null> {
-  const map = await getMap()
-  for (const sessionIso of Object.keys(map)) {
-    const submissions = map[sessionIso]
-    const idx = submissions.findIndex((s) => s.id === id)
-    if (idx !== -1) {
-      const existing = submissions[idx]
-      const updated: OpenMicSubmission = {
-        ...existing,
-        ...updates,
-        updatedAt: new Date().toISOString(),
-      }
-      submissions[idx] = updated
-      map[sessionIso] = submissions
-      await saveMap(map)
-      return updated
-    }
-  }
-  return null
+export async function updatePoolSubmission(id: string, updates: Partial<OpenMicSubmission>): Promise<OpenMicSubmission | null> {
+  const pool = await getPool()
+  const idx = pool.findIndex((s) => s.id === id)
+  if (idx === -1) return null
+  
+  pool[idx] = { ...pool[idx], ...updates, updatedAt: new Date().toISOString() }
+  await redis.set(POOL_KEY, pool)
+  return pool[idx]
 }
 
-export async function deleteSubmission(id: string): Promise<boolean> {
-  const map = await getMap()
-  for (const sessionIso of Object.keys(map)) {
-    const submissions = map[sessionIso]
-    const filtered = submissions.filter((s) => s.id !== id)
-    if (filtered.length !== submissions.length) {
-      map[sessionIso] = filtered
-      await saveMap(map)
-      return true
-    }
+export async function deletePoolSubmission(id: string): Promise<boolean> {
+  const pool = await getPool()
+  const filtered = pool.filter((s) => s.id !== id)
+  if (filtered.length === pool.length) return false
+  await redis.set(POOL_KEY, filtered)
+  
+  // Also remove from any lineups
+  const sessions = await getAllSessions()
+  for (const session of sessions) {
+    session.lineup = session.lineup.filter((slot) => slot.submissionId !== id)
   }
-  return false
+  await saveAllSessions(sessions)
+  
+  return true
+}
+
+// ============================================
+// SCHEDULED SESSIONS
+// ============================================
+
+export async function getAllSessions(): Promise<OpenMicSession[]> {
+  try {
+    const raw = await redis.get(SESSIONS_KEY)
+    return (raw as OpenMicSession[]) || []
+  } catch (error) {
+    console.error('Redis get error (open_mic_sessions):', error)
+    return []
+  }
+}
+
+export async function getSession(dateIso: string): Promise<OpenMicSession | null> {
+  const sessions = await getAllSessions()
+  return sessions.find((s) => s.date === dateIso) || null
+}
+
+export async function saveSession(session: OpenMicSession): Promise<void> {
+  const sessions = await getAllSessions()
+  const idx = sessions.findIndex((s) => s.date === session.date)
+  
+  if (idx !== -1) {
+    sessions[idx] = session
+  } else {
+    sessions.push(session)
+  }
+  
+  await redis.set(SESSIONS_KEY, sessions)
+}
+
+export async function saveAllSessions(sessions: OpenMicSession[]): Promise<void> {
+  await redis.set(SESSIONS_KEY, sessions)
 }
