@@ -1,7 +1,7 @@
 // app/api/admin/open-mic/[id]/route.ts
 import { NextRequest, NextResponse } from 'next/server'
 import {
-  updateSubmission,
+  updatePoolSubmission,
   deleteSubmission,
 } from '@/lib/storage/open-mic'
 import { isAdminAuthenticated } from '@/lib/admin/auth'
