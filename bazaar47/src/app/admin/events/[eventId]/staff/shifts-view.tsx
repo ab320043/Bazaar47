@@ -16,6 +16,8 @@ import {
   User,
   Calendar,
   Briefcase,
+  Filter,
+  ChevronDown,
 } from 'lucide-react'
 import type {
   StaffAssignment,
@@ -48,6 +50,32 @@ interface ShiftsViewProps {
   onRefresh: () => Promise<void>
 }
 
+// Strict types for the grouped data to avoid 'any'
+interface GroupedRole {
+  role: StaffRole
+  shifts: StaffAssignment[]
+  totalHours: number
+}
+
+interface GroupedDay {
+  type: 'day'
+  key: string
+  label: string
+  roles: GroupedRole[]
+  totalHours: number
+  shiftCount: number
+}
+
+interface GroupedStaff {
+  type: 'staff'
+  key: string
+  label: string
+  shifts: StaffAssignment[]
+  totalHours: number
+}
+
+type GroupedData = GroupedDay | GroupedStaff
+
 // ============================================
 // HELPERS
 // ============================================
@@ -76,15 +104,6 @@ function getDayLabel(iso: string): string {
   })
 }
 
-function getDayLabelShort(iso: string): string {
-  const d = new Date(iso)
-  return d.toLocaleDateString('en-US', {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-  })
-}
-
 function getDayKey(iso: string): string {
   const d = new Date(iso)
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
@@ -109,8 +128,8 @@ function formatHours(h: number): string {
   const totalMinutes = Math.round(h * 60)
   const hrs = Math.floor(totalMinutes / 60)
   const mins = totalMinutes % 60
-  if (mins === 0) return `${hrs}h`
-  return `${hrs}h ${mins}m`
+  if (mins === 0) return `${hrs} hrs`
+  return `${hrs} hrs ${mins} mins`
 }
 
 function formatCurrency(n: number): string {
@@ -217,8 +236,23 @@ export function ShiftsView({
   onRefresh,
 }: ShiftsViewProps) {
   const [groupBy, setGroupBy] = useState<'day' | 'staff'>('day')
+  const [roleFilter, setRoleFilter] = useState<StaffRole | 'all'>('all')
   const [editing, setEditing] = useState<StaffAssignment | null>(null)
   const [adding, setAdding] = useState(false)
+
+  // Track collapsed state for headers (keys are either day strings or staff IDs)
+  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(
+    new Set()
+  )
+
+  const toggleSection = (key: string) => {
+    setCollapsedSections((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
 
   // ---- CSV export ----
 
@@ -277,56 +311,97 @@ export function ShiftsView({
     URL.revokeObjectURL(url)
   }, [assignments, eventName])
 
-  // ---- Sorted + grouped ----
+  // ---- Filtered + Sorted + Grouped ----
+
+  const filteredAssignments = useMemo(() => {
+    if (roleFilter === 'all') return assignments
+    return assignments.filter((a) => a.roles.includes(roleFilter))
+  }, [assignments, roleFilter])
 
   const sorted = useMemo(() => {
-    return [...assignments].sort(
+    return [...filteredAssignments].sort(
       (a, b) => new Date(a.shiftStart).getTime() - new Date(b.shiftStart).getTime()
     )
-  }, [assignments])
+  }, [filteredAssignments])
 
-  const grouped = useMemo(() => {
-    if (groupBy === 'day') {
-      const map = new Map<string, StaffAssignment[]>()
+  // Grouping logic (strictly typed, no 'any')
+  const grouped = useMemo<GroupedData[]>(() => {
+    if (groupBy === 'staff') {
+      // Group by Staff
+      const map = new Map<
+        string,
+        { label: string; shifts: StaffAssignment[]; totalHours: number }
+      >()
       for (const a of sorted) {
-        const key = getDayKey(a.shiftStart)
-        if (!map.has(key)) map.set(key, [])
-        map.get(key)!.push(a)
+        if (!map.has(a.staffId)) {
+          map.set(a.staffId, { label: a.staffName, shifts: [], totalHours: 0 })
+        }
+        const group = map.get(a.staffId)!
+        group.shifts.push(a)
+        group.totalHours += computeHours(a.shiftStart, a.shiftEnd)
       }
-      return Array.from(map.entries()).map(([key, list]) => {
-        const totalHours = list.reduce(
-          (sum, a) => sum + computeHours(a.shiftStart, a.shiftEnd),
-          0
-        )
+      return Array.from(map.entries()).map(([key, group]) => ({
+        type: 'staff',
+        key,
+        label: group.label,
+        shifts: group.shifts,
+        totalHours: Math.round(group.totalHours * 100) / 100,
+      }))
+    }
+
+    // Group by Day, then by Role
+    const dayMap = new Map<string, Map<StaffRole, { shifts: StaffAssignment[]; totalHours: number }>>()
+
+    for (const a of sorted) {
+      const dayKey = getDayKey(a.shiftStart)
+      if (!dayMap.has(dayKey)) dayMap.set(dayKey, new Map())
+
+      const roleMap = dayMap.get(dayKey)!
+
+      let displayRole = a.roles[0]
+      if (roleFilter !== 'all' && a.roles.includes(roleFilter)) {
+        displayRole = roleFilter
+      }
+
+      if (!roleMap.has(displayRole)) {
+        roleMap.set(displayRole, { shifts: [], totalHours: 0 })
+      }
+      const roleGroup = roleMap.get(displayRole)!
+      roleGroup.shifts.push(a)
+      roleGroup.totalHours += computeHours(a.shiftStart, a.shiftEnd)
+    }
+
+    // Convert to array and sort
+    return Array.from(dayMap.entries())
+      .map(([dayKey, roleMap]) => {
+        // Safely get the first shift to derive the day label
+        const firstRoleData = roleMap.values().next().value
+        const firstShiftIso = firstRoleData?.shifts[0]?.shiftStart || new Date().toISOString()
+        
+        const roles = Array.from(roleMap.entries())
+          .map(([role, data]) => ({
+            role,
+            shifts: data.shifts,
+            totalHours: Math.round(data.totalHours * 100) / 100,
+          }))
+          .sort((a, b) => {
+            const idxA = STAFF_ROLES.findIndex((r) => r.id === a.role)
+            const idxB = STAFF_ROLES.findIndex((r) => r.id === b.role)
+            return idxA - idxB
+          })
+
+        const dayTotalHours = roles.reduce((sum, r) => sum + r.totalHours, 0)
         return {
-          label: getDayLabel(list[0].shiftStart),
-          key,
-          shifts: list,
-          totalHours: Math.round(totalHours * 100) / 100,
+          type: 'day' as const,
+          key: dayKey,
+          label: getDayLabel(firstShiftIso),
+          roles,
+          totalHours: Math.round(dayTotalHours * 100) / 100,
+          shiftCount: roles.reduce((sum, r) => sum + r.shifts.length, 0),
         }
       })
-    }
-
-    // Group by staff
-    const map = new Map<
-      string,
-      { label: string; shifts: StaffAssignment[]; totalHours: number }
-    >()
-    for (const a of sorted) {
-      if (!map.has(a.staffId)) {
-        map.set(a.staffId, { label: a.staffName, shifts: [], totalHours: 0 })
-      }
-      const group = map.get(a.staffId)!
-      group.shifts.push(a)
-      group.totalHours += computeHours(a.shiftStart, a.shiftEnd)
-    }
-    return Array.from(map.entries()).map(([key, group]) => ({
-      label: group.label,
-      key,
-      shifts: group.shifts,
-      totalHours: Math.round(group.totalHours * 100) / 100,
-    }))
-  }, [sorted, groupBy])
+      .sort((a, b) => a.key.localeCompare(b.key))
+  }, [sorted, groupBy, roleFilter])
 
   // ---- Totals ----
 
@@ -334,19 +409,19 @@ export function ShiftsView({
     let hoursScheduled = 0
     let hoursWorked = 0
     let amount = 0
-    for (const a of assignments) {
+    for (const a of filteredAssignments) {
       hoursScheduled += computeHours(a.shiftStart, a.shiftEnd)
       const hw = a.hoursWorked ?? 0
       hoursWorked += hw
       amount += hw * a.hourlyRate
     }
     return {
-      shifts: assignments.length,
+      shifts: filteredAssignments.length,
       hoursScheduled: Math.round(hoursScheduled * 100) / 100,
       hoursWorked: Math.round(hoursWorked * 100) / 100,
       amount: Math.round(amount * 100) / 100,
     }
-  }, [assignments])
+  }, [filteredAssignments])
 
   // ---- Delete ----
 
@@ -367,8 +442,9 @@ export function ShiftsView({
     <div className="space-y-5">
 
       {/* Toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+          {/* Group By Toggle */}
           <div className="flex bg-white rounded-xl p-1 border border-rosewood/10 shadow-sm">
             <button
               onClick={() => setGroupBy('day')}
@@ -391,20 +467,37 @@ export function ShiftsView({
               By Staff
             </button>
           </div>
+
+          {/* Role Filter */}
+          <div className="relative flex-1 sm:flex-none">
+            <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-rosewood/40" />
+            <select
+              value={roleFilter}
+              onChange={(e) => setRoleFilter(e.target.value as StaffRole | 'all')}
+              className="w-full sm:w-auto pl-9 pr-8 py-2 bg-white border border-rosewood/10 rounded-xl font-host-grotesk text-sm text-rosewood focus:outline-none focus:ring-2 focus:ring-chartreuse/40 appearance-none shadow-sm cursor-pointer"
+            >
+              <option value="all">All Roles</option>
+              {STAFF_ROLES.map((role) => (
+                <option key={role.id} value={role.id}>
+                  {role.icon} {role.label}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
-        <div className="flex gap-2">
+        <div className="flex gap-2 w-full sm:w-auto">
           <button
             onClick={handleExportCsv}
-            disabled={assignments.length === 0}
-            className="bg-white hover:bg-white/80 text-rosewood/60 px-4 py-2 rounded-xl font-host-grotesk font-semibold text-sm flex items-center gap-2 transition-all shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
+            disabled={filteredAssignments.length === 0}
+            className="flex-1 sm:flex-none justify-center bg-white hover:bg-white/80 text-rosewood/60 px-4 py-2 rounded-xl font-host-grotesk font-semibold text-sm flex items-center gap-2 transition-all shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <Download className="w-4 h-4" />
             Export CSV
           </button>
           <button
             onClick={() => setAdding(true)}
-            className="bg-chartreuse hover:bg-chartreuse/90 text-grove px-4 py-2 rounded-xl font-host-grotesk font-semibold text-sm flex items-center gap-2 transition-all shadow-sm"
+            className="flex-1 sm:flex-none justify-center bg-chartreuse hover:bg-chartreuse/90 text-grove px-4 py-2 rounded-xl font-host-grotesk font-semibold text-sm flex items-center gap-2 transition-all shadow-sm"
           >
             <Plus className="w-4 h-4" />
             Add Shift
@@ -413,9 +506,9 @@ export function ShiftsView({
       </div>
 
       {/* Summary strip */}
-      {assignments.length > 0 && (
-        <div className="bg-white rounded-2xl border border-rosewood/5 shadow-sm p-4 flex flex-wrap items-center justify-between gap-4">
-          <div className="flex flex-wrap items-center gap-6 text-sm font-host-grotesk">
+      {filteredAssignments.length > 0 && (
+        <div className="bg-white rounded-2xl border border-rosewood/5 shadow-sm p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm font-host-grotesk">
             <span className="text-rosewood/60">
               <strong className="text-rosewood">{totals.shifts}</strong>{' '}
               {totals.shifts === 1 ? 'shift' : 'shifts'}
@@ -435,7 +528,7 @@ export function ShiftsView({
               </strong>
             </span>
           </div>
-          <span className="font-host-grotesk font-bold text-rosewood text-sm flex items-center gap-1">
+          <span className="font-host-grotesk font-bold text-rosewood text-sm flex items-center gap-1 w-full sm:w-auto justify-end">
             <DollarSign className="w-4 h-4" />
             {formatCurrency(totals.amount)} total owed
           </span>
@@ -443,11 +536,11 @@ export function ShiftsView({
       )}
 
       {/* Empty state */}
-      {assignments.length === 0 && (
+      {filteredAssignments.length === 0 && (
         <div className="bg-white rounded-2xl p-12 border border-rosewood/5 shadow-sm text-center">
           <AlertCircle className="w-12 h-12 text-rosewood/20 mx-auto mb-3" />
           <p className="font-host-grotesk text-rosewood/50">
-            No shifts yet for this event.
+            No shifts found for this selection.
           </p>
           <button
             onClick={() => setAdding(true)}
@@ -459,34 +552,114 @@ export function ShiftsView({
         </div>
       )}
 
-      {/* Grouped shift cards */}
-      {grouped.map((group) => (
-        <div key={group.key}>
-          {/* Group header */}
-          <div className="flex items-center justify-between gap-3 mb-3 pb-2 border-b-2 border-rosewood/10">
-            <h3 className="font-host-grotesk font-bold text-lg text-rosewood">
-              {group.label}
-            </h3>
-            <span className="font-host-grotesk text-sm text-rosewood/50">
-              {group.shifts.length}{' '}
-              {group.shifts.length === 1 ? 'shift' : 'shifts'} ·{' '}
-              {formatHours(group.totalHours)}
-            </span>
-          </div>
+      {/* Grouped Rendering */}
+      <div className="space-y-6">
+        {groupBy === 'day' &&
+          (grouped as GroupedDay[]).map((day) => {
+            const isCollapsed = collapsedSections.has(day.key)
+            return (
+              <div key={day.key} className="bg-white rounded-2xl border border-rosewood/5 shadow-sm overflow-hidden">
+                {/* Day Header - Clickable to Collapse */}
+                <button
+                  onClick={() => toggleSection(day.key)}
+                  className="w-full bg-plaster/40 px-4 sm:px-5 py-3 border-b border-rosewood/5 flex items-center justify-between hover:bg-plaster/60 transition-colors text-left"
+                >
+                  <h3 className="font-host-grotesk font-bold text-lg text-rosewood">
+                    {day.label}
+                  </h3>
+                  <div className="flex items-center gap-3">
+                    <span className="font-host-grotesk text-sm text-rosewood/50 hidden sm:inline">
+                      {day.shiftCount} shifts · {formatHours(day.totalHours)}
+                    </span>
+                    <ChevronDown
+                      className={`w-5 h-5 text-rosewood/40 transition-transform duration-200 ${
+                        isCollapsed ? '-rotate-90' : 'rotate-0'
+                      }`}
+                    />
+                  </div>
+                </button>
 
-          {/* Shift cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {group.shifts.map((shift) => (
-              <ShiftCard
-                key={shift.id}
-                assignment={shift}
-                onEdit={() => setEditing(shift)}
-                onDelete={() => handleDelete(shift.id, shift.staffName)}
-              />
-            ))}
-          </div>
-        </div>
-      ))}
+                {/* Collapsible Content */}
+                {!isCollapsed && (
+                  <div className="divide-y divide-rosewood/5">
+                    {day.roles.map((roleGroup) => {
+                      const roleDef = STAFF_ROLES.find((r) => r.id === roleGroup.role)
+                      return (
+                        <div key={roleGroup.role} className="p-4 sm:p-5">
+                          {/* Role Subheader */}
+                          <div className="flex items-center justify-between mb-3">
+                            <h4 className="font-host-grotesk font-bold text-rosewood flex items-center gap-2">
+                              <span className="text-lg">{roleDef?.icon || '👤'}</span>
+                              {roleDef?.label || roleGroup.role}
+                              <span className="text-[10px] font-semibold text-rosewood/60 bg-rosewood/10 px-2 py-0.5 rounded-full ml-1">
+                                {roleGroup.shifts.length} on shift
+                              </span>
+                            </h4>
+                          </div>
+
+                          {/* Shift Rows */}
+                          <div className="space-y-2">
+                            {roleGroup.shifts.map((shift) => (
+                              <ShiftListRow
+                                key={shift.id}
+                                assignment={shift}
+                                onEdit={() => setEditing(shift)}
+                                onDelete={() => handleDelete(shift.id, shift.staffName)}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+
+        {groupBy === 'staff' &&
+          (grouped as GroupedStaff[]).map((staffGroup) => {
+            const isCollapsed = collapsedSections.has(staffGroup.key)
+            return (
+              <div key={staffGroup.key} className="bg-white rounded-2xl border border-rosewood/5 shadow-sm overflow-hidden">
+                {/* Staff Header - Clickable to Collapse */}
+                <button
+                  onClick={() => toggleSection(staffGroup.key)}
+                  className="w-full bg-plaster/40 px-4 sm:px-5 py-3 border-b border-rosewood/5 flex items-center justify-between hover:bg-plaster/60 transition-colors text-left"
+                >
+                  <h3 className="font-host-grotesk font-bold text-lg text-rosewood">
+                    {staffGroup.label}
+                  </h3>
+                  <div className="flex items-center gap-3">
+                    <span className="font-host-grotesk text-sm text-rosewood/50 hidden sm:inline">
+                      {staffGroup.shifts.length} shifts · {formatHours(staffGroup.totalHours)}
+                    </span>
+                    <ChevronDown
+                      className={`w-5 h-5 text-rosewood/40 transition-transform duration-200 ${
+                        isCollapsed ? '-rotate-90' : 'rotate-0'
+                      }`}
+                    />
+                  </div>
+                </button>
+
+                {/* Collapsible Content */}
+                {!isCollapsed && (
+                  <div className="p-4 sm:p-5 space-y-2">
+                    {staffGroup.shifts.map((shift) => (
+                      <ShiftListRow
+                        key={shift.id}
+                        assignment={shift}
+                        onEdit={() => setEditing(shift)}
+                        onDelete={() => handleDelete(shift.id, shift.staffName)}
+                        hideStaffName
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+      </div>
 
       {/* Edit modal */}
       {editing && (
@@ -526,119 +699,130 @@ export function ShiftsView({
 }
 
 // ============================================
-// SHIFT CARD
+// SHIFT LIST ROW (Grid Layout Design)
 // ============================================
 
-function ShiftCard({
+function ShiftListRow({
   assignment,
   onEdit,
   onDelete,
+  hideStaffName = false,
 }: {
   assignment: StaffAssignment
   onEdit: () => void
   onDelete: () => void
+  hideStaffName?: boolean
 }) {
   const hoursScheduled = computeHours(assignment.shiftStart, assignment.shiftEnd)
-  const hoursWorked = assignment.hoursWorked ?? 0
-  const amount = hoursWorked * assignment.hourlyRate
   const crossDay = isNextDay(assignment.shiftStart, assignment.shiftEnd)
   const statusStyle = getStatusStyle(assignment.status)
+  const roleDef = STAFF_ROLES.find((r) => r.id === assignment.roles[0])
 
   return (
-    <div className="group bg-white rounded-2xl border border-rosewood/5 shadow-sm hover:shadow-md transition-all overflow-hidden">
-      <div className="p-4">
-        {/* Top row — staff name + status */}
-        <div className="flex items-start justify-between gap-2 mb-2">
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2 flex-wrap">
-              <h4 className="font-host-grotesk font-bold text-base text-rosewood truncate">
-                {assignment.staffName}
-              </h4>
-              <span
-                className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${statusStyle.bg} ${statusStyle.text}`}
-              >
-                {statusStyle.label}
+    <div className="group relative bg-white rounded-xl border border-rosewood/10 p-3 sm:p-4 hover:border-rosewood/20 hover:shadow-md transition-all">
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+        
+        {/* Left Side: Name + Role (if not hidden) */}
+        {!hideStaffName && (
+          <div className="min-w-0 pr-4">
+            <p className="font-bold text-rosewood text-base truncate">
+              {assignment.staffName}
+            </p>
+            <div className="flex items-center gap-1.5 mt-0.5">
+              <span className="text-sm">{roleDef?.icon}</span>
+              <span className="text-xs font-semibold text-rosewood/60">
+                {roleDef?.label}
               </span>
             </div>
-
-            {/* Role chips */}
-            <div className="flex flex-wrap gap-1 mt-1.5">
-              {assignment.roles.map((role) => {
-                const def = STAFF_ROLES.find((x) => x.id === role)
-                return (
-                  <span
-                    key={role}
-                    className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-rosewood/8 text-rosewood/70"
-                  >
-                    {def?.icon} {def?.label || role}
-                  </span>
-                )
-              })}
-            </div>
-          </div>
-
-          {/* Actions */}
-          <div className="flex items-center gap-0.5 shrink-0">
-            <button
-              onClick={onEdit}
-              className="text-rosewood/30 hover:text-chartreuse transition-colors p-1.5"
-              title="Edit shift"
-            >
-              <Pencil className="w-3.5 h-3.5" />
-            </button>
-            <button
-              onClick={onDelete}
-              className="text-rosewood/30 hover:text-poppy transition-colors p-1.5"
-              title="Delete shift"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        </div>
-
-        {/* Time row */}
-        <div className="flex items-center gap-1.5 text-sm text-rosewood/70 mb-1">
-          <Calendar className="w-3.5 h-3.5 text-rosewood/40 shrink-0" />
-          <span className="font-host-grotesk">
-            {getDayLabelShort(assignment.shiftStart)} ·{' '}
-            {formatTime(assignment.shiftStart)} → {formatTime(assignment.shiftEnd)}
-            {crossDay && (
-              <span className="text-rosewood/40 ml-1">(+1 day)</span>
-            )}
-          </span>
-        </div>
-
-        {/* Metrics row */}
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 pt-2 border-t border-rosewood/5 text-xs text-rosewood/60">
-          <span className="flex items-center gap-1">
-            <Clock className="w-3 h-3" />
-            <strong className="text-rosewood">
-              {formatHours(hoursScheduled)}
-            </strong>{' '}
-            scheduled
-          </span>
-          <span className="flex items-center gap-1">
-            <DollarSign className="w-3 h-3" />${assignment.hourlyRate}/hr
-          </span>
-          {hoursWorked > 0 && (
-            <span className="flex items-center gap-1 text-grove font-semibold">
-              <Check className="w-3 h-3" />
-              {formatHours(hoursWorked)} worked
-            </span>
-          )}
-        </div>
-
-        {/* Total owed row (only when worked) */}
-        {amount > 0 && (
-          <div className="mt-2 pt-2 border-t border-rosewood/5 flex items-center justify-between">
-            <span className="font-host-grotesk text-xs text-rosewood/50">
-              Total owed
-            </span>
-            <span className="font-host-grotesk font-bold text-sm text-rosewood">
-              {formatCurrency(amount)}
-            </span>
           </div>
         )}
+
+        {/* Right Side: Grid of Details */}
+        <div className={`grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-3 flex-1 ${hideStaffName ? '' : 'mt-2 sm:mt-0'}`}>
+          
+          {/* Start / End Time */}
+          <div>
+            <p className="font-host-grotesk text-[10px] uppercase tracking-wider text-rosewood/40 font-semibold mb-0.5">
+              Time
+            </p>
+            <p className="font-host-grotesk text-sm text-rosewood font-medium">
+              {formatTime(assignment.shiftStart)} – {formatTime(assignment.shiftEnd)}
+            </p>
+            {crossDay && (
+              <p className="font-host-grotesk text-[10px] text-rosewood/50">+1 day</p>
+            )}
+          </div>
+
+          {/* Duration */}
+          <div>
+            <p className="font-host-grotesk text-[10px] uppercase tracking-wider text-rosewood/40 font-semibold mb-0.5">
+              Duration
+            </p>
+            <p className="font-host-grotesk text-sm text-rosewood font-medium flex items-center gap-1">
+              <Clock className="w-3.5 h-3.5 text-rosewood/40" />
+              {formatHours(hoursScheduled)}
+            </p>
+          </div>
+
+          {/* Rate */}
+          <div>
+            <p className="font-host-grotesk text-[10px] uppercase tracking-wider text-rosewood/40 font-semibold mb-0.5">
+              Rate
+            </p>
+            <p className="font-host-grotesk text-sm text-rosewood font-medium flex items-center gap-1">
+              <DollarSign className="w-3.5 h-3.5 text-rosewood/40" />
+              {assignment.hourlyRate}/hr
+            </p>
+          </div>
+
+          {/* Status & Actions */}
+          <div className="flex flex-col items-start sm:items-end justify-between h-full">
+            <span
+              className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${statusStyle.bg} ${statusStyle.text}`}
+            >
+              {statusStyle.label}
+            </span>
+            {assignment.hoursWorked !== undefined && assignment.hoursWorked > 0 && (
+              <span className="text-[10px] font-semibold text-grove bg-grove/10 px-1.5 py-0.5 rounded mt-1 flex items-center gap-0.5">
+                <Check className="w-2.5 h-2.5" />
+                {assignment.hoursWorked}h worked
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Actions (absolute positioned for desktop hover, inline for mobile) */}
+      <div className="flex sm:hidden items-center justify-end gap-2 mt-3 pt-3 border-t border-rosewood/5">
+        <button
+          onClick={onEdit}
+          className="flex-1 bg-plaster hover:bg-plaster/80 text-rosewood/60 py-1.5 rounded-lg font-host-grotesk font-semibold text-xs flex items-center justify-center gap-1.5 transition-colors"
+        >
+          <Pencil className="w-3.5 h-3.5" /> Edit
+        </button>
+        <button
+          onClick={onDelete}
+          className="flex-1 bg-poppy/5 hover:bg-poppy/10 text-poppy py-1.5 rounded-lg font-host-grotesk font-semibold text-xs flex items-center justify-center gap-1.5 transition-colors"
+        >
+          <Trash2 className="w-3.5 h-3.5" /> Delete
+        </button>
+      </div>
+
+      <div className="hidden sm:flex absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity items-center gap-1 bg-white/90 backdrop-blur-sm rounded-lg p-0.5 shadow-sm border border-rosewood/5">
+        <button
+          onClick={onEdit}
+          className="text-rosewood/40 hover:text-chartreuse transition-colors p-1.5"
+          title="Edit shift"
+        >
+          <Pencil className="w-3.5 h-3.5" />
+        </button>
+        <button
+          onClick={onDelete}
+          className="text-rosewood/40 hover:text-poppy transition-colors p-1.5"
+          title="Delete shift"
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+        </button>
       </div>
     </div>
   )

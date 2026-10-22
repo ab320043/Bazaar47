@@ -815,7 +815,7 @@ export default function StaffShiftsPage() {
                         )}
                         {assignment.hoursWorked !== undefined && (
                           <span className="flex items-center gap-1">
-                            <DollarSign className="w-3.5 h-3.5" />$
+                            <DollarSign className="w-3.5 h-3.5" />
                             {(
                               assignment.hoursWorked * assignment.hourlyRate
                             ).toFixed(2)}
