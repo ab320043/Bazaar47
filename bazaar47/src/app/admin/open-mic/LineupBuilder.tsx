@@ -1,6 +1,7 @@
+// app/admin/open-mic/LineupBuilder.tsx
 'use client'
 
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo } from 'react'
 import {
   DndContext,
   DragOverlay,
@@ -20,37 +21,72 @@ import {
   useSortable,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { format, addMinutes } from 'date-fns'
+import { addMinutes } from 'date-fns'
 import {
   GripVertical,
   Trash2,
   Clock,
-  Calendar as CalendarIcon,
   Printer,
   ChevronLeft,
-  Plus,
-  RefreshCw,
-  Music2,
 } from 'lucide-react'
-import type { OpenMicSubmission, OpenMicSession, LineupSlot } from '@/types/open-mic'
-import { STAFF_ROLES } from '@/data/staff-roles' // Just for color palettes if needed
+import type {
+  OpenMicSubmission,
+  OpenMicSession,
+  LineupSlot,
+} from '@/types/open-mic'
+import { formatSessionLong, parseIsoLocal } from '@/lib/open-mic/dates'
 
 // ============================================
 // HELPERS
 // ============================================
 
-function generateLineupTimes(dateStr: string, lineup: LineupSlot[]): LineupSlot[] {
-  let currentTime = new Date(`${dateStr}T20:00:00`) // Start at 8:00 PM
-  
+/**
+ * `sessionDate` is 'YYYY-MM-DD'. Turn it into a local-midnight Date
+ * exactly once, then everything downstream is safe.
+ */
+function sessionStartDate(sessionDate: string): Date {
+  const d = parseIsoLocal(sessionDate)
+  if (!d) return new Date()
+  d.setHours(20, 0, 0, 0) // 8:00 PM local
+  return d
+}
+
+/**
+ * Generate ISO start times for the lineup, walking in array order.
+ * Start of show is 8:00 PM local; intermission is 3 minutes.
+ *
+ * (Batch C will extend this to respect a per-slot manual override.
+ * For now it's the exact same behavior the file had before, just
+ * rebuilt on local-midnight parsing so it can't drift a day.)
+ */
+function generateLineupTimes(
+  sessionDate: string,
+  lineup: LineupSlot[]
+): LineupSlot[] {
+  let cursor = sessionStartDate(sessionDate)
+
   return lineup.map((slot) => {
-    const startTime = currentTime.toISOString()
-    // Add slot duration + 3 min intermission for the next one
-    currentTime = addMinutes(currentTime, slot.durationMinutes + 3)
-    
+    const startTime = cursor.toISOString()
+    cursor = addMinutes(cursor, slot.durationMinutes + 3)
+
     return {
       ...slot,
       startTime,
     }
+  })
+}
+
+/**
+ * Safe local-time formatter. `format(new Date(iso), 'h:mm a')` is
+ * fine because `startTime` is a full ISO timestamp (has time), not
+ * a date-only string. The bug was only ever on date-only strings.
+ */
+function formatTimeLocal(iso: string): string {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return '—'
+  return d.toLocaleTimeString([], {
+    hour: 'numeric',
+    minute: '2-digit',
   })
 }
 
@@ -69,7 +105,9 @@ export function LineupBuilder({
   pool: OpenMicSubmission[]
   onBack: () => void
 }) {
-  const [lineup, setLineup] = useState<LineupSlot[]>(initialSession?.lineup || [])
+  const [lineup, setLineup] = useState<LineupSlot[]>(
+    initialSession?.lineup || []
+  )
   const [activeId, setActiveId] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
@@ -78,10 +116,13 @@ export function LineupBuilder({
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   )
 
-  // Recalculate times whenever lineup changes
-  const timedLineup = useMemo(() => generateLineupTimes(sessionDate, lineup), [sessionDate, lineup])
+  const timedLineup = useMemo(
+    () => generateLineupTimes(sessionDate, lineup),
+    [sessionDate, lineup]
+  )
 
-  // Save to API
+  // ---- Save ----
+
   const saveLineup = async (newLineup: LineupSlot[]) => {
     setSaving(true)
     try {
@@ -97,7 +138,8 @@ export function LineupBuilder({
     }
   }
 
-  // Handle Drag End
+  // ---- Drag handlers ----
+
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event
     setActiveId(null)
@@ -107,21 +149,20 @@ export function LineupBuilder({
     // Dropping into the lineup from the pool
     if (active.data.current?.type === 'pool-item') {
       const submission = active.data.current.submission as OpenMicSubmission
-      
-      // Check if already in lineup
-      if (lineup.some(s => s.submissionId === submission.id)) return
+
+      if (lineup.some((s) => s.submissionId === submission.id)) return
 
       const newSlot: LineupSlot = {
         id: crypto.randomUUID(),
         submissionId: submission.id,
         artistName: submission.artistName,
-        startTime: new Date().toISOString(), // Will be recalculated
-        durationMinutes: 7, // Default 7 mins
+        startTime: new Date().toISOString(), // recalculated on render
+        durationMinutes: 7,
       }
-      
+
       const newLineup = [...lineup, newSlot]
       setLineup(newLineup)
-      saveLineup(newLineup)
+      void saveLineup(newLineup)
       return
     }
 
@@ -129,25 +170,29 @@ export function LineupBuilder({
     if (active.id !== over.id) {
       const oldIndex = lineup.findIndex((s) => s.id === active.id)
       const newIndex = lineup.findIndex((s) => s.id === over.id)
-      
+
       if (oldIndex !== -1 && newIndex !== -1) {
         const newLineup = arrayMove(lineup, oldIndex, newIndex)
         setLineup(newLineup)
-        saveLineup(newLineup)
+        void saveLineup(newLineup)
       }
     }
   }
 
+  // ---- Slot mutation ----
+
   const removeSlot = (slotId: string) => {
-    const newLineup = lineup.filter(s => s.id !== slotId)
+    const newLineup = lineup.filter((s) => s.id !== slotId)
     setLineup(newLineup)
-    saveLineup(newLineup)
+    void saveLineup(newLineup)
   }
 
   const updateDuration = (slotId: string, mins: number) => {
-    const newLineup = lineup.map(s => s.id === slotId ? { ...s, durationMinutes: mins } : s)
+    const newLineup = lineup.map((s) =>
+      s.id === slotId ? { ...s, durationMinutes: mins } : s
+    )
     setLineup(newLineup)
-    saveLineup(newLineup)
+    void saveLineup(newLineup)
   }
 
   return (
@@ -155,18 +200,27 @@ export function LineupBuilder({
       {/* Header */}
       <div className="flex items-center justify-between bg-white p-4 rounded-2xl border border-rosewood/5 shadow-sm">
         <div className="flex items-center gap-3">
-          <button onClick={onBack} className="p-2 hover:bg-plaster rounded-full transition-colors">
+          <button
+            onClick={onBack}
+            className="p-2 hover:bg-plaster rounded-full transition-colors"
+          >
             <ChevronLeft className="w-5 h-5 text-rosewood" />
           </button>
           <div>
             <h2 className="font-host-grotesk font-bold text-xl text-rosewood">
-              {format(new Date(sessionDate), 'EEEE, MMMM do, yyyy')}
+              {formatSessionLong(sessionDate)}
             </h2>
-            <p className="text-xs text-rosewood/50">Drag artists from the pool to build the run of show.</p>
+            <p className="text-xs text-rosewood/50">
+              Drag artists from the pool to build the run of show.
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {saving && <span className="text-xs text-chartreuse font-semibold animate-pulse">Saving...</span>}
+          {saving && (
+            <span className="text-xs text-chartreuse font-semibold animate-pulse">
+              Saving...
+            </span>
+          )}
           <a
             href={`/admin/open-mic/print/${sessionDate}`}
             target="_blank"
@@ -178,22 +232,32 @@ export function LineupBuilder({
         </div>
       </div>
 
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={(e) => setActiveId(e.active.id as string)} onDragEnd={handleDragEnd}>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragStart={(e) => setActiveId(e.active.id as string)}
+        onDragEnd={handleDragEnd}
+      >
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          
           {/* LEFT: The Pool */}
           <div className="lg:col-span-1">
             <div className="bg-white rounded-2xl border border-rosewood/5 shadow-sm overflow-hidden sticky top-6">
               <div className="p-4 border-b border-rosewood/10 bg-plaster/30">
-                <h3 className="font-host-grotesk font-bold text-rosewood">Artist Pool</h3>
-                <p className="text-xs text-rosewood/50">{pool.length} unassigned</p>
+                <h3 className="font-host-grotesk font-bold text-rosewood">
+                  Artist Pool
+                </h3>
+                <p className="text-xs text-rosewood/50">
+                  {pool.length} unassigned
+                </p>
               </div>
               <div className="p-4 space-y-3 max-h-[70vh] overflow-y-auto">
                 {pool.map((submission) => (
                   <PoolItem key={submission.id} submission={submission} />
                 ))}
                 {pool.length === 0 && (
-                  <p className="text-center text-sm text-rosewood/40 py-8">No artists in the pool.</p>
+                  <p className="text-center text-sm text-rosewood/40 py-8">
+                    No artists in the pool.
+                  </p>
                 )}
               </div>
             </div>
@@ -203,22 +267,28 @@ export function LineupBuilder({
           <div className="lg:col-span-2">
             <div className="bg-white rounded-2xl border border-rosewood/5 shadow-sm min-h-[500px] flex flex-col">
               <div className="p-4 border-b border-rosewood/10 bg-chartreuse/10 flex justify-between items-center">
-                <h3 className="font-host-grotesk font-bold text-cypress">Run of Show</h3>
+                <h3 className="font-host-grotesk font-bold text-cypress">
+                  Run of Show
+                </h3>
                 <span className="text-xs font-semibold text-cypress bg-chartreuse/20 px-2 py-0.5 rounded-full">
                   {lineup.length} artists
                 </span>
               </div>
-              
+
               <div className="p-4 flex-1">
-                <SortableContext items={timedLineup.map(s => s.id)} strategy={verticalListSortingStrategy}>
+                <SortableContext
+                  items={timedLineup.map((s) => s.id)}
+                  strategy={verticalListSortingStrategy}
+                >
                   <div className="space-y-2">
-                    {timedLineup.map((slot, index) => (
-                      <LineupRow 
-                        key={slot.id} 
-                        slot={slot} 
-                        isFirst={index === 0}
+                    {timedLineup.map((slot) => (
+                      <LineupRow
+                        key={slot.id}
+                        slot={slot}
                         onRemove={() => removeSlot(slot.id)}
-                        onDurationChange={(mins) => updateDuration(slot.id, mins)}
+                        onDurationChange={(mins) =>
+                          updateDuration(slot.id, mins)
+                        }
                       />
                     ))}
                     {lineup.length === 0 && (
@@ -250,7 +320,14 @@ export function LineupBuilder({
 // ============================================
 
 function PoolItem({ submission }: { submission: OpenMicSubmission }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
     id: submission.id,
     data: { type: 'pool-item', submission },
   })
@@ -271,9 +348,13 @@ function PoolItem({ submission }: { submission: OpenMicSubmission }) {
     >
       <div className="flex items-start justify-between">
         <div>
-          <p className="font-host-grotesk font-bold text-sm text-rosewood">{submission.artistName}</p>
+          <p className="font-host-grotesk font-bold text-sm text-rosewood">
+            {submission.artistName}
+          </p>
           <p className="text-xs text-rosewood/60">{submission.fullName}</p>
-          <p className="text-xs font-semibold text-rosewood/50 mt-1">{submission.genre}</p>
+          <p className="text-xs font-semibold text-rosewood/50 mt-1">
+            {submission.genre}
+          </p>
         </div>
         <GripVertical className="w-4 h-4 text-rosewood/30" />
       </div>
@@ -285,8 +366,23 @@ function PoolItem({ submission }: { submission: OpenMicSubmission }) {
 // LINEUP ROW
 // ============================================
 
-function LineupRow({ slot, isFirst, onRemove, onDurationChange }: { slot: LineupSlot, isFirst: boolean, onRemove: () => void, onDurationChange: (mins: number) => void }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+function LineupRow({
+  slot,
+  onRemove,
+  onDurationChange,
+}: {
+  slot: LineupSlot
+  onRemove: () => void
+  onDurationChange: (mins: number) => void
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
     id: slot.id,
     data: { type: 'lineup-item' },
   })
@@ -301,28 +397,32 @@ function LineupRow({ slot, isFirst, onRemove, onDurationChange }: { slot: Lineup
   const endTime = addMinutes(startTime, slot.durationMinutes)
 
   return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className="flex items-stretch gap-2 group"
-    >
+    <div ref={setNodeRef} style={style} className="flex items-stretch gap-2 group">
       {/* Drag Handle */}
-      <div {...attributes} {...listeners} className="flex items-center px-1 cursor-grab opacity-30 hover:opacity-100">
+      <div
+        {...attributes}
+        {...listeners}
+        className="flex items-center px-1 cursor-grab opacity-30 hover:opacity-100"
+      >
         <GripVertical className="w-5 h-5" />
       </div>
 
       {/* Time Column */}
       <div className="w-32 shrink-0 flex flex-col justify-center text-right pr-4 border-r border-rosewood/10">
         <span className="font-host-grotesk font-bold text-sm text-rosewood">
-          {format(startTime, 'h:mm a')}
+          {formatTimeLocal(slot.startTime)}
         </span>
-        <span className="text-xs text-rosewood/50">to {format(endTime, 'h:mm a')}</span>
+        <span className="text-xs text-rosewood/50">
+          to {formatTimeLocal(endTime.toISOString())}
+        </span>
       </div>
 
       {/* Artist Info */}
       <div className="flex-1 bg-white border border-rosewood/10 p-3 rounded-xl flex items-center justify-between shadow-sm group-hover:border-chartreuse/40 transition-colors">
         <div>
-          <p className="font-host-grotesk font-bold text-rosewood">{slot.artistName}</p>
+          <p className="font-host-grotesk font-bold text-rosewood">
+            {slot.artistName}
+          </p>
         </div>
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1 text-xs text-rosewood/50 bg-plaster/50 px-2 py-1 rounded-lg">
@@ -332,12 +432,17 @@ function LineupRow({ slot, isFirst, onRemove, onDurationChange }: { slot: Lineup
               min={1}
               max={30}
               value={slot.durationMinutes}
-              onChange={(e) => onDurationChange(parseInt(e.target.value) || 1)}
+              onChange={(e) =>
+                onDurationChange(parseInt(e.target.value) || 1)
+              }
               className="w-8 bg-transparent text-center font-bold focus:outline-none"
             />
             mins
           </div>
-          <button onClick={onRemove} className="text-rosewood/20 hover:text-poppy transition-colors p-1">
+          <button
+            onClick={onRemove}
+            className="text-rosewood/20 hover:text-poppy transition-colors p-1"
+          >
             <Trash2 className="w-4 h-4" />
           </button>
         </div>
