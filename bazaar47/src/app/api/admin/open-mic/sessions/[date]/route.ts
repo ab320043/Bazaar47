@@ -1,8 +1,13 @@
 // app/api/admin/open-mic/sessions/[date]/route.ts
 import { NextRequest, NextResponse } from 'next/server'
-import { saveSession, getSession } from '@/lib/storage/open-mic'
+import {
+  saveSession,
+  getSession,
+  deleteSession,
+} from '@/lib/storage/open-mic'
 import { isAdminAuthenticated } from '@/lib/admin/auth'
 import { isWednesdayIso } from '@/lib/open-mic/dates'
+import { classifySession } from '@/lib/open-mic/sessions-state'
 import type { LineupSlot } from '@/types/open-mic'
 
 // ============================================
@@ -58,6 +63,20 @@ export async function PUT(
       )
     }
 
+    // ---- Past-session guard ----
+    // Archived sessions are read-only. If a stale tab still has the
+    // builder open, a PUT attempt should be rejected at the edge
+    // rather than silently overwriting the historical record.
+    if (classifySession(date) === 'past') {
+      return NextResponse.json(
+        {
+          error:
+            'This session is archived and can no longer be edited.',
+        },
+        { status: 403 }
+      )
+    }
+
     const body = await request.json()
     const rawLineup = body?.lineup
 
@@ -95,6 +114,41 @@ export async function PUT(
     console.error('Error saving session:', error)
     return NextResponse.json(
       { error: 'Failed to save session' },
+      { status: 500 }
+    )
+  }
+}
+
+// ============================================
+// DELETE — remove an entire session
+// ============================================
+
+export async function DELETE(
+  _request: NextRequest,
+  { params }: { params: Promise<{ date: string }> }
+) {
+  if (!(await isAdminAuthenticated())) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  try {
+    const { date } = await params
+
+    const deleted = await deleteSession(date)
+    if (!deleted) {
+      return NextResponse.json(
+        { error: 'Session not found' },
+        { status: 404 }
+      )
+    }
+
+    // Note: the pool is untouched. Artists who were in this lineup
+    // remain available to be added to other sessions.
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    console.error('Error deleting session:', error)
+    return NextResponse.json(
+      { error: 'Failed to delete session' },
       { status: 500 }
     )
   }

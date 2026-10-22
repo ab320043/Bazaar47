@@ -20,9 +20,11 @@ export async function getPool(): Promise<OpenMicSubmission[]> {
   }
 }
 
-export async function createSubmission(input: Omit<OpenMicSubmission, 'id' | 'createdAt' | 'updatedAt'>): Promise<OpenMicSubmission> {
+export async function createSubmission(
+  input: Omit<OpenMicSubmission, 'id' | 'createdAt' | 'updatedAt'>
+): Promise<OpenMicSubmission> {
   const pool = await getPool()
-  
+
   // Check for duplicates in the pool
   const normalizedEmail = input.email.trim().toLowerCase()
   if (pool.some((s) => s.email.trim().toLowerCase() === normalizedEmail)) {
@@ -43,12 +45,19 @@ export async function createSubmission(input: Omit<OpenMicSubmission, 'id' | 'cr
   return submission
 }
 
-export async function updatePoolSubmission(id: string, updates: Partial<OpenMicSubmission>): Promise<OpenMicSubmission | null> {
+export async function updatePoolSubmission(
+  id: string,
+  updates: Partial<OpenMicSubmission>
+): Promise<OpenMicSubmission | null> {
   const pool = await getPool()
   const idx = pool.findIndex((s) => s.id === id)
   if (idx === -1) return null
-  
-  pool[idx] = { ...pool[idx], ...updates, updatedAt: new Date().toISOString() }
+
+  pool[idx] = {
+    ...pool[idx],
+    ...updates,
+    updatedAt: new Date().toISOString(),
+  }
   await redis.set(POOL_KEY, pool)
   return pool[idx]
 }
@@ -58,14 +67,14 @@ export async function deletePoolSubmission(id: string): Promise<boolean> {
   const filtered = pool.filter((s) => s.id !== id)
   if (filtered.length === pool.length) return false
   await redis.set(POOL_KEY, filtered)
-  
+
   // Also remove from any lineups
   const sessions = await getAllSessions()
   for (const session of sessions) {
     session.lineup = session.lineup.filter((slot) => slot.submissionId !== id)
   }
   await saveAllSessions(sessions)
-  
+
   return true
 }
 
@@ -83,7 +92,9 @@ export async function getAllSessions(): Promise<OpenMicSession[]> {
   }
 }
 
-export async function getSession(dateIso: string): Promise<OpenMicSession | null> {
+export async function getSession(
+  dateIso: string
+): Promise<OpenMicSession | null> {
   const sessions = await getAllSessions()
   return sessions.find((s) => s.date === dateIso) || null
 }
@@ -91,16 +102,33 @@ export async function getSession(dateIso: string): Promise<OpenMicSession | null
 export async function saveSession(session: OpenMicSession): Promise<void> {
   const sessions = await getAllSessions()
   const idx = sessions.findIndex((s) => s.date === session.date)
-  
+
   if (idx !== -1) {
     sessions[idx] = session
   } else {
     sessions.push(session)
   }
-  
+
   await redis.set(SESSIONS_KEY, sessions)
 }
 
-export async function saveAllSessions(sessions: OpenMicSession[]): Promise<void> {
+export async function saveAllSessions(
+  sessions: OpenMicSession[]
+): Promise<void> {
   await redis.set(SESSIONS_KEY, sessions)
+}
+
+/**
+ * Delete an entire session by its date.
+ *
+ * Returns true if a session was removed, false if no session existed for
+ * that date. Does NOT touch the artist pool — artists who were in this
+ * session's lineup remain available for future sessions.
+ */
+export async function deleteSession(dateIso: string): Promise<boolean> {
+  const sessions = await getAllSessions()
+  const filtered = sessions.filter((s) => s.date !== dateIso)
+  if (filtered.length === sessions.length) return false
+  await redis.set(SESSIONS_KEY, filtered)
+  return true
 }
