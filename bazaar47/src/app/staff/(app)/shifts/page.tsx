@@ -6,7 +6,7 @@ import {
   Calendar, Clock, DollarSign, Briefcase,
   RefreshCw, Star, AlertCircle, LogIn, LogOut,
   Loader2, Bell, Users, MessageSquare,
-  CheckCircle2, X, CheckCircle,
+  CheckCircle2, X, ChevronDown, ChevronUp
 } from 'lucide-react'
 import type { StaffMember, StaffAssignment, StaffRole } from '@/types/staff'
 import { STAFF_ROLES } from '@/data/staff-roles'
@@ -129,10 +129,6 @@ function formatDate(iso: string): string {
   })
 }
 
-/**
- * Date-strict check: is the given ISO timestamp on the same calendar
- * day as the reference `now`?
- */
 function isToday(iso: string, referenceNow: number): boolean {
   const d = new Date(iso)
   const today = new Date(referenceNow)
@@ -407,21 +403,19 @@ export default function StaffShiftsPage() {
   const current = currentWithCoworkers?.assignment ?? data.current
 
   return (
-    <div className="p-4 md:p-6 lg:p-10 max-w-7xl mx-auto">
-
-      {/* Toast stack — fixed top-right */}
-      <div className="fixed top-4 right-4 z-50 space-y-2 max-w-sm">
+    <div className="min-h-screen bg-plaster pb-20 overflow-x-hidden">
+      
+      {/* Toast Stack */}
+      <div className="fixed top-20 sm:top-4 right-4 z-50 space-y-2 max-w-sm w-[calc(100vw-2rem)] sm:w-96">
         {toasts.map((toast) => (
           <div
             key={toast.id}
-            className={`flex items-start gap-3 p-4 rounded-xl shadow-lg border transition-all animate-in slide-in-from-top-2 ${
-              toast.kind === 'success'
-                ? 'bg-white border-chartreuse/40'
-                : 'bg-white border-poppy/40'
+            className={`flex items-start gap-3 p-4 rounded-xl shadow-lg border bg-white ${
+              toast.kind === 'success' ? 'border-chartreuse/40' : 'border-poppy/40'
             }`}
           >
             {toast.kind === 'success' ? (
-              <CheckCircle className="w-5 h-5 text-chartreuse shrink-0 mt-0.5" />
+              <CheckCircle2 className="w-5 h-5 text-chartreuse shrink-0 mt-0.5" />
             ) : (
               <AlertCircle className="w-5 h-5 text-poppy shrink-0 mt-0.5" />
             )}
@@ -445,300 +439,249 @@ export default function StaffShiftsPage() {
         ))}
       </div>
 
-      {/* Page title + refresh */}
-      <div className="flex items-center justify-between gap-4 mb-6">
-        <div>
-          <h1 className="font-host-grotesk font-bold text-3xl text-rosewood">
-            My Shifts
-          </h1>
-          <p className="font-host-grotesk text-rosewood/50 text-sm mt-0.5">
-            {stats.upcomingCount} upcoming · {past.length} past
-          </p>
-        </div>
-        <button
-          onClick={handleManualRefresh}
-          className="bg-white hover:bg-white/80 text-rosewood/60 px-4 py-2 rounded-xl font-host-grotesk font-semibold text-sm flex items-center gap-2 transition-all shadow-sm"
-        >
-          <RefreshCw className="w-4 h-4" />
-          Refresh
-        </button>
-      </div>
-
-      {/* Today banner — date-strict */}
-      {todayAssignments.length > 0 && (
-        <div className="bg-chartreuse/15 border border-chartreuse/40 rounded-2xl p-4 mb-6 flex items-start gap-3">
-          <Bell className="w-5 h-5 text-cypress shrink-0 mt-0.5" />
+      {/* Main Content Area */}
+      <div className="p-4 sm:p-6 lg:p-10 max-w-7xl mx-auto">
+        
+        {/* Page Header */}
+        <div className="flex items-center justify-between gap-4 mb-6">
           <div>
-            <p className="font-host-grotesk font-semibold text-cypress text-sm">
-              You have a shift today
-            </p>
-            <p className="font-host-grotesk text-cypress/70 text-sm mt-0.5">
-              {todayAssignments
-                .map((a) => `${a.eventName} at ${formatTime(a.shiftStart)}`)
-                .join(' · ')}
+            <h1 className="font-host-grotesk font-bold text-2xl sm:text-3xl text-rosewood">
+              My Shifts
+            </h1>
+            <p className="font-host-grotesk text-rosewood/50 text-sm mt-0.5">
+              {stats.upcomingCount} upcoming · {past.length} past
             </p>
           </div>
+          
+          <button
+            onClick={handleManualRefresh}
+            className="bg-white hover:bg-white/80 text-rosewood/60 px-3 py-2 rounded-xl font-host-grotesk font-semibold text-sm flex items-center gap-2 transition-all shadow-sm shrink-0"
+          >
+            <RefreshCw className="w-4 h-4" />
+            <span className="hidden sm:inline">Refresh</span>
+          </button>
         </div>
-      )}
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-3">
-        <div className="bg-white rounded-xl p-4 border border-rosewood/5 shadow-sm">
-          <p className="font-host-grotesk text-[10px] text-rosewood/40 uppercase tracking-wider">
-            This Period
-          </p>
-          <p className="font-host-grotesk text-xl font-bold text-rosewood mt-1">
-            {formatCurrency(stats.earnedThisPeriod)}
-          </p>
-          <p className="font-host-grotesk text-xs text-rosewood/40 mt-0.5">
-            {stats.hoursThisPeriod}h
-          </p>
-        </div>
-        <div className="bg-white rounded-xl p-4 border border-rosewood/5 shadow-sm">
-          <p className="font-host-grotesk text-[10px] text-rosewood/40 uppercase tracking-wider">
-            This Month
-          </p>
-          <p className="font-host-grotesk text-xl font-bold text-rosewood mt-1">
-            {formatCurrency(stats.earnedThisMonth)}
-          </p>
-          <p className="font-host-grotesk text-xs text-rosewood/40 mt-0.5">
-            {stats.hoursThisMonth}h
-          </p>
-        </div>
-        <div className="bg-white rounded-xl p-4 border border-rosewood/5 shadow-sm">
-          <p className="font-host-grotesk text-[10px] text-rosewood/40 uppercase tracking-wider">
-            Upcoming
-          </p>
-          <p className="font-host-grotesk text-xl font-bold text-rosewood mt-1">
-            {stats.upcomingCount}
-          </p>
-          <p className="font-host-grotesk text-xs text-rosewood/40 mt-0.5">
-            {stats.upcomingCount === 1 ? 'shift' : 'shifts'}
-          </p>
-        </div>
-        <div className="bg-white rounded-xl p-4 border border-rosewood/5 shadow-sm">
-          <p className="font-host-grotesk text-[10px] text-rosewood/40 uppercase tracking-wider">
-            Status
-          </p>
-          <p className="font-host-grotesk text-xl font-bold text-rosewood mt-1">
-            {current ? '🟢 On Duty' : '⏸️ Off Duty'}
-          </p>
-          <p className="font-host-grotesk text-xs text-rosewood/40 mt-0.5">
-            {current ? 'Working' : 'No active shift'}
-          </p>
-        </div>
-      </div>
-
-      <p className="font-host-grotesk text-xs text-rosewood/40 mb-8 text-right">
-        Lifetime: {formatCurrency(stats.earnedAllTime)} · {stats.hoursAllTime}h
-      </p>
-
-      {/* Current shift */}
-      {current && currentWithCoworkers && (() => {
-        const state = getShiftState(current, now)
-        const isActing = actionId === current.id
-        const { coworkers } = currentWithCoworkers
-        return (
-          <div className="bg-chartreuse/10 border-2 border-chartreuse/30 rounded-2xl p-6 mb-8">
-            <div className="flex items-start justify-between gap-4 flex-wrap">
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <Star className="w-5 h-5 text-chartreuse fill-chartreuse" />
-                  <h2 className="font-host-grotesk font-bold text-xl text-rosewood">
-                    {state === 'clocked-in'
-                      ? 'Currently Working'
-                      : 'Shift In Progress'}
-                  </h2>
-                </div>
-                <h3 className="font-host-grotesk font-bold text-2xl text-rosewood mt-1">
-                  {current.eventName}
-                </h3>
-                <div className="flex flex-wrap items-center gap-4 mt-2 text-sm text-rosewood/60">
-                  <span className="flex items-center gap-1">
-                    <Calendar className="w-4 h-4" />
-                    {formatDate(current.shiftStart)}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <Clock className="w-4 h-4" />
-                    {formatTime(current.shiftStart)} – {formatTime(current.shiftEnd)}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <Briefcase className="w-4 h-4" />
-                    {getRolesLabel(current.roles)}
-                  </span>
-                </div>
-
-                {coworkers.length > 0 && (
-                  <div className="flex items-start gap-1.5 mt-2 text-sm text-rosewood/60">
-                    <Users className="w-4 h-4 mt-0.5 shrink-0" />
-                    <span>
-                      Also on this shift:{' '}
-                      <span className="text-rosewood/80 font-medium">
-                        {coworkers.map((c) => c.staffName).join(', ')}
-                      </span>
-                    </span>
-                  </div>
-                )}
-
-                {state === 'clocked-in' && current.checkInTime && (
-                  <p className="font-host-grotesk text-sm text-cypress mt-2 font-semibold">
-                    Clocked in at {formatTime(current.checkInTime)}
-                  </p>
-                )}
-
-                <div className="mt-3">
-                  <StaffNoteEditor
-                    initialValue={current.staffNote || ''}
-                    onSave={(note) => handleStaffNoteSave(current.id, note)}
-                  />
-                </div>
-              </div>
-
-              <div className="flex flex-col items-end gap-2 shrink-0">
-                {state === 'clocked-in' ? (
-                  <>
-                    <span className="text-sm font-semibold text-chartreuse bg-chartreuse/20 px-3 py-1 rounded-full animate-pulse">
-                      ● Active
-                    </span>
-                    <button
-                      onClick={() => handleCheckOut(current.id)}
-                      disabled={isActing}
-                      className="bg-rosewood hover:bg-rosewood/90 text-plaster px-4 py-2 rounded-xl font-host-grotesk font-semibold text-sm flex items-center gap-2 transition-all shadow-sm disabled:opacity-50"
-                    >
-                      {isActing ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <LogOut className="w-4 h-4" />
-                      )}
-                      Clock Out
-                    </button>
-                  </>
-                ) : (
-                  <button
-                    onClick={() => handleCheckIn(current.id)}
-                    disabled={isActing}
-                    className="bg-chartreuse hover:bg-chartreuse/90 text-grove px-4 py-2 rounded-xl font-host-grotesk font-semibold text-sm flex items-center gap-2 transition-all shadow-sm disabled:opacity-50"
-                  >
-                    {isActing ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <LogIn className="w-4 h-4" />
-                    )}
-                    Clock In
-                  </button>
-                )}
-              </div>
+        {/* Today Banner */}
+        {todayAssignments.length > 0 && (
+          <div className="bg-chartreuse/15 border border-chartreuse/40 rounded-2xl p-4 mb-6 flex items-start gap-3">
+            <Bell className="w-5 h-5 text-cypress shrink-0 mt-0.5" />
+            <div className="min-w-0">
+              <p className="font-host-grotesk font-semibold text-cypress text-sm">
+                You have a shift today
+              </p>
+              <p className="font-host-grotesk text-cypress/70 text-sm mt-0.5 truncate">
+                {todayAssignments
+                  .map((a) => `${a.eventName} at ${formatTime(a.shiftStart)}`)
+                  .join(' · ')}
+              </p>
             </div>
           </div>
-        )
-      })()}
+        )}
 
-      {/* Two columns */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Upcoming */}
-        <div>
-          <h2 className="font-host-grotesk font-bold text-xl text-rosewood mb-4 flex items-center gap-2">
-            <Calendar className="w-5 h-5" />
-            Upcoming
-          </h2>
-          {upcomingWithCoworkers.length > 0 ? (
-            <div className="space-y-3">
-              {upcomingWithCoworkers.map(({ assignment, coworkers }) => {
-                const state = getShiftState(assignment, now)
-                const isActing = actionId === assignment.id
-                const startMs = new Date(assignment.shiftStart).getTime()
-                const opensAtMs = startMs - CLOCK_IN_EARLY_MS
-                const msUntilOpen = opensAtMs - now
+        {/* Stats Grid */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-3">
+          <div className="bg-white rounded-xl p-4 border border-rosewood/5 shadow-sm min-w-0">
+            <p className="font-host-grotesk text-[10px] text-rosewood/40 uppercase tracking-wider">
+              This Period
+            </p>
+            <p className="font-host-grotesk text-lg sm:text-xl font-bold text-rosewood mt-1 truncate">
+              {formatCurrency(stats.earnedThisPeriod)}
+            </p>
+            <p className="font-host-grotesk text-xs text-rosewood/40 mt-0.5">
+              {stats.hoursThisPeriod}h
+            </p>
+          </div>
+          <div className="bg-white rounded-xl p-4 border border-rosewood/5 shadow-sm min-w-0">
+            <p className="font-host-grotesk text-[10px] text-rosewood/40 uppercase tracking-wider">
+              This Month
+            </p>
+            <p className="font-host-grotesk text-lg sm:text-xl font-bold text-rosewood mt-1 truncate">
+              {formatCurrency(stats.earnedThisMonth)}
+            </p>
+            <p className="font-host-grotesk text-xs text-rosewood/40 mt-0.5">
+              {stats.hoursThisMonth}h
+            </p>
+          </div>
+          <div className="bg-white rounded-xl p-4 border border-rosewood/5 shadow-sm min-w-0">
+            <p className="font-host-grotesk text-[10px] text-rosewood/40 uppercase tracking-wider">
+              Upcoming
+            </p>
+            <p className="font-host-grotesk text-lg sm:text-xl font-bold text-rosewood mt-1">
+              {stats.upcomingCount}
+            </p>
+            <p className="font-host-grotesk text-xs text-rosewood/40 mt-0.5">
+              {stats.upcomingCount === 1 ? 'shift' : 'shifts'}
+            </p>
+          </div>
+          <div className="bg-white rounded-xl p-4 border border-rosewood/5 shadow-sm flex flex-col justify-between min-w-0">
+            <p className="font-host-grotesk text-[10px] text-rosewood/40 uppercase tracking-wider">
+              Status
+            </p>
+            <div className="mt-1">
+              <p className="font-host-grotesk text-sm sm:text-base font-bold text-rosewood leading-tight truncate">
+                {current ? '🟢 On Duty' : '⏸️ Off Duty'}
+              </p>
+            </div>
+            <p className="font-host-grotesk text-xs text-rosewood/40 mt-0.5 truncate">
+              {current ? 'Currently working' : 'No active shift'}
+            </p>
+          </div>
+        </div>
 
-                let buttonLabel = 'Clock In'
-                let buttonDisabled = false
-                let buttonTitle: string | undefined
+        <p className="font-host-grotesk text-xs text-rosewood/40 mb-8 text-right">
+          Lifetime: {formatCurrency(stats.earnedAllTime)} · {stats.hoursAllTime}h
+        </p>
 
-                if (state === 'upcoming-far') {
-                  buttonLabel =
-                    msUntilOpen > 0
-                      ? `Opens in ${formatCountdown(msUntilOpen)}`
-                      : 'Clock In'
-                  buttonDisabled = true
-                  buttonTitle = 'Clock In opens 10 minutes before shift start'
-                } else if (state === 'clocked-in') {
-                  buttonLabel = 'Clocked In'
-                  buttonDisabled = true
-                  buttonTitle = assignment.checkInTime
-                    ? `You clocked in at ${formatTime(assignment.checkInTime)}`
-                    : undefined
-                } else if (state === 'ended') {
-                  buttonLabel = 'Ended'
-                  buttonDisabled = true
-                }
+        {/* Current Shift */}
+        {current && currentWithCoworkers && (() => {
+          const state = getShiftState(current, now)
+          const isActing = actionId === current.id
+          const { coworkers } = currentWithCoworkers
+          return (
+            <div className="bg-white sm:bg-chartreuse/10 border-2 border-chartreuse/40 sm:border-chartreuse/30 rounded-2xl p-5 mb-8 shadow-sm min-w-0">
+              <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
+                <div className="w-full sm:w-auto flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Star className="w-5 h-5 text-chartreuse fill-chartreuse" />
+                    <h2 className="font-host-grotesk font-bold text-lg sm:text-xl text-rosewood">
+                      {state === 'clocked-in'
+                        ? 'Currently Working'
+                        : 'Shift In Progress'}
+                    </h2>
+                  </div>
+                  <h3 className="font-host-grotesk font-bold text-xl sm:text-2xl text-rosewood mt-1 break-words">
+                    {current.eventName}
+                  </h3>
+                  
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mt-3 text-sm text-rosewood/60">
+                    <span className="flex items-center gap-1.5">
+                      <Calendar className="w-4 h-4 shrink-0" />
+                      {formatDate(current.shiftStart)}
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                      <Clock className="w-4 h-4 shrink-0" />
+                      {formatTime(current.shiftStart)} – {formatTime(current.shiftEnd)}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5 mt-2 text-sm text-rosewood/60">
+                    <Briefcase className="w-4 h-4 shrink-0" />
+                    <span className="break-words">{getRolesLabel(current.roles)}</span>
+                  </div>
 
-                return (
-                  <div
-                    key={assignment.id}
-                    className={`bg-white rounded-xl p-4 border shadow-sm ${
-                      state === 'open' || state === 'late-window'
-                        ? 'border-chartreuse/40 ring-1 ring-chartreuse/20'
-                        : 'border-rosewood/5'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0 flex-1">
-                        <h4 className="font-host-grotesk font-bold text-rosewood truncate">
+                  {coworkers.length > 0 && (
+                    <CoworkerList coworkers={coworkers} />
+                  )}
+
+                  {state === 'clocked-in' && current.checkInTime && (
+                    <p className="font-host-grotesk text-sm text-cypress mt-3 font-semibold bg-cypress/5 inline-block px-2 py-1 rounded">
+                      Clocked in at {formatTime(current.checkInTime)}
+                    </p>
+                  )}
+
+                  <div className="mt-4">
+                    <StaffNoteEditor
+                      initialValue={current.staffNote || ''}
+                      onSave={(note) => handleStaffNoteSave(current.id, note)}
+                    />
+                  </div>
+                </div>
+
+                <div className="w-full sm:w-auto mt-4 sm:mt-0 flex flex-col items-stretch sm:items-end gap-2 shrink-0">
+                  {state === 'clocked-in' ? (
+                    <>
+                      <span className="text-sm font-semibold text-chartreuse bg-chartreuse/20 px-3 py-1.5 rounded-full animate-pulse text-center hidden sm:block">
+                        ● Active
+                      </span>
+                      <button
+                        onClick={() => handleCheckOut(current.id)}
+                        disabled={isActing}
+                        className="w-full sm:w-auto bg-rosewood hover:bg-rosewood/90 text-plaster px-6 py-3 sm:py-2 rounded-xl font-host-grotesk font-bold sm:font-semibold text-base sm:text-sm flex items-center justify-center gap-2 transition-all shadow-md disabled:opacity-50"
+                      >
+                        {isActing ? (
+                          <Loader2 className="w-5 h-5 animate-spin" />
+                        ) : (
+                          <LogOut className="w-5 h-5" />
+                        )}
+                        Clock Out
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      onClick={() => handleCheckIn(current.id)}
+                      disabled={isActing}
+                      className="w-full sm:w-auto bg-chartreuse hover:bg-chartreuse/90 text-grove px-6 py-3 sm:py-2 rounded-xl font-host-grotesk font-bold sm:font-semibold text-base sm:text-sm flex items-center justify-center gap-2 transition-all shadow-md disabled:opacity-50"
+                    >
+                      {isActing ? (
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                      ) : (
+                        <LogIn className="w-5 h-5" />
+                      )}
+                      Clock In
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          )
+        })()}
+
+        {/* Two Columns (Stacked on Mobile) */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 min-w-0">
+          
+          {/* Upcoming Events List */}
+          <div className="min-w-0">
+            <h2 className="font-host-grotesk font-bold text-xl text-rosewood mb-4 flex items-center gap-2">
+              <Calendar className="w-5 h-5" />
+              Upcoming
+            </h2>
+            {upcomingWithCoworkers.length > 0 ? (
+              <div className="space-y-4">
+                {upcomingWithCoworkers.map(({ assignment, coworkers }) => {
+                  const state = getShiftState(assignment, now)
+                  const isActing = actionId === assignment.id
+                  const startMs = new Date(assignment.shiftStart).getTime()
+                  const opensAtMs = startMs - CLOCK_IN_EARLY_MS
+                  const msUntilOpen = opensAtMs - now
+
+                  let buttonLabel = 'Clock In'
+                  let buttonDisabled = false
+                  let buttonTitle: string | undefined
+
+                  if (state === 'upcoming-far') {
+                    buttonLabel =
+                      msUntilOpen > 0
+                        ? `Opens in ${formatCountdown(msUntilOpen)}`
+                        : 'Clock In'
+                    buttonDisabled = true
+                    buttonTitle = 'Clock In opens 10 minutes before shift start'
+                  } else if (state === 'clocked-in') {
+                    buttonLabel = 'Clocked In'
+                    buttonDisabled = true
+                    buttonTitle = assignment.checkInTime
+                      ? `You clocked in at ${formatTime(assignment.checkInTime)}`
+                      : undefined
+                  } else if (state === 'ended') {
+                    buttonLabel = 'Ended'
+                    buttonDisabled = true
+                  }
+
+                  return (
+                    <div
+                      key={assignment.id}
+                      className={`bg-white rounded-xl p-4 border shadow-sm flex flex-col min-w-0 ${
+                        state === 'open' || state === 'late-window'
+                          ? 'border-chartreuse/60 ring-2 ring-chartreuse/20'
+                          : 'border-rosewood/5'
+                      }`}
+                    >
+                      {/* Header: Event + Status */}
+                      <div className="flex items-start justify-between gap-2 mb-3">
+                        <h4 className="font-host-grotesk font-bold text-lg text-rosewood leading-tight break-words min-w-0">
                           {assignment.eventName}
                         </h4>
-                        <div className="flex flex-wrap items-center gap-3 text-sm text-rosewood/50 mt-1">
-                          <span className="flex items-center gap-1">
-                            <Calendar className="w-3.5 h-3.5" />
-                            {formatDate(assignment.shiftStart)}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <Clock className="w-3.5 h-3.5" />
-                            {formatTime(assignment.shiftStart)} –{' '}
-                            {formatTime(assignment.shiftEnd)}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <Briefcase className="w-3.5 h-3.5" />
-                            {getRolesLabel(assignment.roles)}
-                          </span>
-                        </div>
-
-                        {coworkers.length > 0 && (
-                          <div className="flex items-start gap-1.5 mt-2 text-xs text-rosewood/50">
-                            <Users className="w-3.5 h-3.5 mt-0.5 shrink-0" />
-                            <span>
-                              Also on this shift:{' '}
-                              <span className="text-rosewood/70 font-medium">
-                                {coworkers.map((c) => c.staffName).join(', ')}
-                              </span>
-                            </span>
-                          </div>
-                        )}
-
-                        {state === 'upcoming-far' && msUntilOpen > 0 && (
-                          <p className="font-host-grotesk text-xs text-rosewood/40 mt-2">
-                            Starts in {formatCountdown(startMs - now)} · Clock
-                            In opens in {formatCountdown(msUntilOpen)}
-                          </p>
-                        )}
-                        {(state === 'open' || state === 'late-window') && (
-                          <p className="font-host-grotesk text-xs text-cypress font-semibold mt-2">
-                            Shift starts in{' '}
-                            {formatCountdown(Math.max(0, startMs - now))} — you
-                            can clock in now
-                          </p>
-                        )}
-
-                        <StaffNoteEditor
-                          initialValue={assignment.staffNote || ''}
-                          onSave={(note) =>
-                            handleStaffNoteSave(assignment.id, note)
-                          }
-                        />
-                      </div>
-
-                      <div className="flex flex-col items-end gap-2 shrink-0">
                         <span
-                          className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                          className={`text-xs font-semibold px-2 py-0.5 rounded-full shrink-0 ${
                             assignment.status === 'confirmed'
                               ? 'bg-hippie/10 text-hippie'
                               : 'bg-rosewood/10 text-rosewood/60'
@@ -748,103 +691,147 @@ export default function StaffShiftsPage() {
                             ? 'Confirmed'
                             : 'Assigned'}
                         </span>
+                      </div>
+
+                      {/* Details Block */}
+                      <div className="space-y-2 text-sm text-rosewood/60 mb-4 flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <Calendar className="w-4 h-4 text-rosewood/40 shrink-0" />
+                          <span className="truncate">{formatDate(assignment.shiftStart)}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Clock className="w-4 h-4 text-rosewood/40 shrink-0" />
+                          <span className="truncate">{formatTime(assignment.shiftStart)} – {formatTime(assignment.shiftEnd)}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Briefcase className="w-4 h-4 text-rosewood/40 shrink-0" />
+                          <span className="truncate">{getRolesLabel(assignment.roles)}</span>
+                        </div>
+                        
+                        {coworkers.length > 0 && (
+                          <CoworkerList coworkers={coworkers} />
+                        )}
+                      </div>
+
+                      {/* Countdown text */}
+                      {state === 'upcoming-far' && msUntilOpen > 0 && (
+                        <p className="font-host-grotesk text-xs text-rosewood/50 bg-rosewood/5 p-2 rounded-lg mb-3">
+                          Starts in {formatCountdown(startMs - now)} · Clock In opens in {formatCountdown(msUntilOpen)}
+                        </p>
+                      )}
+                      {(state === 'open' || state === 'late-window') && (
+                        <p className="font-host-grotesk text-xs text-cypress font-semibold bg-cypress/5 p-2 rounded-lg mb-3">
+                          Shift starts in {formatCountdown(Math.max(0, startMs - now))} — you can clock in now
+                        </p>
+                      )}
+
+                      {/* Note Editor */}
+                      <StaffNoteEditor
+                        initialValue={assignment.staffNote || ''}
+                        onSave={(note) =>
+                          handleStaffNoteSave(assignment.id, note)
+                        }
+                      />
+
+                      {/* Full width punch button for mobile */}
+                      <div className="mt-4 pt-4 border-t border-rosewood/5">
                         <button
                           onClick={() => handleCheckIn(assignment.id)}
                           disabled={buttonDisabled || isActing}
                           title={buttonTitle}
-                          className={`px-3 py-1.5 rounded-lg font-host-grotesk font-semibold text-xs flex items-center gap-1.5 transition-all shadow-sm ${
+                          className={`w-full py-4 sm:py-3 rounded-xl font-host-grotesk font-bold text-base flex items-center justify-center gap-2 transition-all shadow-sm ${
                             buttonDisabled
                               ? 'bg-rosewood/10 text-rosewood/40 cursor-not-allowed'
-                              : 'bg-chartreuse hover:bg-chartreuse/90 text-grove'
+                              : 'bg-chartreuse hover:bg-chartreuse/90 text-grove ring-2 ring-chartreuse/50 ring-offset-1'
                           } disabled:opacity-60`}
                         >
                           {isActing ? (
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            <Loader2 className="w-5 h-5 animate-spin" />
                           ) : (
-                            <LogIn className="w-3.5 h-3.5" />
+                            <LogIn className="w-5 h-5" />
                           )}
                           {buttonLabel}
                         </button>
                       </div>
                     </div>
-                  </div>
-                )
-              })}
-            </div>
-          ) : (
-            <div className="bg-white rounded-xl p-8 text-center border border-rosewood/5 shadow-sm">
-              <AlertCircle className="w-12 h-12 text-rosewood/20 mx-auto mb-3" />
-              <p className="font-host-grotesk text-rosewood/40">
-                No upcoming shifts
-              </p>
-              <p className="font-host-grotesk text-sm text-rosewood/30">
-                You&apos;re all caught up!
-              </p>
-            </div>
-          )}
-        </div>
+                  )
+                })}
+              </div>
+            ) : (
+              <div className="bg-white rounded-xl p-8 text-center border border-rosewood/5 shadow-sm">
+                <AlertCircle className="w-12 h-12 text-rosewood/20 mx-auto mb-3" />
+                <p className="font-host-grotesk text-rosewood/40">
+                  No upcoming shifts
+                </p>
+                <p className="font-host-grotesk text-sm text-rosewood/30">
+                  You&apos;re all caught up!
+                </p>
+              </div>
+            )}
+          </div>
 
-        {/* Past */}
-        <div>
-          <h2 className="font-host-grotesk font-bold text-xl text-rosewood mb-4 flex items-center gap-2">
-            <Clock className="w-5 h-5" />
-            Past Shifts
-          </h2>
-          {past.length > 0 ? (
-            <div className="space-y-3">
-              {past.slice(0, 10).map((assignment) => (
-                <div
-                  key={assignment.id}
-                  className="bg-white rounded-xl p-4 border border-rosewood/5 shadow-sm"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0 flex-1">
-                      <h4 className="font-host-grotesk font-semibold text-rosewood truncate">
-                        {assignment.eventName}
-                      </h4>
-                      <div className="flex flex-wrap items-center gap-3 text-sm text-rosewood/40 mt-1">
-                        <span className="flex items-center gap-1">
-                          <Calendar className="w-3.5 h-3.5" />
-                          {formatDate(assignment.shiftStart)}
-                        </span>
-                        {assignment.hoursWorked !== undefined && (
+          {/* Past Events List */}
+          <div className="min-w-0">
+            <h2 className="font-host-grotesk font-bold text-xl text-rosewood mb-4 flex items-center gap-2">
+              <Clock className="w-5 h-5" />
+              Past Shifts
+            </h2>
+            {past.length > 0 ? (
+              <div className="space-y-3">
+                {past.slice(0, 10).map((assignment) => (
+                  <div
+                    key={assignment.id}
+                    className="bg-white rounded-xl p-4 border border-rosewood/5 shadow-sm min-w-0"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <h4 className="font-host-grotesk font-semibold text-rosewood truncate">
+                          {assignment.eventName}
+                        </h4>
+                        <div className="flex flex-wrap items-center gap-3 text-sm text-rosewood/40 mt-1">
                           <span className="flex items-center gap-1">
-                            <Clock className="w-3.5 h-3.5" />
-                            {assignment.hoursWorked}h
+                            <Calendar className="w-3.5 h-3.5" />
+                            {formatDate(assignment.shiftStart)}
                           </span>
-                        )}
-                        {assignment.hoursWorked !== undefined && (
-                          <span className="flex items-center gap-1">
-                            <DollarSign className="w-3.5 h-3.5" />
-                            {(
-                              assignment.hoursWorked * assignment.hourlyRate
-                            ).toFixed(2)}
-                          </span>
+                          {assignment.hoursWorked !== undefined && (
+                            <span className="flex items-center gap-1">
+                              <Clock className="w-3.5 h-3.5" />
+                              {assignment.hoursWorked}h
+                            </span>
+                          )}
+                          {assignment.hoursWorked !== undefined && (
+                            <span className="flex items-center gap-1">
+                              <DollarSign className="w-3.5 h-3.5" />$
+                              {(
+                                assignment.hoursWorked * assignment.hourlyRate
+                              ).toFixed(2)}
+                            </span>
+                          )}
+                        </div>
+                        {assignment.staffNote && (
+                          <p className="font-host-grotesk text-xs text-rosewood/50 mt-2 italic break-words">
+                            &ldquo;{assignment.staffNote}&rdquo;
+                          </p>
                         )}
                       </div>
-                      {assignment.staffNote && (
-                        <p className="font-host-grotesk text-xs text-rosewood/50 mt-2 italic">
-                          &ldquo;{assignment.staffNote}&rdquo;
-                        </p>
-                      )}
                     </div>
                   </div>
-                </div>
-              ))}
-              {past.length > 10 && (
-                <p className="text-center text-rosewood/30 font-host-grotesk text-sm">
-                  +{past.length - 10} more — see the Payroll page for the full
-                  ledger
+                ))}
+                {past.length > 10 && (
+                  <p className="text-center text-rosewood/30 font-host-grotesk text-sm">
+                    +{past.length - 10} more — see the Payroll page for the full
+                    ledger
+                  </p>
+                )}
+              </div>
+            ) : (
+              <div className="bg-white rounded-xl p-8 text-center border border-rosewood/5 shadow-sm">
+                <p className="font-host-grotesk text-rosewood/40">
+                  No past shifts yet
                 </p>
-              )}
-            </div>
-          ) : (
-            <div className="bg-white rounded-xl p-8 text-center border border-rosewood/5 shadow-sm">
-              <p className="font-host-grotesk text-rosewood/40">
-                No past shifts yet
-              </p>
-            </div>
-          )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
@@ -852,8 +839,48 @@ export default function StaffShiftsPage() {
 }
 
 // ============================================
-// STAFF NOTE EDITOR
+// HELPER COMPONENTS
 // ============================================
+
+function CoworkerList({ coworkers }: { coworkers: CoworkerOnShift[] }) {
+  const [isExpanded, setIsExpanded] = useState(false)
+  
+  // Show 2 names by default, the rest hidden
+  const visibleCoworkers = isExpanded ? coworkers : coworkers.slice(0, 2)
+  const remainingCount = coworkers.length - visibleCoworkers.length
+
+  return (
+    <div className="mt-2 text-sm text-rosewood/60 bg-plaster/30 p-2.5 rounded-lg border border-rosewood/5">
+      <div className="flex items-start gap-1.5">
+        <Users className="w-4 h-4 mt-0.5 shrink-0 text-rosewood/40" />
+        <div className="min-w-0 flex-1">
+          <span className="block text-xs font-semibold text-rosewood/50 uppercase tracking-wider mb-0.5">
+            Also on this shift
+          </span>
+          <span className="text-rosewood/80 break-words line-clamp-2">
+            {visibleCoworkers.map((c) => c.staffName).join(', ')}
+            {remainingCount > 0 && !isExpanded && (
+              <span className="text-rosewood/40"> +{remainingCount} more</span>
+            )}
+          </span>
+          
+          {coworkers.length > 2 && (
+            <button
+              onClick={() => setIsExpanded(!isExpanded)}
+              className="mt-1 text-xs font-semibold text-chartreuse hover:text-chartreuse/80 transition-colors flex items-center gap-1"
+            >
+              {isExpanded ? (
+                <>Show less <ChevronUp className="w-3 h-3" /></>
+              ) : (
+                <>View all {coworkers.length} <ChevronDown className="w-3 h-3" /></>
+              )}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
 
 function StaffNoteEditor({
   initialValue,
