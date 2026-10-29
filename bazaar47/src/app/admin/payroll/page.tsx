@@ -1,6 +1,7 @@
+// app/admin/payroll/page.tsx
 'use client'
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, Fragment } from 'react'
 import Link from 'next/link'
 import {
   DollarSign, Clock, Users, Calendar,
@@ -468,9 +469,8 @@ export default function AdminPayrollPage() {
                       {byStaff.map((row) => {
                         const isExpanded = expandedStaffId === row.staffId
                         return (
-                          <>
+                          <Fragment key={row.staffId}>
                             <tr
-                              key={row.staffId}
                               onClick={() =>
                                 setExpandedStaffId(
                                   isExpanded ? null : row.staffId
@@ -502,7 +502,7 @@ export default function AdminPayrollPage() {
                               </td>
                             </tr>
                             {isExpanded && (
-                              <tr key={`${row.staffId}-expand`}>
+                              <tr>
                                 <td colSpan={6} className="bg-plaster/20 border-t border-rosewood/5 p-4">
                                   <div className="space-y-2">
                                     {row.shifts.map((shift) => (
@@ -542,7 +542,7 @@ export default function AdminPayrollPage() {
                                 </td>
                               </tr>
                             )}
-                          </>
+                          </Fragment>
                         )
                       })}
                     </tbody>

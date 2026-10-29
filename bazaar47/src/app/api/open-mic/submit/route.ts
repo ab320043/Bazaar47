@@ -1,6 +1,7 @@
 // app/api/open-mic/submit/route.ts
 import { NextRequest, NextResponse } from 'next/server'
 import { createSubmission } from '@/lib/storage/open-mic'
+import { isSubmissionWindowOpen } from '@/lib/open-mic/window'
 import type { OpenMicSubmitPayload } from '@/types/open-mic'
 
 function isValidEmail(v: unknown): v is string {
@@ -24,6 +25,14 @@ function normalizeOptionalUrl(v: unknown): string | undefined {
 
 export async function POST(request: NextRequest) {
   try {
+    // Block submissions outside the allowed window
+    if (!isSubmissionWindowOpen()) {
+      return NextResponse.json(
+        { error: 'Submissions are currently closed. The form reopens Thursday at midnight.' },
+        { status: 403 }
+      )
+    }
+
     const body = await request.json()
     const { fullName, artistName, genre, musicLink, instagram, email } = body as Partial<OpenMicSubmitPayload>
 

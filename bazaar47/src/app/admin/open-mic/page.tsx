@@ -14,6 +14,7 @@ import {
   Zap,
   Clock,
   FolderArchive,
+  UserPlus,
 } from 'lucide-react'
 import type { OpenMicSubmission, OpenMicSession } from '@/types/open-mic'
 import {
@@ -31,6 +32,7 @@ import { LineupBuilder } from './LineupBuilder'
 import { PoolEditModal } from './PoolEditModal'
 import { DeletePoolConfirmModal } from './DeletePoolConfirmModal'
 import { DeleteSessionConfirmModal } from './DeleteSessionConfirmModal'
+import { AddPoolArtistModal } from './AddPoolArtistModal'
 import { ToastProvider, useToast } from './Toast'
 
 // ============================================
@@ -43,7 +45,7 @@ interface OpenMicApiResponse {
 }
 
 // ============================================
-// PAGE (wraps the inner component in the toast provider)
+// PAGE
 // ============================================
 
 export default function AdminOpenMicPage() {
@@ -68,21 +70,19 @@ function AdminOpenMicInner() {
     null
   )
 
-  // Wednesday picker
   const [pickerAnchorIso, setPickerAnchorIso] = useState<string>(() =>
     todayIsoLocal()
   )
   const [isCreating, setIsCreating] = useState(false)
 
-  // Pool edit / delete modals
+  // Modals
   const [editingSubmission, setEditingSubmission] =
     useState<OpenMicSubmission | null>(null)
   const [deletingSubmission, setDeletingSubmission] =
     useState<OpenMicSubmission | null>(null)
-
-  // Session delete modal (only used for non-empty sessions)
   const [deletingSession, setDeletingSession] =
     useState<OpenMicSession | null>(null)
+  const [isAddingArtist, setIsAddingArtist] = useState(false)
 
   // ---- Fetch ----
 
@@ -152,15 +152,23 @@ function AdminOpenMicInner() {
       else past.push(s)
     }
 
-    // Current: only 0 or 1 (today). Sort by date asc — trivial.
     current.sort((a, b) => a.date.localeCompare(b.date))
-    // Upcoming: soonest first.
     upcoming.sort((a, b) => a.date.localeCompare(b.date))
-    // Past: most recent first.
     past.sort((a, b) => b.date.localeCompare(a.date))
 
     return { current, upcoming, past }
   }, [sessions])
+
+  // ---- Pool: Add ----
+
+  const handleAddArtistSuccess = (newArtist: OpenMicSubmission) => {
+    setPool((prev) => [newArtist, ...prev])
+    showToast({
+      kind: 'success',
+      title: 'Artist added to pool',
+      message: `${newArtist.artistName} is ready to be scheduled.`,
+    })
+  }
 
   // ---- Pool: edit ----
 
@@ -208,13 +216,9 @@ function AdminOpenMicInner() {
   }
 
   // ---- Session: delete flow ----
-  //
-  // Empty sessions (lineup.length === 0) delete silently.
-  // Sessions with artists open the confirm modal.
 
   const handleDeleteSessionIntent = async (session: OpenMicSession) => {
     if (session.lineup.length === 0) {
-      // Silent delete
       try {
         const res = await fetch(
           `/api/admin/open-mic/sessions/${session.date}`,
@@ -245,7 +249,6 @@ function AdminOpenMicInner() {
       return
     }
 
-    // Confirm modal for non-empty
     setDeletingSession(session)
   }
 
@@ -283,13 +286,9 @@ function AdminOpenMicInner() {
             sessionDate={activeSessionDate}
             initialSession={session}
             pool={availablePool}
-            sessionState={state}
             onBack={() => {
               setActiveSessionDate(null)
               void fetchData()
-            }}
-            onDeleteSession={() => {
-              if (session) void handleDeleteSessionIntent(session)
             }}
           />
         </div>
@@ -315,7 +314,7 @@ function AdminOpenMicInner() {
     <div className="min-h-screen bg-plaster p-4 md:p-6 lg:p-10">
       <div className="max-w-6xl mx-auto space-y-8">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
             <h1 className="font-host-grotesk font-bold text-3xl text-rosewood">
               Open Mic
@@ -325,13 +324,22 @@ function AdminOpenMicInner() {
               {pool.length} artist{pool.length === 1 ? '' : 's'} in pool
             </p>
           </div>
-          <button
-            onClick={() => setIsCreating((v) => !v)}
-            className="bg-chartreuse hover:bg-chartreuse/90 text-grove px-4 py-2 rounded-xl font-bold flex items-center gap-2 transition-all shadow-sm"
-          >
-            <Plus className="w-4 h-4" />
-            Create Session
-          </button>
+          <div className="flex gap-2 w-full sm:w-auto">
+            <button
+              onClick={() => setIsAddingArtist(true)}
+              className="flex-1 sm:flex-none justify-center bg-white hover:bg-white/80 border border-rosewood/10 text-rosewood px-4 py-2 rounded-xl font-bold flex items-center gap-2 transition-all shadow-sm"
+            >
+              <UserPlus className="w-4 h-4" />
+              Add Artist
+            </button>
+            <button
+              onClick={() => setIsCreating((v) => !v)}
+              className="flex-1 sm:flex-none justify-center bg-chartreuse hover:bg-chartreuse/90 text-grove px-4 py-2 rounded-xl font-bold flex items-center gap-2 transition-all shadow-sm"
+            >
+              <Plus className="w-4 h-4" />
+              Create Session
+            </button>
+          </div>
         </div>
 
         {/* Wednesday picker panel */}
@@ -454,15 +462,18 @@ function AdminOpenMicInner() {
                   {pool.length}
                 </span>
               </div>
-              <div className="overflow-y-auto p-4 space-y-2">
-                {pool.map((sub) => (
-                  <PoolRow
-                    key={sub.id}
-                    submission={sub}
-                    onEdit={() => setEditingSubmission(sub)}
-                    onDelete={() => setDeletingSubmission(sub)}
-                  />
-                ))}
+              
+              <div className="overflow-y-auto p-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {pool.map((sub) => (
+                    <PoolRow
+                      key={sub.id}
+                      submission={sub}
+                      onEdit={() => setEditingSubmission(sub)}
+                      onDelete={() => setDeletingSubmission(sub)}
+                    />
+                  ))}
+                </div>
                 {pool.length === 0 && (
                   <p className="text-center text-sm text-rosewood/40 py-8">
                     The pool is empty.
@@ -474,7 +485,14 @@ function AdminOpenMicInner() {
         </div>
       </div>
 
-      {/* Pool edit modal */}
+      {/* Modals */}
+      {isAddingArtist && (
+        <AddPoolArtistModal
+          onClose={() => setIsAddingArtist(false)}
+          onSuccess={handleAddArtistSuccess}
+        />
+      )}
+
       {editingSubmission && (
         <PoolEditModal
           submission={editingSubmission}
@@ -483,7 +501,6 @@ function AdminOpenMicInner() {
         />
       )}
 
-      {/* Pool delete confirm modal */}
       {deletingSubmission && (
         <DeletePoolConfirmModal
           submission={deletingSubmission}
@@ -493,7 +510,6 @@ function AdminOpenMicInner() {
         />
       )}
 
-      {/* Session delete confirm modal (non-empty sessions only) */}
       {deletingSession && (
         <DeleteSessionConfirmModal
           session={deletingSession}
