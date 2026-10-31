@@ -9,15 +9,13 @@ import {
   Clock,
   DollarSign,
   Zap,
-  Calendar,
-  ChevronDown,
   Search,
   X,
   Download,
   AlertCircle,
   Loader2,
-  ArrowUpDown,
 } from 'lucide-react'
+import { NeedsReviewTab } from './NeedsReviewTab'
 
 // ============================================
 // TYPES
@@ -53,6 +51,7 @@ interface ApiResponse {
 }
 
 type RangePreset = 'today' | 'this-week' | 'this-month' | 'all'
+type Tab = 'activity' | 'needs-review'
 
 // ============================================
 // HELPERS
@@ -72,10 +71,8 @@ function getRangeDates(preset: RangePreset): { from?: string; to?: string } {
   if (preset === 'today') {
     return { from: todayIso, to: todayIso }
   }
-
   if (preset === 'this-week') {
-    // Monday → Sunday of the current week
-    const dow = now.getDay() // 0=Sun
+    const dow = now.getDay()
     const mondayOffset = dow === 0 ? -6 : 1 - dow
     const monday = new Date(now)
     monday.setDate(now.getDate() + mondayOffset)
@@ -83,14 +80,11 @@ function getRangeDates(preset: RangePreset): { from?: string; to?: string } {
     sunday.setDate(monday.getDate() + 6)
     return { from: toIsoLocal(monday), to: toIsoLocal(sunday) }
   }
-
   if (preset === 'this-month') {
     const start = new Date(now.getFullYear(), now.getMonth(), 1)
     const end = new Date(now.getFullYear(), now.getMonth() + 1, 0)
     return { from: toIsoLocal(start), to: toIsoLocal(end) }
   }
-
-  // 'all'
   return {}
 }
 
@@ -123,12 +117,14 @@ function formatCurrency(n: number): string {
 // ============================================
 
 export default function AdminStaffDashboardPage() {
+  const [tab, setTab] = useState<Tab>('activity')
   const [data, setData] = useState<ApiResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [range, setRange] = useState<RangePreset>('this-month')
   const [searchTerm, setSearchTerm] = useState('')
   const [actionId, setActionId] = useState<string | null>(null)
+  const [pendingReviewCount, setPendingReviewCount] = useState<number>(0)
 
   const fetchData = useCallback(async (opts?: { silent?: boolean }) => {
     if (!opts?.silent) setError(null)
@@ -153,12 +149,25 @@ export default function AdminStaffDashboardPage() {
     }
   }, [range])
 
+  const fetchPendingCount = useCallback(async () => {
+    try {
+      const res = await fetch('/api/admin/worklogs?filter=needs-review')
+      if (res.ok) {
+        const body = await res.json()
+        setPendingReviewCount(body.count || 0)
+      }
+    } catch {
+      // silent
+    }
+  }, [])
+
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
       void fetchData()
+      void fetchPendingCount()
     }, 0)
     return () => window.clearTimeout(timeoutId)
-  }, [fetchData])
+  }, [fetchData, fetchPendingCount])
 
   const handleUpdateHours = async (
     assignmentId: string,
@@ -211,7 +220,6 @@ export default function AdminStaffDashboardPage() {
     }
   }
 
-  // Filter rows by search
   const filteredRows = useMemo(() => {
     if (!data) return []
     if (!searchTerm.trim()) return data.rows
@@ -264,7 +272,7 @@ export default function AdminStaffDashboardPage() {
     URL.revokeObjectURL(url)
   }
 
-  // ---- Loading ----
+  // ---- LOADING ----
 
   if (loading) {
     return (
@@ -276,7 +284,7 @@ export default function AdminStaffDashboardPage() {
     )
   }
 
-  // ---- Error ----
+  // ---- ERROR ----
 
   if (error || !data) {
     return (
@@ -321,268 +329,314 @@ export default function AdminStaffDashboardPage() {
               <RefreshCw className="w-4 h-4" />
               Refresh
             </button>
-            <button
-              onClick={handleExportCsv}
-              disabled={filteredRows.length === 0}
-              className="bg-chartreuse hover:bg-chartreuse/90 text-grove px-4 py-2 rounded-xl font-host-grotesk font-semibold text-sm flex items-center gap-2 transition-all shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              <Download className="w-4 h-4" />
-              Export CSV
-            </button>
+            {tab === 'activity' && (
+              <button
+                onClick={handleExportCsv}
+                disabled={filteredRows.length === 0}
+                className="bg-chartreuse hover:bg-chartreuse/90 text-grove px-4 py-2 rounded-xl font-host-grotesk font-semibold text-sm flex items-center gap-2 transition-all shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <Download className="w-4 h-4" />
+                Export CSV
+              </button>
+            )}
           </div>
         </div>
 
-        {/* Summary cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <div className="bg-white rounded-xl p-5 border border-rosewood/5 shadow-sm">
-            <div className="flex items-center gap-2 mb-1">
-              <Users className="w-4 h-4 text-rosewood/40" />
-              <p className="font-host-grotesk text-xs text-rosewood/40 uppercase tracking-wider">
-                Total Shifts
-              </p>
-            </div>
-            <p className="font-host-grotesk text-2xl font-bold text-rosewood">
-              {data.summary.total}
-            </p>
-          </div>
-          <div className="bg-white rounded-xl p-5 border border-chartreuse/30 shadow-sm">
-            <div className="flex items-center gap-2 mb-1">
-              <Zap className="w-4 h-4 text-chartreuse" />
-              <p className="font-host-grotesk text-xs text-rosewood/40 uppercase tracking-wider">
-                Clocked In Now
-              </p>
-            </div>
-            <p className="font-host-grotesk text-2xl font-bold text-rosewood">
-              {data.summary.currentlyClockedIn}
-            </p>
-          </div>
-          <div className="bg-white rounded-xl p-5 border border-rosewood/5 shadow-sm">
-            <div className="flex items-center gap-2 mb-1">
-              <Clock className="w-4 h-4 text-rosewood/40" />
-              <p className="font-host-grotesk text-xs text-rosewood/40 uppercase tracking-wider">
-                Total Hours
-              </p>
-            </div>
-            <p className="font-host-grotesk text-2xl font-bold text-rosewood">
-              {data.summary.totalHours}h
-            </p>
-          </div>
-          <div className="bg-white rounded-xl p-5 border border-rosewood/5 shadow-sm">
-            <div className="flex items-center gap-2 mb-1">
-              <DollarSign className="w-4 h-4 text-rosewood/40" />
-              <p className="font-host-grotesk text-xs text-rosewood/40 uppercase tracking-wider">
-                Total Owed
-              </p>
-            </div>
-            <p className="font-host-grotesk text-2xl font-bold text-rosewood">
-              {formatCurrency(data.summary.totalOwed)}
-            </p>
-          </div>
+        {/* Tabs */}
+        <div className="flex gap-2 border-b border-rosewood/10 mb-6">
+          <button
+            onClick={() => setTab('activity')}
+            className={`px-4 py-2 font-host-grotesk font-semibold text-sm transition-all flex items-center gap-1.5 ${
+              tab === 'activity'
+                ? 'text-rosewood border-b-2 border-rosewood'
+                : 'text-rosewood/40 hover:text-rosewood/60'
+            }`}
+          >
+            <Users className="w-4 h-4" />
+            Activity
+          </button>
+          <button
+            onClick={() => {
+              setTab('needs-review')
+              void fetchPendingCount()
+            }}
+            className={`px-4 py-2 font-host-grotesk font-semibold text-sm transition-all flex items-center gap-1.5 ${
+              tab === 'needs-review'
+                ? 'text-rosewood border-b-2 border-rosewood'
+                : 'text-rosewood/40 hover:text-rosewood/60'
+            }`}
+          >
+            <AlertCircle className="w-4 h-4" />
+            Needs review
+            {pendingReviewCount > 0 && (
+              <span className="bg-poppy text-plaster text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
+                {pendingReviewCount}
+              </span>
+            )}
+          </button>
         </div>
 
-        {/* Currently clocked in banner */}
-        {data.currentlyClockedIn.length > 0 && (
-          <div className="bg-chartreuse/10 border-2 border-chartreuse/30 rounded-2xl p-4 mb-6">
-            <div className="flex items-center gap-2 mb-3">
-              <span className="w-2 h-2 rounded-full bg-chartreuse animate-pulse" />
-              <h3 className="font-host-grotesk font-bold text-sm text-cypress uppercase tracking-wider">
-                Currently Working ({data.currentlyClockedIn.length})
-              </h3>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {data.currentlyClockedIn.map((r) => (
-                <div
-                  key={r.assignmentId}
-                  className="bg-white rounded-lg px-3 py-2 border border-chartreuse/30"
-                >
-                  <p className="font-host-grotesk font-semibold text-sm text-rosewood">
-                    {r.staffName}
-                  </p>
-                  <p className="font-host-grotesk text-xs text-rosewood/50">
-                    {r.eventName} · since {formatTime(r.checkInTime)}
+        {/* Activity tab */}
+        {tab === 'activity' && (
+          <>
+            {/* Summary cards */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+              <div className="bg-white rounded-xl p-5 border border-rosewood/5 shadow-sm">
+                <div className="flex items-center gap-2 mb-1">
+                  <Users className="w-4 h-4 text-rosewood/40" />
+                  <p className="font-host-grotesk text-xs text-rosewood/40 uppercase tracking-wider">
+                    Total Shifts
                   </p>
                 </div>
-              ))}
+                <p className="font-host-grotesk text-2xl font-bold text-rosewood">
+                  {data.summary.total}
+                </p>
+              </div>
+              <div className="bg-white rounded-xl p-5 border border-chartreuse/30 shadow-sm">
+                <div className="flex items-center gap-2 mb-1">
+                  <Zap className="w-4 h-4 text-chartreuse" />
+                  <p className="font-host-grotesk text-xs text-rosewood/40 uppercase tracking-wider">
+                    Clocked In Now
+                  </p>
+                </div>
+                <p className="font-host-grotesk text-2xl font-bold text-rosewood">
+                  {data.summary.currentlyClockedIn}
+                </p>
+              </div>
+              <div className="bg-white rounded-xl p-5 border border-rosewood/5 shadow-sm">
+                <div className="flex items-center gap-2 mb-1">
+                  <Clock className="w-4 h-4 text-rosewood/40" />
+                  <p className="font-host-grotesk text-xs text-rosewood/40 uppercase tracking-wider">
+                    Total Hours
+                  </p>
+                </div>
+                <p className="font-host-grotesk text-2xl font-bold text-rosewood">
+                  {data.summary.totalHours}h
+                </p>
+              </div>
+              <div className="bg-white rounded-xl p-5 border border-rosewood/5 shadow-sm">
+                <div className="flex items-center gap-2 mb-1">
+                  <DollarSign className="w-4 h-4 text-rosewood/40" />
+                  <p className="font-host-grotesk text-xs text-rosewood/40 uppercase tracking-wider">
+                    Total Owed
+                  </p>
+                </div>
+                <p className="font-host-grotesk text-2xl font-bold text-rosewood">
+                  {formatCurrency(data.summary.totalOwed)}
+                </p>
+              </div>
             </div>
-          </div>
+
+            {/* Currently clocked in banner */}
+            {data.currentlyClockedIn.length > 0 && (
+              <div className="bg-chartreuse/10 border-2 border-chartreuse/30 rounded-2xl p-4 mb-6">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="w-2 h-2 rounded-full bg-chartreuse animate-pulse" />
+                  <h3 className="font-host-grotesk font-bold text-sm text-cypress uppercase tracking-wider">
+                    Currently Working ({data.currentlyClockedIn.length})
+                  </h3>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {data.currentlyClockedIn.map((r) => (
+                    <div
+                      key={r.assignmentId}
+                      className="bg-white rounded-lg px-3 py-2 border border-chartreuse/30"
+                    >
+                      <p className="font-host-grotesk font-semibold text-sm text-rosewood">
+                        {r.staffName}
+                      </p>
+                      <p className="font-host-grotesk text-xs text-rosewood/50">
+                        {r.eventName} · since {formatTime(r.checkInTime)}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Filters */}
+            <div className="flex flex-wrap items-center gap-3 mb-6">
+              <div className="flex bg-white rounded-xl p-1 border border-rosewood/10 shadow-sm">
+                {(
+                  [
+                    ['today', 'Today'],
+                    ['this-week', 'This Week'],
+                    ['this-month', 'This Month'],
+                    ['all', 'All Time'],
+                  ] as const
+                ).map(([key, label]) => (
+                  <button
+                    key={key}
+                    onClick={() => setRange(key)}
+                    className={`px-3 py-1.5 rounded-lg font-host-grotesk font-semibold text-xs transition-all ${
+                      range === key
+                        ? 'bg-rosewood text-plaster'
+                        : 'text-rosewood/60 hover:text-rosewood'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex-1 min-w-[200px]">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-rosewood/30" />
+                  <input
+                    type="text"
+                    placeholder="Search by staff or event..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-10 pr-10 py-2.5 bg-white border border-rosewood/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-chartreuse/40 font-host-grotesk text-sm text-rosewood"
+                  />
+                  {searchTerm && (
+                    <button
+                      onClick={() => setSearchTerm('')}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-rosewood/30 hover:text-rosewood transition-colors"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <span className="font-host-grotesk text-sm text-rosewood/50">
+                {filteredRows.length} of {data.rows.length} shown
+              </span>
+            </div>
+
+            {/* Table */}
+            {filteredRows.length === 0 ? (
+              <div className="bg-white rounded-2xl p-12 border border-rosewood/5 shadow-sm text-center">
+                <AlertCircle className="w-12 h-12 text-rosewood/20 mx-auto mb-3" />
+                <p className="font-host-grotesk text-rosewood/50">
+                  {data.rows.length === 0
+                    ? 'No shifts in this date range.'
+                    : 'No shifts match your search.'}
+                </p>
+              </div>
+            ) : (
+              <div className="bg-white rounded-2xl border border-rosewood/5 shadow-sm overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-plaster/40">
+                      <tr>
+                        <th className="text-left px-4 py-3 font-host-grotesk font-semibold text-xs uppercase text-rosewood/50">
+                          Staff
+                        </th>
+                        <th className="text-left px-4 py-3 font-host-grotesk font-semibold text-xs uppercase text-rosewood/50">
+                          Event
+                        </th>
+                        <th className="text-left px-4 py-3 font-host-grotesk font-semibold text-xs uppercase text-rosewood/50">
+                          Shift
+                        </th>
+                        <th className="text-left px-4 py-3 font-host-grotesk font-semibold text-xs uppercase text-rosewood/50">
+                          Check In / Out
+                        </th>
+                        <th className="text-right px-4 py-3 font-host-grotesk font-semibold text-xs uppercase text-rosewood/50">
+                          Hours
+                        </th>
+                        <th className="text-right px-4 py-3 font-host-grotesk font-semibold text-xs uppercase text-rosewood/50">
+                          Rate
+                        </th>
+                        <th className="text-right px-4 py-3 font-host-grotesk font-semibold text-xs uppercase text-rosewood/50">
+                          Owed
+                        </th>
+                        <th className="text-center px-4 py-3 font-host-grotesk font-semibold text-xs uppercase text-rosewood/50">
+                          Status
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredRows.map((r) => (
+                        <tr
+                          key={r.assignmentId}
+                          className={`border-t border-rosewood/5 hover:bg-plaster/20 transition-colors ${
+                            r.isCurrentlyClockedIn ? 'bg-chartreuse/5' : ''
+                          }`}
+                        >
+                          <td className="px-4 py-3 align-top">
+                            <p className="font-host-grotesk font-semibold text-rosewood text-sm">
+                              {r.staffName}
+                            </p>
+                          </td>
+                          <td className="px-4 py-3 align-top">
+                            <Link
+                              href={`/admin/events/${r.eventId}/staff`}
+                              className="font-host-grotesk text-sm text-rosewood hover:text-chartreuse transition-colors"
+                            >
+                              {r.eventName}
+                            </Link>
+                          </td>
+                          <td className="px-4 py-3 align-top font-host-grotesk text-xs text-rosewood/60 whitespace-nowrap">
+                            {formatDate(r.shiftStart)}
+                            <br />
+                            {formatTime(r.shiftStart)} – {formatTime(r.shiftEnd)}
+                          </td>
+                          <td className="px-4 py-3 align-top font-host-grotesk text-xs text-rosewood/60 whitespace-nowrap">
+                            {formatTime(r.checkInTime)}
+                            <br />
+                            {formatTime(r.checkOutTime)}
+                          </td>
+                          <td className="px-4 py-3 align-top text-right">
+                            <InlineNumberEdit
+                              value={r.hoursWorked}
+                              onSave={(v) =>
+                                handleUpdateHours(r.assignmentId, v)
+                              }
+                              isSaving={actionId === r.assignmentId}
+                              step={0.25}
+                              suffix="h"
+                            />
+                          </td>
+                          <td className="px-4 py-3 align-top text-right">
+                            <InlineNumberEdit
+                              value={r.hourlyRate}
+                              onSave={(v) =>
+                                handleUpdateRate(r.assignmentId, v)
+                              }
+                              isSaving={actionId === r.assignmentId}
+                              step={0.5}
+                              prefix="$"
+                              suffix="/hr"
+                            />
+                          </td>
+                          <td className="px-4 py-3 align-top text-right font-host-grotesk font-semibold text-rosewood text-sm whitespace-nowrap">
+                            {formatCurrency(r.amountOwed)}
+                          </td>
+                          <td className="px-4 py-3 align-top text-center">
+                            {r.isCurrentlyClockedIn ? (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-chartreuse text-grove">
+                                <span className="w-1.5 h-1.5 rounded-full bg-grove animate-pulse" />
+                                On Shift
+                              </span>
+                            ) : r.status === 'completed' ? (
+                              <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-grove/10 text-grove">
+                                Completed
+                              </span>
+                            ) : r.status === 'cancelled' ? (
+                              <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-poppy/10 text-poppy">
+                                Cancelled
+                              </span>
+                            ) : (
+                              <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-rosewood/10 text-rosewood/60">
+                                {r.status}
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </>
         )}
 
-        {/* Filters */}
-        <div className="flex flex-wrap items-center gap-3 mb-6">
-          <div className="flex bg-white rounded-xl p-1 border border-rosewood/10 shadow-sm">
-            {(
-              [
-                ['today', 'Today'],
-                ['this-week', 'This Week'],
-                ['this-month', 'This Month'],
-                ['all', 'All Time'],
-              ] as const
-            ).map(([key, label]) => (
-              <button
-                key={key}
-                onClick={() => setRange(key)}
-                className={`px-3 py-1.5 rounded-lg font-host-grotesk font-semibold text-xs transition-all ${
-                  range === key
-                    ? 'bg-rosewood text-plaster'
-                    : 'text-rosewood/60 hover:text-rosewood'
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-
-          <div className="flex-1 min-w-[200px]">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-rosewood/30" />
-              <input
-                type="text"
-                placeholder="Search by staff or event..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-10 py-2.5 bg-white border border-rosewood/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-chartreuse/40 font-host-grotesk text-sm text-rosewood"
-              />
-              {searchTerm && (
-                <button
-                  onClick={() => setSearchTerm('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-rosewood/30 hover:text-rosewood transition-colors"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              )}
-            </div>
-          </div>
-
-          <span className="font-host-grotesk text-sm text-rosewood/50">
-            {filteredRows.length} of {data.rows.length} shown
-          </span>
-        </div>
-
-        {/* Table */}
-        {filteredRows.length === 0 ? (
-          <div className="bg-white rounded-2xl p-12 border border-rosewood/5 shadow-sm text-center">
-            <AlertCircle className="w-12 h-12 text-rosewood/20 mx-auto mb-3" />
-            <p className="font-host-grotesk text-rosewood/50">
-              {data.rows.length === 0
-                ? 'No shifts in this date range.'
-                : 'No shifts match your search.'}
-            </p>
-          </div>
-        ) : (
-          <div className="bg-white rounded-2xl border border-rosewood/5 shadow-sm overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-plaster/40">
-                  <tr>
-                    <th className="text-left px-4 py-3 font-host-grotesk font-semibold text-xs uppercase text-rosewood/50">
-                      Staff
-                    </th>
-                    <th className="text-left px-4 py-3 font-host-grotesk font-semibold text-xs uppercase text-rosewood/50">
-                      Event
-                    </th>
-                    <th className="text-left px-4 py-3 font-host-grotesk font-semibold text-xs uppercase text-rosewood/50">
-                      Shift
-                    </th>
-                    <th className="text-left px-4 py-3 font-host-grotesk font-semibold text-xs uppercase text-rosewood/50">
-                      Check In / Out
-                    </th>
-                    <th className="text-right px-4 py-3 font-host-grotesk font-semibold text-xs uppercase text-rosewood/50">
-                      Hours
-                    </th>
-                    <th className="text-right px-4 py-3 font-host-grotesk font-semibold text-xs uppercase text-rosewood/50">
-                      Rate
-                    </th>
-                    <th className="text-right px-4 py-3 font-host-grotesk font-semibold text-xs uppercase text-rosewood/50">
-                      Owed
-                    </th>
-                    <th className="text-center px-4 py-3 font-host-grotesk font-semibold text-xs uppercase text-rosewood/50">
-                      Status
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredRows.map((r) => (
-                    <tr
-                      key={r.assignmentId}
-                      className={`border-t border-rosewood/5 hover:bg-plaster/20 transition-colors ${
-                        r.isCurrentlyClockedIn ? 'bg-chartreuse/5' : ''
-                      }`}
-                    >
-                      <td className="px-4 py-3 align-top">
-                        <p className="font-host-grotesk font-semibold text-rosewood text-sm">
-                          {r.staffName}
-                        </p>
-                      </td>
-                      <td className="px-4 py-3 align-top">
-                        <Link
-                          href={`/admin/events/${r.eventId}/staff`}
-                          className="font-host-grotesk text-sm text-rosewood hover:text-chartreuse transition-colors"
-                        >
-                          {r.eventName}
-                        </Link>
-                      </td>
-                      <td className="px-4 py-3 align-top font-host-grotesk text-xs text-rosewood/60 whitespace-nowrap">
-                        {formatDate(r.shiftStart)}
-                        <br />
-                        {formatTime(r.shiftStart)} – {formatTime(r.shiftEnd)}
-                      </td>
-                      <td className="px-4 py-3 align-top font-host-grotesk text-xs text-rosewood/60 whitespace-nowrap">
-                        {formatTime(r.checkInTime)}
-                        <br />
-                        {formatTime(r.checkOutTime)}
-                      </td>
-                      <td className="px-4 py-3 align-top text-right">
-                        <InlineNumberEdit
-                          value={r.hoursWorked}
-                          onSave={(v) =>
-                            handleUpdateHours(r.assignmentId, v)
-                          }
-                          isSaving={actionId === r.assignmentId}
-                          step={0.25}
-                          suffix="h"
-                        />
-                      </td>
-                      <td className="px-4 py-3 align-top text-right">
-                        <InlineNumberEdit
-                          value={r.hourlyRate}
-                          onSave={(v) =>
-                            handleUpdateRate(r.assignmentId, v)
-                          }
-                          isSaving={actionId === r.assignmentId}
-                          step={0.5}
-                          prefix="$"
-                          suffix="/hr"
-                        />
-                      </td>
-                      <td className="px-4 py-3 align-top text-right font-host-grotesk font-semibold text-rosewood text-sm whitespace-nowrap">
-                        {formatCurrency(r.amountOwed)}
-                      </td>
-                      <td className="px-4 py-3 align-top text-center">
-                        {r.isCurrentlyClockedIn ? (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-chartreuse text-grove">
-                            <span className="w-1.5 h-1.5 rounded-full bg-grove animate-pulse" />
-                            On Shift
-                          </span>
-                        ) : r.status === 'completed' ? (
-                          <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-grove/10 text-grove">
-                            Completed
-                          </span>
-                        ) : r.status === 'cancelled' ? (
-                          <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-poppy/10 text-poppy">
-                            Cancelled
-                          </span>
-                        ) : (
-                          <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-rosewood/10 text-rosewood/60">
-                            {r.status}
-                          </span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
+        {/* Needs review tab */}
+        {tab === 'needs-review' && (
+          <NeedsReviewTab />
         )}
       </div>
     </div>
@@ -613,7 +667,6 @@ function InlineNumberEdit({
   )
   const [lastSaved, setLastSaved] = useState(value)
 
-  // Reconcile state with an externally changed value before rendering children.
   if (value !== lastSaved) {
     setLocal(value !== undefined ? String(value) : '')
     setLastSaved(value)
@@ -621,7 +674,6 @@ function InlineNumberEdit({
 
   const handleBlur = () => {
     if (local === '') {
-      // Restore previous
       setLocal(lastSaved !== undefined ? String(lastSaved) : '')
       return
     }

@@ -103,6 +103,8 @@ export interface StaffAssignment {
   staffNote?: string
   createdAt: string
   updatedAt: string
+  noShow?: boolean
+  needsReview?: boolean
 }
 
 // ============================================
