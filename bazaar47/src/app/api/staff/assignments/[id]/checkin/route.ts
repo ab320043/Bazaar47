@@ -12,7 +12,6 @@ export async function POST(
 
     const session = await getStaffSession()
     if (!session) {
-      console.warn('[checkin] 401: no valid session')
       return NextResponse.json(
         { error: 'Your session has expired. Please log in again.' },
         { status: 401 }
@@ -34,10 +33,20 @@ export async function POST(
       )
     }
 
+    // Response shape: staff UI expects an `assignment` object with
+    // checkInTime populated. Synthesize that from the work log so the
+    // client keeps working without changes.
     return NextResponse.json({
       success: true,
       message: 'Checked in successfully',
-      assignment: result.assignment,
+      assignment: {
+        ...result.assignment,
+        checkInTime: result.workLog.checkInTime,
+        checkOutTime: result.workLog.checkOutTime,
+        hoursWorked: result.workLog.hoursWorked,
+        status: 'checked-in',
+      },
+      workLog: result.workLog,
     })
   } catch (error) {
     console.error('[checkin] unexpected error:', error)

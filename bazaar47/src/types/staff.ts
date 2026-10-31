@@ -87,10 +87,22 @@ export interface StaffAssignment {
   hourlyRate: number
   shiftStart: string
   shiftEnd: string
-  hoursWorked?: number
   estimatedHours?: number
+
+  /**
+   * @deprecated Phase 1.5 — worked time lives on WorkLog, not here.
+   * Read from `WorkLog.checkInTime` instead. Kept optional so legacy
+   * assignment records (pre-Phase-1.5) still deserialize without errors.
+   * Do not write to this field.
+   */
   checkInTime?: string
+
+  /** @deprecated Phase 1.5 — see checkInTime. */
   checkOutTime?: string
+
+  /** @deprecated Phase 1.5 — see checkInTime. */
+  hoursWorked?: number
+
   breakStart?: string
   breakEnd?: string
   status: AssignmentStatus
@@ -103,7 +115,11 @@ export interface StaffAssignment {
   staffNote?: string
   createdAt: string
   updatedAt: string
+
+  /** Phase 0 reconciliation: set true when the no-show sweep fires. */
   noShow?: boolean
+
+  /** Phase 0 reconciliation: set true when auto-close fires. */
   needsReview?: boolean
 }
 

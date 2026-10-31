@@ -1,7 +1,7 @@
 // lib/storage/staff-assignments.ts
 import { Redis } from '@upstash/redis'
 import type { StaffAssignment, AssignmentStatus, StaffRole } from '@/types/staff'
-import { getPeriodForDate } from '@/lib/staff/payroll-period'
+// import { getPeriodForDate } from '@/lib/staff/payroll-period'
 
 
 const redis = Redis.fromEnv()
@@ -206,124 +206,124 @@ export async function deleteAssignment(id: string): Promise<boolean> {
   return true
 }
 
-export async function checkInStaff(id: string): Promise<StaffAssignment | undefined> {
-  return updateAssignment(id, {
-    checkInTime: new Date().toISOString(),
-    status: 'checked-in',
-  })
-}
+// export async function checkInStaff(id: string): Promise<StaffAssignment | undefined> {
+//   return updateAssignment(id, {
+//     checkInTime: new Date().toISOString(),
+//     status: 'checked-in',
+//   })
+// }
 
-export async function checkOutStaff(id: string): Promise<StaffAssignment | undefined> {
-  const assignment = await getAssignments().then(a => a.find(a => a.id === id))
-  if (!assignment) return undefined
+// export async function checkOutStaff(id: string): Promise<StaffAssignment | undefined> {
+//   const assignment = await getAssignments().then(a => a.find(a => a.id === id))
+//   if (!assignment) return undefined
   
-  const checkIn = assignment.checkInTime ? new Date(assignment.checkInTime) : null
-  const checkOut = new Date()
-  let hoursWorked = 0
+//   const checkIn = assignment.checkInTime ? new Date(assignment.checkInTime) : null
+//   const checkOut = new Date()
+//   let hoursWorked = 0
   
-  if (checkIn) {
-    hoursWorked = (checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60)
+//   if (checkIn) {
+//     hoursWorked = (checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60)
 
-    // If a break was logged, deduct its duration.
-    if (assignment.breakStart && assignment.breakEnd) {
-      const breakStart = new Date(assignment.breakStart).getTime()
-      const breakEnd = new Date(assignment.breakEnd).getTime()
-      if (breakEnd > breakStart) {
-        const breakHours = (breakEnd - breakStart) / (1000 * 60 * 60)
-        hoursWorked = Math.max(0, hoursWorked - breakHours)
-      }
-    }
-  }
+//     // If a break was logged, deduct its duration.
+//     if (assignment.breakStart && assignment.breakEnd) {
+//       const breakStart = new Date(assignment.breakStart).getTime()
+//       const breakEnd = new Date(assignment.breakEnd).getTime()
+//       if (breakEnd > breakStart) {
+//         const breakHours = (breakEnd - breakStart) / (1000 * 60 * 60)
+//         hoursWorked = Math.max(0, hoursWorked - breakHours)
+//       }
+//     }
+//   }
   
-  return updateAssignment(id, {
-    checkOutTime: checkOut.toISOString(),
-    hoursWorked: Math.round(hoursWorked * 100) / 100,
-    status: 'completed',
-  })
-}
+//   return updateAssignment(id, {
+//     checkOutTime: checkOut.toISOString(),
+//     hoursWorked: Math.round(hoursWorked * 100) / 100,
+//     status: 'completed',
+//   })
+// }
 
-export async function getStaffDashboardData(staffId: string): Promise<{
-  upcoming: StaffAssignment[]
-  past: StaffAssignment[]
-  current: StaffAssignment | undefined
-  stats: {
-    hoursThisPeriod: number
-    earnedThisPeriod: number
-    hoursThisMonth: number
-    earnedThisMonth: number
-    hoursAllTime: number
-    earnedAllTime: number
-    upcomingCount: number
-  }
-}> {
-  const assignments = await getAssignmentsByStaff(staffId)
-  const now = new Date()
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+// export async function getStaffDashboardData(staffId: string): Promise<{
+//   upcoming: StaffAssignment[]
+//   past: StaffAssignment[]
+//   current: StaffAssignment | undefined
+//   stats: {
+//     hoursThisPeriod: number
+//     earnedThisPeriod: number
+//     hoursThisMonth: number
+//     earnedThisMonth: number
+//     hoursAllTime: number
+//     earnedAllTime: number
+//     upcomingCount: number
+//   }
+// }> {
+//   const assignments = await getAssignmentsByStaff(staffId)
+//   const now = new Date()
+//   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
 
-  // Import the period helper — needs to be added at the top of the file
-  // import { getPeriodForDate } from '@/lib/staff/payroll-period'
-  const period = getPeriodForDate(now)
+//   // Import the period helper — needs to be added at the top of the file
+//   // import { getPeriodForDate } from '@/lib/staff/payroll-period'
+//   const period = getPeriodForDate(now)
 
-  const upcoming = assignments.filter(a => {
-    const shiftStart = new Date(a.shiftStart)
-    return shiftStart > now && a.status !== 'cancelled' && a.status !== 'completed'
-  }).sort((a, b) => new Date(a.shiftStart).getTime() - new Date(b.shiftStart).getTime())
+//   const upcoming = assignments.filter(a => {
+//     const shiftStart = new Date(a.shiftStart)
+//     return shiftStart > now && a.status !== 'cancelled' && a.status !== 'completed'
+//   }).sort((a, b) => new Date(a.shiftStart).getTime() - new Date(b.shiftStart).getTime())
 
-  const current = assignments.find(a => {
-    const shiftStart = new Date(a.shiftStart)
-    const shiftEnd = new Date(a.shiftEnd)
-    return shiftStart <= now && shiftEnd >= now && a.status !== 'completed' && a.status !== 'cancelled'
-  })
+//   const current = assignments.find(a => {
+//     const shiftStart = new Date(a.shiftStart)
+//     const shiftEnd = new Date(a.shiftEnd)
+//     return shiftStart <= now && shiftEnd >= now && a.status !== 'completed' && a.status !== 'cancelled'
+//   })
 
-  const past = assignments.filter(a => {
-    const shiftEnd = new Date(a.shiftEnd)
-    return shiftEnd < now || a.status === 'completed'
-  }).sort((a, b) => new Date(b.shiftEnd).getTime() - new Date(a.shiftEnd).getTime())
+//   const past = assignments.filter(a => {
+//     const shiftEnd = new Date(a.shiftEnd)
+//     return shiftEnd < now || a.status === 'completed'
+//   }).sort((a, b) => new Date(b.shiftEnd).getTime() - new Date(a.shiftEnd).getTime())
 
-  let hoursThisPeriod = 0
-  let earnedThisPeriod = 0
-  let hoursThisMonth = 0
-  let earnedThisMonth = 0
-  let hoursAllTime = 0
-  let earnedAllTime = 0
+//   let hoursThisPeriod = 0
+//   let earnedThisPeriod = 0
+//   let hoursThisMonth = 0
+//   let earnedThisMonth = 0
+//   let hoursAllTime = 0
+//   let earnedAllTime = 0
 
-  for (const a of assignments) {
-    if (a.status !== 'completed' || a.hoursWorked === undefined) continue
+//   for (const a of assignments) {
+//     if (a.status !== 'completed' || a.hoursWorked === undefined) continue
 
-    const hours = a.hoursWorked
-    const earned = hours * a.hourlyRate
+//     const hours = a.hoursWorked
+//     const earned = hours * a.hourlyRate
 
-    hoursAllTime += hours
-    earnedAllTime += earned
+//     hoursAllTime += hours
+//     earnedAllTime += earned
 
-    const createdAt = new Date(a.createdAt)
-    const createdAtIso = `${createdAt.getFullYear()}-${String(createdAt.getMonth() + 1).padStart(2, '0')}-${String(createdAt.getDate()).padStart(2, '0')}`
+//     const createdAt = new Date(a.createdAt)
+//     const createdAtIso = `${createdAt.getFullYear()}-${String(createdAt.getMonth() + 1).padStart(2, '0')}-${String(createdAt.getDate()).padStart(2, '0')}`
 
-    if (createdAtIso >= period.startIso && createdAtIso <= period.endIso) {
-      hoursThisPeriod += hours
-      earnedThisPeriod += earned
-    }
+//     if (createdAtIso >= period.startIso && createdAtIso <= period.endIso) {
+//       hoursThisPeriod += hours
+//       earnedThisPeriod += earned
+//     }
 
-    if (createdAt >= startOfMonth) {
-      hoursThisMonth += hours
-      earnedThisMonth += earned
-    }
-  }
+//     if (createdAt >= startOfMonth) {
+//       hoursThisMonth += hours
+//       earnedThisMonth += earned
+//     }
+//   }
 
-  const round2 = (n: number) => Math.round(n * 100) / 100
+//   const round2 = (n: number) => Math.round(n * 100) / 100
 
-  return {
-    upcoming,
-    past,
-    current,
-    stats: {
-      hoursThisPeriod: round2(hoursThisPeriod),
-      earnedThisPeriod: round2(earnedThisPeriod),
-      hoursThisMonth: round2(hoursThisMonth),
-      earnedThisMonth: round2(earnedThisMonth),
-      hoursAllTime: round2(hoursAllTime),
-      earnedAllTime: round2(earnedAllTime),
-      upcomingCount: upcoming.length,
-    },
-  }
-}
+//   return {
+//     upcoming,
+//     past,
+//     current,
+//     stats: {
+//       hoursThisPeriod: round2(hoursThisPeriod),
+//       earnedThisPeriod: round2(earnedThisPeriod),
+//       hoursThisMonth: round2(hoursThisMonth),
+//       earnedThisMonth: round2(earnedThisMonth),
+//       hoursAllTime: round2(hoursAllTime),
+//       earnedAllTime: round2(earnedAllTime),
+//       upcomingCount: upcoming.length,
+//     },
+//   }
+// }

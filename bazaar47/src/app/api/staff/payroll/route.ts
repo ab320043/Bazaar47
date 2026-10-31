@@ -1,29 +1,30 @@
 // app/api/staff/payroll/route.ts
 import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentStaff } from '@/lib/staff/auth'
-import { getAssignmentsByStaff } from '@/lib/storage/staff-assignments'
+import { getWorkLogsByStaffAndPeriod } from '@/lib/storage/staff-worklogs'
 import {
   getPeriodForDate,
-  isDateInPeriod,
   type PayrollPeriod,
 } from '@/lib/staff/payroll-period'
-import type { StaffAssignment } from '@/types/staff'
 
 // ============================================
 // TYPES (exported for client reuse)
 // ============================================
 
 export interface PayrollLedgerEntry {
-  assignmentId: string
+  workLogId: string
+  assignmentId: string | undefined
   eventId: string
   eventName: string
-  roles: string[]         // labels, already resolved
+  roles: string[]
   position: string
   shiftStart: string
   shiftEnd: string
   hoursWorked: number
   hourlyRate: number
   amount: number
+  resolution: 'manual' | 'auto-close' | 'admin-edit'
+  needsReview: boolean
 }
 
 export interface PayrollResponse {
@@ -43,28 +44,12 @@ export interface PayrollResponse {
 // HELPERS
 // ============================================
 
-function isCompleted(a: StaffAssignment): boolean {
-  return a.status === 'completed' && typeof a.hoursWorked === 'number'
-}
-
-function toLedgerEntry(a: StaffAssignment): PayrollLedgerEntry {
-  const hours = a.hoursWorked ?? 0
-  return {
-    assignmentId: a.id,
-    eventId: a.eventId,
-    eventName: a.eventName,
-    roles: a.roles,
-    position: a.position,
-    shiftStart: a.shiftStart,
-    shiftEnd: a.shiftEnd,
-    hoursWorked: hours,
-    hourlyRate: a.hourlyRate,
-    amount: Math.round(hours * a.hourlyRate * 100) / 100,
-  }
+function round2(n: number): number {
+  return Math.round(n * 100) / 100
 }
 
 // ============================================
-// GET
+// ROUTE
 // ============================================
 
 /**
@@ -86,7 +71,6 @@ export async function GET(request: NextRequest) {
     const periodStart = searchParams.get('periodStart')
     const periodEnd = searchParams.get('periodEnd')
 
-    // Determine target period
     let period: PayrollPeriod
     if (periodStart && periodEnd) {
       period = {
@@ -98,17 +82,29 @@ export async function GET(request: NextRequest) {
       period = getPeriodForDate(new Date())
     }
 
-    const assignments = await getAssignmentsByStaff(current.staff.id)
-    const completed = assignments.filter(isCompleted)
+    // Work logs in the requested period.
+    const inPeriod = await getWorkLogsByStaffAndPeriod(
+      current.staff.id,
+      period.startIso,
+      period.endIso
+    )
 
-    // Entries within the target period
-    const inPeriod = completed.filter((a) => {
-      const shiftStartIso = a.shiftStart.slice(0, 10)
-      return isDateInPeriod(shiftStartIso, period)
-    })
-
-    const entries = inPeriod
-      .map(toLedgerEntry)
+    const entries: PayrollLedgerEntry[] = inPeriod
+      .map((w) => ({
+        workLogId: w.id,
+        assignmentId: w.assignmentId,
+        eventId: w.eventId,
+        eventName: w.eventName,
+        roles: [w.role],
+        position: 'team-member',
+        shiftStart: w.shiftStart,
+        shiftEnd: w.shiftEnd,
+        hoursWorked: w.hoursWorked,
+        hourlyRate: w.hourlyRate,
+        amount: w.amountOwed,
+        resolution: w.resolution,
+        needsReview: w.needsReview,
+      }))
       .sort(
         (a, b) =>
           new Date(a.shiftStart).getTime() - new Date(b.shiftStart).getTime()
@@ -123,18 +119,20 @@ export async function GET(request: NextRequest) {
       { hours: 0, earned: 0 }
     )
 
-    // Lifetime = all completed, regardless of period
-    const lifetime = completed.reduce(
-      (acc, a) => {
-        const h = a.hoursWorked ?? 0
-        acc.hours += h
-        acc.earned += h * a.hourlyRate
+    // Lifetime — pull ALL of this staff's work logs, not just this period.
+    const all = await getWorkLogsByStaffAndPeriod(
+      current.staff.id,
+      '1970-01-01',
+      '9999-12-31'
+    )
+    const lifetime = all.reduce(
+      (acc, w) => {
+        acc.hours += w.hoursWorked
+        acc.earned += w.amountOwed
         return acc
       },
       { hours: 0, earned: 0 }
     )
-
-    const round2 = (n: number) => Math.round(n * 100) / 100
 
     return NextResponse.json({
       period,

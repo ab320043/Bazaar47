@@ -36,12 +36,25 @@ interface DashboardStats {
   upcomingCount: number
 }
 
+interface PastShift {
+  assignmentId: string
+  eventId: string
+  eventName: string
+  shiftStart: string
+  shiftEnd: string
+  hoursWorked: number
+  hourlyRate: number
+  amountOwed: number
+  resolution: 'manual' | 'auto-close' | 'admin-edit'
+  needsReview: boolean
+}
+
 interface DashboardData {
   staff: StaffMember
   mustChangePassword: boolean
   upcoming: StaffAssignment[]
   upcomingWithCoworkers: ShiftWithCoworkers[]
-  past: StaffAssignment[]
+  past: PastShift[]
   current: StaffAssignment | undefined
   currentWithCoworkers?: ShiftWithCoworkers
   stats: DashboardStats
@@ -778,49 +791,47 @@ export default function StaffShiftsPage() {
             </h2>
             {past.length > 0 ? (
               <div className="space-y-3">
-                {past.slice(0, 10).map((assignment) => (
+                {past.slice(0, 10).map((shift) => (
                   <div
-                    key={assignment.id}
+                    key={shift.assignmentId || `${shift.eventId}-${shift.shiftStart}`}
                     className="bg-white rounded-xl p-4 border border-rosewood/5 shadow-sm min-w-0"
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0 flex-1">
                         <h4 className="font-host-grotesk font-semibold text-rosewood truncate">
-                          {assignment.eventName}
+                          {shift.eventName}
                         </h4>
                         <div className="flex flex-wrap items-center gap-3 text-sm text-rosewood/40 mt-1">
                           <span className="flex items-center gap-1">
                             <Calendar className="w-3.5 h-3.5" />
-                            {formatDate(assignment.shiftStart)}
+                            {formatDate(shift.shiftStart)}
                           </span>
-                          {assignment.hoursWorked !== undefined && (
-                            <span className="flex items-center gap-1">
-                              <Clock className="w-3.5 h-3.5" />
-                              {assignment.hoursWorked}h
+                          <span className="flex items-center gap-1">
+                            <Clock className="w-3.5 h-3.5" />
+                            {shift.hoursWorked.toFixed(2)}h
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <DollarSign className="w-3.5 h-3.5" />$
+                            {shift.amountOwed.toFixed(2)}
+                          </span>
+                          {shift.needsReview && (
+                            <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-poppy/10 text-poppy">
+                              Pending review
                             </span>
                           )}
-                          {assignment.hoursWorked !== undefined && (
-                            <span className="flex items-center gap-1">
-                              <DollarSign className="w-3.5 h-3.5" />$
-                              {(
-                                assignment.hoursWorked * assignment.hourlyRate
-                              ).toFixed(2)}
+                          {shift.resolution === 'auto-close' && !shift.needsReview && (
+                            <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-rosewood/10 text-rosewood/60">
+                              Auto-closed
                             </span>
                           )}
                         </div>
-                        {assignment.staffNote && (
-                          <p className="font-host-grotesk text-xs text-rosewood/50 mt-2 italic break-words">
-                            &ldquo;{assignment.staffNote}&rdquo;
-                          </p>
-                        )}
                       </div>
                     </div>
                   </div>
                 ))}
                 {past.length > 10 && (
                   <p className="text-center text-rosewood/30 font-host-grotesk text-sm">
-                    +{past.length - 10} more — see the Payroll page for the full
-                    ledger
+                    +{past.length - 10} more — see the Payroll page for the full ledger
                   </p>
                 )}
               </div>

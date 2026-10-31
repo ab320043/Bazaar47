@@ -17,7 +17,7 @@ import type {
   StaffPayrollRow,
   EventPayrollRow,
   PayrollTotals,
-} from '@/lib/staff/payroll'
+} from '@/lib/staff/payroll-from-worklogs'
 import { STAFF_ROLES } from '@/data/staff-roles'
 import { downloadCsv } from '@/lib/staff/csv'
 

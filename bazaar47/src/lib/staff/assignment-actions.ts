@@ -1,21 +1,26 @@
 // lib/staff/assignment-actions.ts
 import {
   getAssignments,
-  checkInStaff,
-  checkOutStaff,
 } from '@/lib/storage/staff-assignments'
-import type { StaffAssignment } from '@/types/staff'
+import {
+  getWorkLogByAssignmentId,
+  checkInForWorkLog,
+  checkOutForWorkLog,
+} from '@/lib/storage/staff-worklogs'
+import { getPeriodForDate } from '@/lib/staff/payroll-period'
+import type { StaffAssignment, StaffRole } from '@/types/staff'
+import type { WorkLog } from '@/types/staff-worklog'
 
 // ============================================
-// RESULT TYPE
+// RESULT TYPES
 // ============================================
 
 export type AssignmentActionResult =
-  | { ok: true; assignment: StaffAssignment }
+  | { ok: true; workLog: WorkLog; assignment: StaffAssignment }
   | { ok: false; status: number; error: string }
 
 // ============================================
-// SHARED HELPERS
+// HELPERS
 // ============================================
 
 async function loadAssignment(
@@ -25,31 +30,32 @@ async function loadAssignment(
   return assignments.find((a) => a.id === assignmentId)
 }
 
+function pickRole(assignment: StaffAssignment): StaffRole {
+  return assignment.roles[0] || 'event-coordinator'
+}
+
 // ============================================
 // CHECK IN
 // ============================================
+//
+// Phase 1.5: writes only to WorkLog. The assignment is a plan record
+// and is not mutated.
+//
+// Guards that used to live on the assignment are now derived from the
+// work log:
+//   - "already checked in" → work log exists with a checkInTime
+//   - "cancelled assignment" → still checked on the assignment record
+//     (cancellations remain a plan-level concept, not a work-log one)
 
-/**
- * Check a staff member into an assignment.
- *
- * @param assignmentId  The assignment to check in to.
- * @param expectedStaffId
- *   When provided, the assignment MUST belong to this staff member.
- *   If it does not, the call fails with 403. This is the ownership gate
- *   that prevents staff A from clocking in as staff B by guessing IDs.
- *   Admin callers pass `undefined` to allow acting on any assignment.
- */
 export async function checkInAssignment(
   assignmentId: string,
   expectedStaffId?: string
 ): Promise<AssignmentActionResult> {
   const assignment = await loadAssignment(assignmentId)
-
   if (!assignment) {
     return { ok: false, status: 404, error: 'Assignment not found' }
   }
 
-  // ---- OWNERSHIP GATE (defense in depth) ----
   if (expectedStaffId && assignment.staffId !== expectedStaffId) {
     return { ok: false, status: 403, error: 'Forbidden' }
   }
@@ -62,37 +68,50 @@ export async function checkInAssignment(
     }
   }
 
-  if (assignment.checkInTime) {
+  const existing = await getWorkLogByAssignmentId(assignment.id)
+  if (existing?.checkInTime) {
     return { ok: false, status: 400, error: 'Staff already checked in' }
   }
 
-  const updated = await checkInStaff(assignmentId)
-  if (!updated) {
+  const checkInIso = new Date().toISOString()
+  const period = getPeriodForDate(new Date(assignment.shiftStart))
+
+  try {
+    const workLog = await checkInForWorkLog({
+      assignmentId: assignment.id,
+      staffId: assignment.staffId,
+      staffName: assignment.staffName,
+      eventId: assignment.eventId,
+      eventName: assignment.eventName,
+      role: pickRole(assignment),
+      hourlyRate: assignment.hourlyRate,
+      shiftStart: assignment.shiftStart,
+      shiftEnd: assignment.shiftEnd,
+      payPeriodStartIso: period.startIso,
+      payPeriodEndIso: period.endIso,
+      checkInTime: checkInIso,
+    })
+
+    return { ok: true, workLog, assignment }
+  } catch (err) {
+    console.error('[checkInAssignment] failed:', err)
     return { ok: false, status: 500, error: 'Failed to check in staff' }
   }
-
-  return { ok: true, assignment: updated }
 }
 
 // ============================================
 // CHECK OUT
 // ============================================
 
-/**
- * Check a staff member out of an assignment.
- * Same ownership semantics as `checkInAssignment`.
- */
 export async function checkOutAssignment(
   assignmentId: string,
   expectedStaffId?: string
 ): Promise<AssignmentActionResult> {
   const assignment = await loadAssignment(assignmentId)
-
   if (!assignment) {
     return { ok: false, status: 404, error: 'Assignment not found' }
   }
 
-  // ---- OWNERSHIP GATE (defense in depth) ----
   if (expectedStaffId && assignment.staffId !== expectedStaffId) {
     return { ok: false, status: 403, error: 'Forbidden' }
   }
@@ -105,22 +124,50 @@ export async function checkOutAssignment(
     }
   }
 
-  if (assignment.checkOutTime) {
-    return { ok: false, status: 400, error: 'Staff already checked out' }
-  }
-
-  if (!assignment.checkInTime) {
+  const existing = await getWorkLogByAssignmentId(assignment.id)
+  if (!existing) {
     return {
       ok: false,
       status: 400,
       error: 'Staff must be checked in first',
     }
   }
-
-  const updated = await checkOutStaff(assignmentId)
-  if (!updated) {
-    return { ok: false, status: 500, error: 'Failed to check out staff' }
+  if (!existing.checkInTime) {
+    return {
+      ok: false,
+      status: 400,
+      error: 'Staff must be checked in first',
+    }
+  }
+  if (existing.checkOutTime) {
+    return { ok: false, status: 400, error: 'Staff already checked out' }
   }
 
-  return { ok: true, assignment: updated }
+  const checkOutIso = new Date().toISOString()
+  const period = getPeriodForDate(new Date(assignment.shiftStart))
+
+  try {
+    const workLog = await checkOutForWorkLog({
+      assignmentId: assignment.id,
+      staffId: assignment.staffId,
+      staffName: assignment.staffName,
+      eventId: assignment.eventId,
+      eventName: assignment.eventName,
+      role: pickRole(assignment),
+      hourlyRate: assignment.hourlyRate,
+      shiftStart: assignment.shiftStart,
+      shiftEnd: assignment.shiftEnd,
+      payPeriodStartIso: period.startIso,
+      payPeriodEndIso: period.endIso,
+      checkInTime: existing.checkInTime,
+      checkOutTime: checkOutIso,
+      breakStart: existing.breakStart,
+      breakEnd: existing.breakEnd,
+    })
+
+    return { ok: true, workLog, assignment }
+  } catch (err) {
+    console.error('[checkOutAssignment] failed:', err)
+    return { ok: false, status: 500, error: 'Failed to check out staff' }
+  }
 }

@@ -12,7 +12,6 @@ export async function POST(
 
     const session = await getStaffSession()
     if (!session) {
-      console.warn('[checkout] 401: no valid session')
       return NextResponse.json(
         { error: 'Your session has expired. Please log in again.' },
         { status: 401 }
@@ -34,14 +33,23 @@ export async function POST(
       )
     }
 
+    const hoursWorked = result.workLog.hoursWorked
+    const amountEarned =
+      Math.round(hoursWorked * result.workLog.hourlyRate * 100) / 100
+
     return NextResponse.json({
       success: true,
       message: 'Checked out successfully',
-      assignment: result.assignment,
-      hoursWorked: result.assignment.hoursWorked,
-      amountEarned:
-        (result.assignment.hoursWorked ?? 0) *
-        (result.assignment.hourlyRate ?? 0),
+      assignment: {
+        ...result.assignment,
+        checkInTime: result.workLog.checkInTime,
+        checkOutTime: result.workLog.checkOutTime,
+        hoursWorked,
+        status: 'completed',
+      },
+      workLog: result.workLog,
+      hoursWorked,
+      amountEarned,
     })
   } catch (error) {
     console.error('[checkout] unexpected error:', error)

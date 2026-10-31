@@ -134,7 +134,9 @@ export default function AdminStaffDashboardPage() {
       if (from) params.set('from', from)
       if (to) params.set('to', to)
 
-      const res = await fetch(`/api/admin/staff/hours?${params.toString()}`)
+      const res = await fetch(
+          `/api/admin/worklogs?source=activity&${params.toString()}`
+        )
       if (!res.ok) {
         if (!opts?.silent) setError('Failed to load hours data')
         return

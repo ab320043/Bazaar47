@@ -1,17 +1,16 @@
 // app/api/admin/payroll/route.ts
 import { NextRequest, NextResponse } from 'next/server'
-import { getAssignments } from '@/lib/storage/staff-assignments'
+import { getAllWorkLogs } from '@/lib/storage/staff-worklogs'
 import { getStaff } from '@/lib/storage/staff'
 import {
   getPeriodForDate,
-  isDateInPeriod,
   type PayrollPeriod,
 } from '@/lib/staff/payroll-period'
 import {
   computeStaffPayroll,
   computeEventPayroll,
   computePayrollTotals,
-} from '@/lib/staff/payroll'
+} from '@/lib/staff/payroll-from-worklogs'
 import { isAdminAuthenticated } from '@/lib/admin/auth'
 
 /**
@@ -46,15 +45,11 @@ export async function GET(request: NextRequest) {
       period = getPeriodForDate(new Date())
     }
 
-    // Fetch every assignment once. Filtering happens in the aggregation
-    // helpers so the shape of the response stays simple.
-    const assignments = await getAssignments()
+    const workLogs = await getAllWorkLogs()
     const staff = await getStaff()
-
-    // Staff lookup for enriching rows with email/phone if we want it later.
     const staffById = new Map(staff.map((s) => [s.id, s]))
 
-    const totals = computePayrollTotals(assignments, period)
+    const totals = computePayrollTotals(workLogs, period)
 
     const payload: {
       period: PayrollPeriod
@@ -64,8 +59,7 @@ export async function GET(request: NextRequest) {
     } = { period, totals }
 
     if (view === 'staff' || view === 'both') {
-      const rows = computeStaffPayroll(assignments, period)
-      // Enrich with contact info that the API has easy access to.
+      const rows = computeStaffPayroll(workLogs, period)
       payload.byStaff = rows.map((row) => {
         const s = staffById.get(row.staffId)
         return {
@@ -76,7 +70,7 @@ export async function GET(request: NextRequest) {
     }
 
     if (view === 'event' || view === 'both') {
-      payload.byEvent = computeEventPayroll(assignments, period)
+      payload.byEvent = computeEventPayroll(workLogs, period)
     }
 
     return NextResponse.json(payload)

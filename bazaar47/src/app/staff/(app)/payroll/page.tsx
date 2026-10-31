@@ -26,7 +26,8 @@ import { downloadCsv } from '@/lib/staff/csv'
 // ============================================
 
 interface PayrollLedgerEntry {
-  assignmentId: string
+  workLogId: string
+  assignmentId: string | undefined
   eventId: string
   eventName: string
   roles: StaffRole[]
@@ -36,6 +37,8 @@ interface PayrollLedgerEntry {
   hoursWorked: number
   hourlyRate: number
   amount: number
+  resolution: 'manual' | 'auto-close' | 'admin-edit'
+  needsReview: boolean
 }
 
 interface PayrollResponse {
