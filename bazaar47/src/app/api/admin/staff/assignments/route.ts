@@ -1,13 +1,13 @@
 // app/api/admin/staff/assignments/route.ts
 import { NextRequest, NextResponse } from 'next/server'
 import { 
-  getAssignments, 
-  createAssignment,
+  getAssignments
 } from '@/lib/storage/staff-assignments'
 import { getStaffById } from '@/lib/storage/staff'
 import { getEventById } from '@/data/events'
 import { getRateForRole, getResponsibilitiesForRole, STAFF_ROLES } from '@/data/staff-roles'
-import type { StaffAssignment, EventType, AssignmentStatus, StaffRole } from '@/types/staff'
+import type { EventType, AssignmentStatus, StaffRole } from '@/types/staff'
+import { directAssign } from '@/lib/staff/direct-assign'
 
 // ============================================
 // HELPERS
@@ -73,27 +73,26 @@ export async function GET(request: NextRequest) {
 // ============================================
 // POST - Create new assignment (shift)
 //
-// One shift = one assignment. A staff member can have MULTIPLE
-// assignments on the same event (e.g. Josh works 3-9 PM and 9 PM-3 AM
-// on the same day for a festival). The old "one per staff per event"
-// restriction has been removed.
+// Phase 2A: routes through directAssign() so the creation produces
+// an offer + auto-confirmed claim + assignment atomically. The
+// response shape is unchanged — callers still receive `assignment`.
 // ============================================
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    
+
     // ---- Required fields ----
     const requiredFields = ['eventId', 'staffId', 'shiftStart', 'shiftEnd']
-    const missingFields = requiredFields.filter(field => !body[field])
-    
+    const missingFields = requiredFields.filter((field) => !body[field])
+
     if (missingFields.length > 0) {
       return NextResponse.json(
         { error: `Missing required fields: ${missingFields.join(', ')}` },
         { status: 400 }
       )
     }
-    
+
     // ---- Roles validation ----
     const roles = extractRoles(body)
     if (!roles) {
@@ -102,7 +101,7 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
-    
+
     // ---- Verify staff exists ----
     const staff = await getStaffById(body.staffId)
     if (!staff) {
@@ -111,7 +110,7 @@ export async function POST(request: NextRequest) {
         { status: 404 }
       )
     }
-    
+
     // ---- Verify event exists ----
     const event = getEventById(body.eventId)
     if (!event) {
@@ -120,50 +119,76 @@ export async function POST(request: NextRequest) {
         { status: 404 }
       )
     }
-    
+
     // ---- Determine rate ----
     const eventType = (body.eventType || event.type) as EventType
     const hourlyRate =
       typeof body.hourlyRate === 'number'
         ? body.hourlyRate
         : getRateForRole(roles[0], eventType)
-    
+
     // ---- Responsibilities (merged across all roles) ----
-    const responsibilities = body.responsibilities || (() => {
-      const merged = { before: [] as string[], during: [] as string[], after: [] as string[] }
-      for (const role of roles) {
-        const r = getResponsibilitiesForRole(role)
-        merged.before.push(...r.before)
-        merged.during.push(...r.during)
-        merged.after.push(...r.after)
-      }
-      return merged
-    })()
-    
-    // ---- Build assignment ----
-    const assignmentData: Omit<StaffAssignment, 'id' | 'createdAt' | 'updatedAt'> = {
-      eventId: body.eventId,
-      eventName: event.name,
-      eventType,
-      staffId: body.staffId,
-      staffName: staff.name,
-      roles,
-      position: body.position || 'team-member',
-      hourlyRate,
-      shiftStart: body.shiftStart,
-      shiftEnd: body.shiftEnd,
-      estimatedHours: body.estimatedHours || 0,
-      status: body.status || 'assigned',
-      responsibilities,
-      notes: body.notes || '',
+    const responsibilities =
+      body.responsibilities ||
+      (() => {
+        const merged = {
+          before: [] as string[],
+          during: [] as string[],
+          after: [] as string[],
+        }
+        for (const role of roles) {
+          const r = getResponsibilitiesForRole(role)
+          merged.before.push(...r.before)
+          merged.during.push(...r.during)
+          merged.after.push(...r.after)
+        }
+        return merged
+      })()
+
+    // ---- Delegate to directAssign ----
+    // This creates the offer + confirmed claim + assignment atomically.
+    try {
+      const result = await directAssign(
+        {
+          eventId: body.eventId,
+          eventName: event.name,
+          eventDate: event.date,
+          staffId: body.staffId,
+          staffName: staff.name,
+          roles,
+          position: body.position || 'team-member',
+          hourlyRate,
+          shiftStart: body.shiftStart,
+          shiftEnd: body.shiftEnd,
+          eventType,
+          status: body.status || 'assigned',
+          notes: body.notes || '',
+          responsibilities,
+        },
+        'admin'
+      )
+
+      return NextResponse.json(
+        {
+          success: true,
+          assignment: result.assignment,
+          offer: result.offer,
+          claim: result.claim,
+        },
+        { status: 201 }
+      )
+    } catch (err) {
+      console.error('directAssign failed:', err)
+      return NextResponse.json(
+        {
+          error:
+            err instanceof Error
+              ? err.message
+              : 'Failed to create assignment',
+        },
+        { status: 500 }
+      )
     }
-    
-    const assignment = await createAssignment(assignmentData)
-    
-    return NextResponse.json(
-      { success: true, assignment },
-      { status: 201 }
-    )
   } catch (error) {
     console.error('Error creating assignment:', error)
     return NextResponse.json(

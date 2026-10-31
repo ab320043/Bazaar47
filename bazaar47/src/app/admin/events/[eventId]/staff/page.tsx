@@ -22,6 +22,7 @@ import {
 } from '@/data/staff-roles'
 import { buildStaffAssignmentsCsv, downloadCsv } from '@/lib/staff/csv'
 import { ShiftsView } from './shifts-view'
+import { CoverageTab } from './CoverageTab'
 
 // ============================================
 // TYPES
@@ -57,7 +58,8 @@ interface AvailableStaff {
   isActive: boolean
 }
 
-type Tab = 'by-role' | 'shifts'
+type Tab = 'coverage' | 'by-role' | 'shifts'
+
 
 // ============================================
 // HELPERS
@@ -130,7 +132,7 @@ export default function EventStaffingPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showAssignModal, setShowAssignModal] = useState(false)
-  const [activeTab, setActiveTab] = useState<Tab>('by-role')
+  const [activeTab, setActiveTab] = useState<Tab>('coverage')
 
   const fetchData = useCallback(async () => {
     setLoading(true)
@@ -472,7 +474,7 @@ export default function EventStaffingPage() {
               <RefreshCw className="w-4 h-4" />
               Refresh
             </button>
-            {activeTab === 'by-role' && (
+            {(activeTab === 'by-role' || activeTab === 'shifts') && (
               <>
                 <button
                   onClick={handleExportCsv}
@@ -526,6 +528,17 @@ export default function EventStaffingPage() {
         {/* Tabs */}
         <div className="flex gap-2 border-b border-rosewood/10 mb-6">
           <button
+            onClick={() => setActiveTab('coverage')}
+            className={`px-4 py-2 font-host-grotesk font-semibold text-sm transition-all flex items-center gap-1.5 ${
+              activeTab === 'coverage'
+                ? 'text-rosewood border-b-2 border-rosewood'
+                : 'text-rosewood/40 hover:text-rosewood/60'
+            }`}
+          >
+            <LayoutGrid className="w-4 h-4" />
+            Coverage
+          </button>
+          <button
             onClick={() => setActiveTab('by-role')}
             className={`px-4 py-2 font-host-grotesk font-semibold text-sm transition-all flex items-center gap-1.5 ${
               activeTab === 'by-role'
@@ -533,7 +546,7 @@ export default function EventStaffingPage() {
                 : 'text-rosewood/40 hover:text-rosewood/60'
             }`}
           >
-            <LayoutGrid className="w-4 h-4" />
+            <List className="w-4 h-4" />
             By Role
           </button>
           <button
@@ -544,12 +557,21 @@ export default function EventStaffingPage() {
                 : 'text-rosewood/40 hover:text-rosewood/60'
             }`}
           >
-            <List className="w-4 h-4" />
+            <Users className="w-4 h-4" />
             Shifts
           </button>
         </div>
 
         {/* Tab content */}
+        {activeTab === 'coverage' && (
+          <CoverageTab
+            eventId={eventId}
+            defaultShiftStart={computeDefaultShiftTimes(event.date).shiftStart}
+            defaultShiftEnd={computeDefaultShiftTimes(event.date).shiftEnd}
+          />
+        )}
+
+
         {activeTab === 'by-role' && (
           <div className="space-y-4">
             {requiredRoles.map((roleId) => {
