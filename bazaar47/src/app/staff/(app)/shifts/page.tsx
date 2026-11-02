@@ -2,12 +2,28 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { 
-  Calendar, Clock, DollarSign, Briefcase,
-  RefreshCw, Star, AlertCircle, LogIn, LogOut,
-  Loader2, Bell, Users, MessageSquare,
-  CheckCircle2, X, ChevronDown, ChevronUp
+import {
+  Calendar,
+  Clock,
+  DollarSign,
+  Briefcase,
+  RefreshCw,
+  Star,
+  AlertCircle,
+  LogIn,
+  LogOut,
+  Loader2,
+  Bell,
+  Users,
+  MessageSquare,
+  CheckCircle2,
+  X,
+  ChevronDown,
+  ChevronUp,
+  Hourglass,
+  ArrowRight,
 } from 'lucide-react'
+import Link from 'next/link'
 import type { StaffMember, StaffAssignment, StaffRole } from '@/types/staff'
 import { STAFF_ROLES } from '@/data/staff-roles'
 
@@ -26,16 +42,6 @@ interface ShiftWithCoworkers {
   coworkers: CoworkerOnShift[]
 }
 
-interface DashboardStats {
-  hoursThisPeriod: number
-  earnedThisPeriod: number
-  hoursThisMonth: number
-  earnedThisMonth: number
-  hoursAllTime: number
-  earnedAllTime: number
-  upcomingCount: number
-}
-
 interface PastShift {
   assignmentId: string
   eventId: string
@@ -49,6 +55,29 @@ interface PastShift {
   needsReview: boolean
 }
 
+interface PendingClaimView {
+  claimId: string
+  offerId: string
+  eventId: string
+  eventName: string
+  eventDate: string
+  role: StaffRole
+  shiftStart: string
+  shiftEnd: string
+  lockedRate: number
+  claimedAt: string
+}
+
+interface DashboardStats {
+  hoursThisPeriod: number
+  earnedThisPeriod: number
+  hoursThisMonth: number
+  earnedThisMonth: number
+  hoursAllTime: number
+  earnedAllTime: number
+  upcomingCount: number
+}
+
 interface DashboardData {
   staff: StaffMember
   mustChangePassword: boolean
@@ -57,6 +86,7 @@ interface DashboardData {
   past: PastShift[]
   current: StaffAssignment | undefined
   currentWithCoworkers?: ShiftWithCoworkers
+  pendingClaims: PendingClaimView[]
   stats: DashboardStats
 }
 
@@ -172,10 +202,10 @@ export default function StaffShiftsPage() {
   const [actionId, setActionId] = useState<string | null>(null)
   const [now, setNow] = useState<number>(0)
   const [toasts, setToasts] = useState<Toast[]>([])
+  const [releasingClaimId, setReleasingClaimId] = useState<string | null>(null)
 
   const tickRef = useRef<number | null>(null)
 
-  // ---- Toast helpers ----
   const pushToast = useCallback((toast: Omit<Toast, 'id'>) => {
     const id = Date.now() + Math.random()
     setToasts((prev) => [...prev, { id, ...toast }])
@@ -368,12 +398,50 @@ export default function StaffShiftsPage() {
     }
   }
 
+  const handleReleaseClaim = async (claimId: string) => {
+    if (
+      !confirm(
+        'Release this pending claim? You can claim it again later if the shift is still open.'
+      )
+    ) {
+      return
+    }
+    setReleasingClaimId(claimId)
+    try {
+      const res = await fetch(`/api/staff/claims/${claimId}`, {
+        method: 'DELETE',
+      })
+      const body = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        pushToast({
+          kind: 'error',
+          title: 'Could not release',
+          message: body.error || 'Please try again.',
+        })
+        return
+      }
+      pushToast({
+        kind: 'success',
+        title: 'Claim released',
+        message: 'You can claim another shift from the Events page.',
+      })
+      await fetchDashboard({ silent: true })
+    } catch {
+      pushToast({
+        kind: 'error',
+        title: 'Network error',
+        message: 'Could not release your claim.',
+      })
+    } finally {
+      setReleasingClaimId(null)
+    }
+  }
+
   const handleManualRefresh = () => {
     window.setTimeout(() => setNow(Date.now()), 0)
     void fetchDashboard()
   }
 
-  // Shifts happening today (date-strict on shiftStart)
   const todayAssignments = (() => {
     if (!data) return []
     const all: StaffAssignment[] = [
@@ -412,12 +480,17 @@ export default function StaffShiftsPage() {
     )
   }
 
-  const { upcomingWithCoworkers, past, currentWithCoworkers, stats } = data
+  const {
+    upcomingWithCoworkers,
+    past,
+    currentWithCoworkers,
+    stats,
+    pendingClaims,
+  } = data
   const current = currentWithCoworkers?.assignment ?? data.current
 
   return (
     <div className="min-h-screen bg-plaster pb-20 overflow-x-hidden">
-      
       {/* Toast Stack */}
       <div className="fixed top-20 sm:top-4 right-4 z-50 space-y-2 max-w-sm w-[calc(100vw-2rem)] sm:w-96">
         {toasts.map((toast) => (
@@ -454,7 +527,6 @@ export default function StaffShiftsPage() {
 
       {/* Main Content Area */}
       <div className="p-4 sm:p-6 lg:p-10 max-w-7xl mx-auto">
-        
         {/* Page Header */}
         <div className="flex items-center justify-between gap-4 mb-6">
           <div>
@@ -463,16 +535,31 @@ export default function StaffShiftsPage() {
             </h1>
             <p className="font-host-grotesk text-rosewood/50 text-sm mt-0.5">
               {stats.upcomingCount} upcoming · {past.length} past
+              {pendingClaims.length > 0 && (
+                <span className="text-chartreuse ml-1">
+                  · {pendingClaims.length} pending
+                </span>
+              )}
             </p>
           </div>
-          
-          <button
-            onClick={handleManualRefresh}
-            className="bg-white hover:bg-white/80 text-rosewood/60 px-3 py-2 rounded-xl font-host-grotesk font-semibold text-sm flex items-center gap-2 transition-all shadow-sm shrink-0"
-          >
-            <RefreshCw className="w-4 h-4" />
-            <span className="hidden sm:inline">Refresh</span>
-          </button>
+
+          <div className="flex items-center gap-2">
+            <Link
+              href="/staff/events"
+              className="bg-chartreuse hover:bg-chartreuse/90 text-grove px-3 py-2 rounded-xl font-host-grotesk font-semibold text-sm flex items-center gap-2 transition-all shadow-sm"
+            >
+              <Calendar className="w-4 h-4" />
+              <span className="hidden sm:inline">Browse events</span>
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+            <button
+              onClick={handleManualRefresh}
+              className="bg-white hover:bg-white/80 text-rosewood/60 px-3 py-2 rounded-xl font-host-grotesk font-semibold text-sm flex items-center gap-2 transition-all shadow-sm shrink-0"
+            >
+              <RefreshCw className="w-4 h-4" />
+              <span className="hidden sm:inline">Refresh</span>
+            </button>
+          </div>
         </div>
 
         {/* Today Banner */}
@@ -566,7 +653,7 @@ export default function StaffShiftsPage() {
                   <h3 className="font-host-grotesk font-bold text-xl sm:text-2xl text-rosewood mt-1 break-words">
                     {current.eventName}
                   </h3>
-                  
+
                   <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mt-3 text-sm text-rosewood/60">
                     <span className="flex items-center gap-1.5">
                       <Calendar className="w-4 h-4 shrink-0" />
@@ -582,9 +669,7 @@ export default function StaffShiftsPage() {
                     <span className="break-words">{getRolesLabel(current.roles)}</span>
                   </div>
 
-                  {coworkers.length > 0 && (
-                    <CoworkerList coworkers={coworkers} />
-                  )}
+                  {coworkers.length > 0 && <CoworkerList coworkers={coworkers} />}
 
                   {state === 'clocked-in' && current.checkInTime && (
                     <p className="font-host-grotesk text-sm text-cypress mt-3 font-semibold bg-cypress/5 inline-block px-2 py-1 rounded">
@@ -641,13 +726,59 @@ export default function StaffShiftsPage() {
 
         {/* Two Columns (Stacked on Mobile) */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 min-w-0">
-          
           {/* Upcoming Events List */}
           <div className="min-w-0">
             <h2 className="font-host-grotesk font-bold text-xl text-rosewood mb-4 flex items-center gap-2">
               <Calendar className="w-5 h-5" />
               Upcoming
             </h2>
+
+            {/* Pending claims — new subsection */}
+            {pendingClaims.length > 0 && (
+              <div className="mb-4">
+                <h3 className="font-host-grotesk font-bold text-xs uppercase tracking-wider text-chartreuse mb-2 flex items-center gap-1.5">
+                  <Hourglass className="w-3.5 h-3.5" />
+                  Pending claims ({pendingClaims.length})
+                </h3>
+                <div className="space-y-2">
+                  {pendingClaims.map((claim) => (
+                    <div
+                      key={claim.claimId}
+                      className="bg-chartreuse/5 rounded-xl p-3 border border-chartreuse/30 flex items-center gap-3"
+                    >
+                      <Clock className="w-5 h-5 text-cypress shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <p className="font-host-grotesk font-semibold text-sm text-rosewood truncate">
+                          {claim.eventName}
+                        </p>
+                        <p className="font-host-grotesk text-xs text-rosewood/60 truncate">
+                          {getRoleLabel(claim.role)} · {formatDate(claim.shiftStart)} ·{' '}
+                          {formatTime(claim.shiftStart)} – {formatTime(claim.shiftEnd)}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => handleReleaseClaim(claim.claimId)}
+                        disabled={releasingClaimId === claim.claimId}
+                        className="text-xs font-host-grotesk font-semibold text-rosewood/50 hover:text-poppy transition-colors px-2 py-1 rounded hover:bg-poppy/5 disabled:opacity-50 shrink-0 flex items-center gap-1"
+                      >
+                        {releasingClaimId === claim.claimId ? (
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                        ) : (
+                          <X className="w-3 h-3" />
+                        )}
+                        Release
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <p className="font-host-grotesk text-[11px] text-rosewood/40 mt-1.5 pl-1">
+                  Waiting for admin confirmation. You&apos;ll see these in
+                  Upcoming once confirmed.
+                </p>
+              </div>
+            )}
+
+            {/* Confirmed assignments */}
             {upcomingWithCoworkers.length > 0 ? (
               <div className="space-y-4">
                 {upcomingWithCoworkers.map(({ assignment, coworkers }) => {
@@ -671,9 +802,6 @@ export default function StaffShiftsPage() {
                   } else if (state === 'clocked-in') {
                     buttonLabel = 'Clocked In'
                     buttonDisabled = true
-                    buttonTitle = assignment.checkInTime
-                      ? `You clocked in at ${formatTime(assignment.checkInTime)}`
-                      : undefined
                   } else if (state === 'ended') {
                     buttonLabel = 'Ended'
                     buttonDisabled = true
@@ -688,7 +816,6 @@ export default function StaffShiftsPage() {
                           : 'border-rosewood/5'
                       }`}
                     >
-                      {/* Header: Event + Status */}
                       <div className="flex items-start justify-between gap-2 mb-3">
                         <h4 className="font-host-grotesk font-bold text-lg text-rosewood leading-tight break-words min-w-0">
                           {assignment.eventName}
@@ -706,7 +833,6 @@ export default function StaffShiftsPage() {
                         </span>
                       </div>
 
-                      {/* Details Block */}
                       <div className="space-y-2 text-sm text-rosewood/60 mb-4 flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <Calendar className="w-4 h-4 text-rosewood/40 shrink-0" />
@@ -714,39 +840,36 @@ export default function StaffShiftsPage() {
                         </div>
                         <div className="flex items-center gap-2">
                           <Clock className="w-4 h-4 text-rosewood/40 shrink-0" />
-                          <span className="truncate">{formatTime(assignment.shiftStart)} – {formatTime(assignment.shiftEnd)}</span>
+                          <span className="truncate">
+                            {formatTime(assignment.shiftStart)} – {formatTime(assignment.shiftEnd)}
+                          </span>
                         </div>
                         <div className="flex items-center gap-2">
                           <Briefcase className="w-4 h-4 text-rosewood/40 shrink-0" />
                           <span className="truncate">{getRolesLabel(assignment.roles)}</span>
                         </div>
-                        
-                        {coworkers.length > 0 && (
-                          <CoworkerList coworkers={coworkers} />
-                        )}
+
+                        {coworkers.length > 0 && <CoworkerList coworkers={coworkers} />}
                       </div>
 
-                      {/* Countdown text */}
                       {state === 'upcoming-far' && msUntilOpen > 0 && (
                         <p className="font-host-grotesk text-xs text-rosewood/50 bg-rosewood/5 p-2 rounded-lg mb-3">
-                          Starts in {formatCountdown(startMs - now)} · Clock In opens in {formatCountdown(msUntilOpen)}
+                          Starts in {formatCountdown(startMs - now)} · Clock In opens in{' '}
+                          {formatCountdown(msUntilOpen)}
                         </p>
                       )}
                       {(state === 'open' || state === 'late-window') && (
                         <p className="font-host-grotesk text-xs text-cypress font-semibold bg-cypress/5 p-2 rounded-lg mb-3">
-                          Shift starts in {formatCountdown(Math.max(0, startMs - now))} — you can clock in now
+                          Shift starts in {formatCountdown(Math.max(0, startMs - now))} — you
+                          can clock in now
                         </p>
                       )}
 
-                      {/* Note Editor */}
                       <StaffNoteEditor
                         initialValue={assignment.staffNote || ''}
-                        onSave={(note) =>
-                          handleStaffNoteSave(assignment.id, note)
-                        }
+                        onSave={(note) => handleStaffNoteSave(assignment.id, note)}
                       />
 
-                      {/* Full width punch button for mobile */}
                       <div className="mt-4 pt-4 border-t border-rosewood/5">
                         <button
                           onClick={() => handleCheckIn(assignment.id)}
@@ -771,15 +894,21 @@ export default function StaffShiftsPage() {
                 })}
               </div>
             ) : (
-              <div className="bg-white rounded-xl p-8 text-center border border-rosewood/5 shadow-sm">
-                <AlertCircle className="w-12 h-12 text-rosewood/20 mx-auto mb-3" />
-                <p className="font-host-grotesk text-rosewood/40">
-                  No upcoming shifts
-                </p>
-                <p className="font-host-grotesk text-sm text-rosewood/30">
-                  You&apos;re all caught up!
-                </p>
-              </div>
+              pendingClaims.length === 0 && (
+                <div className="bg-white rounded-xl p-8 text-center border border-rosewood/5 shadow-sm">
+                  <AlertCircle className="w-12 h-12 text-rosewood/20 mx-auto mb-3" />
+                  <p className="font-host-grotesk text-rosewood/40">
+                    No upcoming shifts
+                  </p>
+                  <p className="font-host-grotesk text-sm text-rosewood/30">
+                    Check the{' '}
+                    <Link href="/staff/events" className="text-chartreuse hover:underline">
+                      Events page
+                    </Link>{' '}
+                    for open shifts you can claim.
+                  </p>
+                </div>
+              )
             )}
           </div>
 
@@ -855,8 +984,6 @@ export default function StaffShiftsPage() {
 
 function CoworkerList({ coworkers }: { coworkers: CoworkerOnShift[] }) {
   const [isExpanded, setIsExpanded] = useState(false)
-  
-  // Show 2 names by default, the rest hidden
   const visibleCoworkers = isExpanded ? coworkers : coworkers.slice(0, 2)
   const remainingCount = coworkers.length - visibleCoworkers.length
 
@@ -874,7 +1001,7 @@ function CoworkerList({ coworkers }: { coworkers: CoworkerOnShift[] }) {
               <span className="text-rosewood/40"> +{remainingCount} more</span>
             )}
           </span>
-          
+
           {coworkers.length > 2 && (
             <button
               onClick={() => setIsExpanded(!isExpanded)}
@@ -934,9 +1061,7 @@ function StaffNoteEditor({
       <div className="flex items-center gap-1.5 text-xs text-rosewood/50 mb-1">
         <MessageSquare className="w-3 h-3" />
         <span>Shift note</span>
-        {isSaving && (
-          <Loader2 className="w-3 h-3 animate-spin text-rosewood/40" />
-        )}
+        {isSaving && <Loader2 className="w-3 h-3 animate-spin text-rosewood/40" />}
         {justSaved && !isSaving && (
           <span className="inline-flex items-center gap-0.5 text-chartreuse">
             <CheckCircle2 className="w-3 h-3" />

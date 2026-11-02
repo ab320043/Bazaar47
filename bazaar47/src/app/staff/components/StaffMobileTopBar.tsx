@@ -9,6 +9,7 @@ import {
   Menu,
   X,
   Calendar,
+  CalendarDays,
   DollarSign,
   CheckSquare,
   FileText,
@@ -19,7 +20,7 @@ import { STAFF_ROLES } from '@/data/staff-roles'
 import { StaffLogoutButton } from './StaffLogoutButton'
 
 // ============================================
-// NAV CONFIG (duplicated from sidebar — keep in sync)
+// NAV CONFIG (keep in sync with StaffSidebar)
 // ============================================
 
 interface NavItem {
@@ -29,6 +30,7 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
+  { href: '/staff/events',    label: 'Events',       icon: CalendarDays },
   { href: '/staff/shifts',    label: 'My Shifts',    icon: Calendar },
   { href: '/staff/payroll',   label: 'Payroll',      icon: DollarSign },
   { href: '/staff/checklist', label: 'My Checklist', icon: CheckSquare },

@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 import {
   Calendar,
+  CalendarDays,
   DollarSign,
   CheckSquare,
   FileText,
@@ -25,11 +26,12 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { href: '/staff/shifts',    label: 'My Shifts',   icon: Calendar },
-  { href: '/staff/payroll',   label: 'Payroll',     icon: DollarSign },
+  { href: '/staff/events',    label: 'Events',       icon: CalendarDays },
+  { href: '/staff/shifts',    label: 'My Shifts',    icon: Calendar },
+  { href: '/staff/payroll',   label: 'Payroll',      icon: DollarSign },
   { href: '/staff/checklist', label: 'My Checklist', icon: CheckSquare },
-  { href: '/staff/notes',     label: 'Notes',       icon: FileText },
-  { href: '/staff/profile',   label: 'Profile',     icon: User },
+  { href: '/staff/notes',     label: 'Notes',        icon: FileText },
+  { href: '/staff/profile',   label: 'Profile',      icon: User },
 ]
 
 // ============================================
@@ -54,7 +56,6 @@ function roleLabel(roleId: StaffRole): string {
 
 export function StaffSidebar({ staff }: { staff: StaffMember }) {
   const pathname = usePathname()
-
   const displayName = staff.preferredName?.trim() || staff.name
 
   return (

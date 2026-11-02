@@ -5,13 +5,22 @@ import {
   getAssignmentsByStaff,
   getOtherAssignmentsForEvent,
 } from '@/lib/storage/staff-assignments'
-import { getWorkLogsForStaff } from '@/lib/storage/staff-worklogs'
+import {
+  getWorkLogsForStaff,
+  getWorkLogsByStaffAndPeriod,
+} from '@/lib/storage/staff-worklogs'
+import {
+  getClaimsForStaff,
+  getActiveClaimsForStaff,
+} from '@/lib/storage/staff-claims'
+import { getOfferById } from '@/lib/storage/shift-offers'
 import { getPeriodForDate } from '@/lib/staff/payroll-period'
 import type {
   StaffAssignment,
   StaffRole,
 } from '@/types/staff'
 import type { WorkLog } from '@/types/staff-worklog'
+import type { ShiftClaim } from '@/types/staff-claim'
 
 // ============================================
 // TYPES
@@ -28,7 +37,7 @@ export interface ShiftWithCoworkers {
   coworkers: CoworkerOnShift[]
 }
 
-interface PastShift {
+export interface PastShift {
   assignmentId: string
   eventId: string
   eventName: string
@@ -39,6 +48,24 @@ interface PastShift {
   amountOwed: number
   resolution: 'manual' | 'auto-close' | 'admin-edit'
   needsReview: boolean
+}
+
+/**
+ * Pending claim enriched with the offer's event details. Rendered on
+ * the /staff/events page as "you have a pending claim on X" and on
+ * /staff/shifts as "waiting for admin" (greyed).
+ */
+export interface PendingClaimView {
+  claimId: string
+  offerId: string
+  eventId: string
+  eventName: string
+  eventDate: string
+  role: StaffRole
+  shiftStart: string
+  shiftEnd: string
+  lockedRate: number
+  claimedAt: string
 }
 
 interface Stats {
@@ -59,11 +86,6 @@ function round2(n: number): number {
   return Math.round(n * 100) / 100
 }
 
-/**
- * Merge an assignment's plan fields with its work log's actual hours,
- * so callers see one consistent shape. If no work log exists yet,
- * the times/hours are null/0.
- */
 function enrichAssignmentWithWorkLog(
   assignment: StaffAssignment,
   workLog: WorkLog | undefined
@@ -144,17 +166,19 @@ function computeStats(
 
 export async function GET() {
   try {
-    const currentStaffSession = await getCurrentStaff()
-    if (!currentStaffSession) {
+    const staffSession = await getCurrentStaff()
+    if (!staffSession) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const [assignments, workLogs] = await Promise.all([
-      getAssignmentsByStaff(currentStaffSession.staff.id),
-      getWorkLogsForStaff(currentStaffSession.staff.id),
+    const staffId = staffSession.staff.id
+
+    const [assignments, workLogs, pendingClaimsRaw] = await Promise.all([
+      getAssignmentsByStaff(staffId),
+      getWorkLogsForStaff(staffId),
+      getActiveClaimsForStaff(staffId),
     ])
 
-    // Index work logs by assignmentId for O(1) enrichment.
     const workLogByAssignment = new Map<string, WorkLog>()
     for (const w of workLogs) {
       if (w.assignmentId) workLogByAssignment.set(w.assignmentId, w)
@@ -162,15 +186,12 @@ export async function GET() {
 
     const now = new Date()
 
-    // Upcoming: plan records in the future, not cancelled, no work log
-    // with a checkOutTime yet. If a work log exists with a checkInTime
-    // but no checkOutTime, it's "current" not "upcoming".
+    // ---- Upcoming (assignments) ----
     const upcoming = assignments
       .filter((a) => {
         if (a.status === 'cancelled') return false
         const start = new Date(a.shiftStart)
-        if (start <= now) return false
-        return true
+        return start > now
       })
       .sort(
         (a, b) =>
@@ -178,9 +199,7 @@ export async function GET() {
       )
       .map((a) => enrichAssignmentWithWorkLog(a, workLogByAssignment.get(a.id)))
 
-    // Current: an open work log (checked in, not checked out) regardless
-    // of the assignment's plan window. A shift can run long; the work
-    // log is the truth.
+    // ---- Current (assignments) ----
     const currentWorkLog = workLogs.find(
       (w) => w.checkInTime && !w.checkOutTime
     )
@@ -191,8 +210,7 @@ export async function GET() {
       ? enrichAssignmentWithWorkLog(currentAssignment, currentWorkLog)
       : undefined
 
-    // Past: work logs that are closed (checkOutTime set). Assignments
-    // without a work log are not "past" — they were never worked.
+    // ---- Past (work logs) ----
     const past: PastShift[] = workLogs
       .filter((w) => !!w.checkOutTime)
       .sort((a, b) => {
@@ -213,24 +231,51 @@ export async function GET() {
         needsReview: w.needsReview,
       }))
 
-    // Coworkers for the current + upcoming shifts
+    // ---- Pending claims ----
+    // getActiveClaimsForStaff returns claims in pending/confirmed/etc.
+    // We only want pending here, enriched with the offer's event data.
+    const pending: PendingClaimView[] = []
+    for (const claim of pendingClaimsRaw) {
+      if (claim.status !== 'pending') continue
+      const offer = await getOfferById(claim.offerId)
+      if (!offer) continue
+      pending.push({
+        claimId: claim.id,
+        offerId: offer.id,
+        eventId: offer.eventId,
+        eventName: offer.eventName,
+        eventDate: offer.eventDate,
+        role: claim.lockedRole,
+        shiftStart: offer.shiftStart,
+        shiftEnd: offer.shiftEnd,
+        lockedRate: claim.lockedRate,
+        claimedAt: claim.claimedAt,
+      })
+    }
+    pending.sort(
+      (a, b) =>
+        new Date(a.shiftStart).getTime() - new Date(b.shiftStart).getTime()
+    )
+
+    // ---- Coworkers ----
     const upcomingWithCoworkers: ShiftWithCoworkers[] = await Promise.all(
-      upcoming.map((a) => enrichWithCoworkers(a, currentStaffSession.staff.id))
+      upcoming.map((a) => enrichWithCoworkers(a, staffId))
     )
     const currentWithCoworkers = current
-      ? await enrichWithCoworkers(current, currentStaffSession.staff.id)
+      ? await enrichWithCoworkers(current, staffId)
       : undefined
 
     const stats = computeStats(assignments, workLogs, upcoming.length)
 
     return NextResponse.json({
-      staff: currentStaffSession.staff,
-      mustChangePassword: currentStaffSession.mustChangePassword,
+      staff: staffSession.staff,
+      mustChangePassword: staffSession.mustChangePassword,
       upcoming,
       upcomingWithCoworkers,
       past,
       current,
       currentWithCoworkers,
+      pendingClaims: pending,
       stats,
     })
   } catch (error) {
