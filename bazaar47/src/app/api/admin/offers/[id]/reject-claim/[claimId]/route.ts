@@ -45,5 +45,23 @@ export async function POST(
     )
   }
 
+  // Fire-and-forget: notify staff their claim was rejected.
+  void (async () => {
+    try {
+      const { getStaffById } = await import('@/lib/storage/staff')
+      const { getOfferById } = await import('@/lib/storage/shift-offers')
+      const { notifyClaimRejected } = await import('@/lib/email/notify')
+      const [staff, offer] = await Promise.all([
+        getStaffById(claim.staffId),
+        getOfferById(offerId),
+      ])
+      if (staff?.email && offer) {
+        notifyClaimRejected(claim, offer, staff.email)
+      }
+    } catch (err) {
+      console.error('[reject-claim] notify failed:', err)
+    }
+  })()
+
   return NextResponse.json({ success: true })
 }

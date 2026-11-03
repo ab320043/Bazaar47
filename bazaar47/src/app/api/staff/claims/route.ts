@@ -44,6 +44,20 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Fire-and-forget: admin notification. Never blocks claim creation.
+    if (process.env.ADMIN_NOTIFICATION_EMAIL) {
+      const { getOfferById } = await import('@/lib/storage/shift-offers')
+      const { notifyAdminNewClaim } = await import('@/lib/email/notify')
+      void (async () => {
+        try {
+          const offer = await getOfferById(offerId)
+          if (offer) notifyAdminNewClaim(result.claim, offer)
+        } catch (err) {
+          console.error('[notify] admin new claim failed:', err)
+        }
+      })()
+    }
+
     return NextResponse.json(
       { success: true, claim: result.claim },
       { status: 201 }

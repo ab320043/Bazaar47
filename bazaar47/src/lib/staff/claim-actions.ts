@@ -369,10 +369,29 @@ export async function confirmStaffClaim(
     }
   }
 
-  // ---- Refresh offer slot count ----
+    // ---- Refresh offer slot count ----
+    await refreshOfferSlots(offerId).catch((err) => {
+      console.error('[confirmStaffClaim] failed to refresh offer slots (non-fatal):', err)
+    })
+
+    // ---- Refresh offer slot count ----
   await refreshOfferSlots(offerId).catch((err) => {
     console.error('[confirmStaffClaim] failed to refresh offer slots (non-fatal):', err)
   })
+
+  // ---- Fire-and-forget: staff notification ----
+  void (async () => {
+    try {
+      const { getStaffById } = await import('@/lib/storage/staff')
+      const { notifyClaimConfirmed } = await import('@/lib/email/notify')
+      const staff = await getStaffById(updatedClaim.staffId)
+      if (staff?.email) {
+        notifyClaimConfirmed(updatedClaim, offer, staff.email)
+      }
+    } catch (err) {
+      console.error('[confirmStaffClaim] notify failed:', err)
+    }
+  })()
 
   return { ok: true, claim: updatedClaim, assignmentId }
 }
@@ -473,14 +492,3 @@ export async function getClaimableOffersForStaff(
   groups.sort((a, b) => a.eventDate.localeCompare(b.eventDate))
   return groups
 }
-
-/**
- * Fetch every offer in the system. Needed by getClaimableOffersForStaff.
- * Extracted here so the import doesn't cross the storage layer boundary
- * awkwardly in the caller.
- */
-// async function getOffersForEventless(): Promise<ShiftOffer[]> {
-//   // Direct storage access — offers change rarely, cheap to read.
-//   const { getAllOffers } = await import('@/lib/storage/shift-offers')
-//   return getAllOffers()
-// }

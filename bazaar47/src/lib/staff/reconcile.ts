@@ -191,6 +191,26 @@ async function sweepAutoClose(
           editReason: null,
         })
       }
+      // Fire-and-forget: notify staff that their shift was auto-closed.
+      // Admin gets a digest via /api/cron/notify, not a per-shift email.
+      void (async () => {
+        try {
+          const { getStaffById } = await import('@/lib/storage/staff')
+          const { notifyAutoClosed } = await import('@/lib/email/notify')
+          const staff = await getStaffById(a.staffId)
+          if (staff?.email) {
+            notifyAutoClosed(
+              a.staffName,
+              staff.email,
+              a.eventName,
+              hoursWorked,
+              a.shiftEnd
+            )
+          }
+        } catch (err) {
+          console.error('[reconcile] auto-close notify failed:', err)
+        }
+      })()
     }
 
     const next: StaffAssignment = {
