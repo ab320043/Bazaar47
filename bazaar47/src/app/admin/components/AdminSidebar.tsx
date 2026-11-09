@@ -17,6 +17,7 @@ import {
   FolderOpen,
   UsersRound,
   Clock,
+  Snowflake,
 } from 'lucide-react'
 import { LogoutButton } from './LogoutButton'
 
@@ -65,6 +66,7 @@ const NAV_GROUPS: NavGroup[] = [
         label: 'Big Caf Meetings',
         icon: CalendarDays,
       },
+      { href: '/admin/winter-market', label: 'Winter Market', icon: Snowflake },
     ],
   },
   {

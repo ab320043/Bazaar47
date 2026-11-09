@@ -6,7 +6,6 @@ import MAD from '@/assets/MAD.jpg'
 import GNV from '@/assets/newAssets/GNV.jpg'
 import jacks2 from '@/assets/newAssets/jacks2.jpeg'
 import FEST from '@/assets/newAssets/FEST.jpeg'
-import blockPart from '@/assets/events/blockPart.png'
 import { workshops } from '@/app/components/calendar-events/workshops-data'
 import type { Workshop } from '@/app/components/calendar-events/workshops-data'
 
@@ -132,7 +131,7 @@ const tourCities: EventDefinition[] = [
     slug: 'gainesville-fest',
     name: 'Gainesville | The FEST',
     type: 'tour',
-    status: 'active',
+    status: 'completed',
     date: '2026-10-24',
     dateDisplay: 'Saturday, October 24',
     time: '2-8pm',
@@ -219,7 +218,7 @@ const standaloneEvents: EventDefinition[] = [
     slug: 'reopening',
     name: 'Bazaar47 Grand (Re)Opening',
     type: 'custom',
-    status: 'active',
+    status: 'completed',
     date: '2026-10-15',
     dateDisplay: 'Thursday, October 15, 2026',
     time: '8:00 PM – 11:00 PM',
@@ -242,29 +241,6 @@ const standaloneEvents: EventDefinition[] = [
   // ============================
   // BLOCK PARTY — completed
   // ============================
-  {
-    id: 'block-party',
-    slug: 'block-party',
-    name: 'The Big Bazaar Block Party',
-    type: 'block-party',
-    status: 'completed',
-    date: '2026-08-22',
-    dateDisplay: 'Saturday, August 22, 2026',
-    time: '9:00 PM - 1:00 AM',
-    location: '60 SW 2nd Street, Gainesville, FL',
-    address: '60 SW 2nd Street, Gainesville, FL',
-    city: 'Gainesville',
-    capacity: 500,
-    hasVendors: false,
-    hasRSVP: true,
-    hasDanceSignup: true,
-    isFree: true,
-    description: 'We\'re closing the street! Join us for an epic celebration of art, music, and community.',
-    image: blockPart,
-    ticketUrl: '#',
-    venueDetails: 'The Big Bazaar Block Party is a street-closing celebration featuring live music, dance battles, and community vibes.',
-    highlights: ['Live Music', 'Dance Battle', 'Food Trucks', 'Local Artists'],
-  },
 ]
 
 // ============================================

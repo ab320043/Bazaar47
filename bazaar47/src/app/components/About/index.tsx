@@ -24,7 +24,7 @@ export function About() {
       <AboutDescription sentences={originalDescriptionSentences} />
 
       {/* Tour Promo - 50/50 split */}
-      <AboutTourPromo />
+      {/* <AboutTourPromo /> */}
 
     </section>
   )
