@@ -194,10 +194,10 @@ export default function WinterMarketExplorePage() {
                 When
               </span>
               <span className="font-host-grotesk font-bold text-sm mt-1">
-                Fridays & Saturdays
+                Saturdays
               </span>
               <span className="font-host-grotesk text-xs text-plaster/60 mt-0.5">
-                Nov 21 – Dec 19, 2026
+                Nov 21, 2026 – Jan 2, 2027
               </span>
             </motion.div>
 

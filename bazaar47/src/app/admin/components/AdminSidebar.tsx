@@ -55,12 +55,12 @@ const NAV_GROUPS: NavGroup[] = [
     icon: CalendarDays,
     children: [
       { href: '/admin/open-mic', label: 'Open Mic', icon: Mic2 },
-      {
-        href: '/admin/open-mic/archive',
-        label: 'Open Mic Archive',
-        icon: Mic2,
-        comingSoon: true,
-      },
+      // {
+      //   href: '/admin/open-mic/archive',
+      //   label: 'Open Mic Archive',
+      //   icon: Mic2,
+      //   comingSoon: true,
+      // },
       {
         href: '/admin/big-caf-meetings',
         label: 'Big Caf Meetings',
@@ -77,11 +77,11 @@ const NAV_GROUPS: NavGroup[] = [
       { href: '/admin/staff', label: 'Directory', icon: Users },
       { href: '/admin/staff-dashboard', label: 'Activity', icon: Clock },
       { href: '/admin/payroll', label: 'Payroll', icon: DollarSign },
-      {
-        href: '/admin/staff?staffType=temp',
-        label: 'Temp Staff',
-        icon: UsersRound,
-      },
+      // {
+      //   href: '/admin/staff?staffType=temp',
+      //   label: 'Temp Staff',
+      //   icon: UsersRound,
+      // },
       {
         href: '/admin/shifts',
         label: 'Shifts & Offers',
