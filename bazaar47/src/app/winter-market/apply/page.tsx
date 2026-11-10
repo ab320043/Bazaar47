@@ -264,7 +264,10 @@ export default function WinterMarketApplyPage() {
             Apply to Vend
           </h1>
           <p className="font-host-grotesk text-rosewood/60 mt-3 max-w-md mx-auto">
-            Select your dates, tell us about your booth, and secure your spot for the Downtown Winter Market.
+            Select your dates, tell us about your booth, and secure your spot for the Downtown Winter Market Series.
+          </p>
+          <p className="font-host-grotesk text-rosewood/60 mt-3 max-w-md mx-auto">
+            Feel free to sign up for multiple markets throughout the season.
           </p>
         </div>
 
@@ -504,7 +507,6 @@ export default function WinterMarketApplyPage() {
                   </p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {[
-                      ['needsTable', 'Table (provided)'],
                       ['needsTent', 'Tent (provided)'],
                       ['needsElectricity', 'Electricity hookup'],
                       ['needsExtensionCord', 'Extension cord for lights'],

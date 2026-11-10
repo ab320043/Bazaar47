@@ -53,8 +53,8 @@ const galleryImages = [
 const expectations = [
   {
     icon: ShoppingBag,
-    title: '26 Vendor Booths',
-    desc: 'Rotating local merchants, vintage clothing, and handmade crafts under the lights.',
+    title: '40+ Vendor Booths',
+    desc: 'Rotating local vendors, selling vintage clothing, plants, pastries, and handmade crafts under the lights.',
     bg: 'bg-chartreuse',
     text: 'text-grove',
     iconBg: 'bg-grove/15 text-grove',
@@ -62,15 +62,15 @@ const expectations = [
   {
     icon: Music,
     title: 'Live Music & DJs',
-    desc: 'Rotating local artists and weekly musical vibes every Friday & Saturday.',
+    desc: 'Rotating local artists and weekly musical vibes every Saturday.',
     bg: 'bg-hippie',
     text: 'text-rosewood',
     iconBg: 'bg-rosewood/15 text-rosewood',
   },
   {
     icon: Palette,
-    title: 'Wellness & Workshops',
-    desc: 'Free skill-shares and community workshops hosted by How Bazar.',
+    title: 'Family-Friendly Activities & Workshops',
+    desc: 'Kid zone, and accessible workshops hosted by Bazaar47.',
     bg: 'bg-petal',
     text: 'text-henna',
     iconBg: 'bg-henna/15 text-henna',
@@ -194,7 +194,7 @@ export default function WinterMarketExplorePage() {
                 When
               </span>
               <span className="font-host-grotesk font-bold text-sm mt-1">
-                Saturdays
+                Every Saturday
               </span>
               <span className="font-host-grotesk text-xs text-plaster/60 mt-0.5">
                 Nov 21, 2026 – Jan 2, 2027
@@ -213,6 +213,9 @@ export default function WinterMarketExplorePage() {
                 Hours
               </span>
               <span className="font-host-grotesk font-bold text-sm mt-1">
+                Night Market
+              </span>
+              <span className="font-host-grotesk text-xs text-plaster/60 mt-0.5">
                 {MARKET_HOURS}
               </span>
             </motion.div>
@@ -336,7 +339,7 @@ export default function WinterMarketExplorePage() {
               </h2>
             </div>
             <p className="font-host-grotesk text-sm text-rosewood/50 max-w-xs">
-              A peek at the 2025 Winter Market at The Streatery — vendors, lights, music, and community.
+              A peek at the 2025 - Winter Market at The Streatery — vendors, lights, music, and community.
             </p>
           </motion.div>
 
@@ -370,7 +373,10 @@ export default function WinterMarketExplorePage() {
           </div>
 
           <p className="font-host-grotesk text-xs text-rosewood/40 mt-4 text-center">
-            Photos from last year&apos;s Winter Market at The Streatery.
+            Photos from last year&apos;s Downtown Winter Market series at The Streatery.
+          </p>
+           <p className="font-host-grotesk text-xs text-rosewood/40 mt-4 text-center">
+            Photos courtesy of Josh Carbone.
           </p>
         </section>
 
