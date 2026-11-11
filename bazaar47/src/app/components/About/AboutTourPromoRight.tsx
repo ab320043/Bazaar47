@@ -56,7 +56,7 @@ export function AboutTourPromoRight() {
           <span className="font-bold text-chartreuse">A touring night market around the Sunshine State</span>
         </p>
         <p className="font-host-grotesk font-regular text-[14px] sm:text-[15px] md:text-[17px] leading-[120%] tracking-normal text-[#D5C9B1]">
-          Following last year’s successful run around the Sunshine State, Gainesville’s beloved night market series, the Bazaar Florida Tour, is back on the road this summer, sharing its signature blend of artisan makers selling handmade goods, artistic and cultural performances, and interactive workshops and activities. The statewide event series highlighting local vendors and creatives in Orlando, Miami, Jacksonville and Tampa.
+          Following last year’s successful run around the Sunshine State, Gainesville’s beloved night market Series, the Bazaar Florida Tour, is back on the road this summer, sharing its signature blend of artisan makers selling handmade goods, artistic and cultural performances, and interactive workshops and activities. The statewide event series highlighting local vendors and creatives in Orlando, Miami, Jacksonville and Tampa.
         </p>
         <p className="font-host-grotesk font-regular text-[14px] sm:text-[15px] md:text-[17px] leading-[120%] tracking-normal text-[#D5C9B1]">
             “This platform is so experimental that it allows creatives to try something for the first time, experiment with it and showcase it to a very supportive, open community of people who are naturally drawn to these events.”

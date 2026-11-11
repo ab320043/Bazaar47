@@ -376,7 +376,7 @@ export default function WinterMarketExplorePage() {
           </div>
 
           <p className="font-host-grotesk text-xs text-rosewood/40 mt-4 text-center">
-            Photos from last year&apos;s Downtown Winter Market series at The Streatery.
+            Photos from last year&apos;s Downtown Winter Market Series at The Streatery.
           </p>
            <p className="font-host-grotesk text-xs text-rosewood/40 mt-4 text-center">
             Photos courtesy of Josh Carbone.
