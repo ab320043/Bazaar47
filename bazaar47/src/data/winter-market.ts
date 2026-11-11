@@ -28,5 +28,13 @@ export const MARKET_COPY = {
     'The market series is sponsored by the City of Gainesville and the Gainesville Community Reinvestment Area (GCRA).'
   ],
   vendorPitch:
-    'Apply to vend at one or more nights. Each night has 40+ spots. Fee is $40 per night. Tents, lights, and electricity are provided by Bazaar47.',
+    'Apply to vend at one or more nights. Each night has 40+ spots. Fee is $40 per night. Vendor stalls, lights, and electricity are provided by Bazaar47.',
+  boothDetails: [
+    'We will be providing our 8x8 booths for vendors to utilize. The booths are equipped with:',
+    '• A sunsail',
+    '• A gridwall behind you for display',
+    '• A 6-foot foldable table with a black cloth',
+    '• One light',
+    'Extra lighting is highly suggested - the brighter your booth, the more foot traffic.',
+  ],
 }

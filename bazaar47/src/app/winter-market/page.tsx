@@ -26,6 +26,9 @@ import market3 from '@/assets/market/market3.jpg'
 import market4 from '@/assets/market/market4.jpg'
 import market5 from '@/assets/market/market5.jpg'
 import market6 from '@/assets/market/market6.jpg'
+import winter1 from '@/assets/winterMarketPhotos/winter1.jpg'
+import winter2 from '@/assets/winterMarketPhotos/winter2.jpg'
+import winter3 from '@/assets/winterMarketPhotos/winter3.jpg'
 import {
   MARKET_COPY,
   MARKET_HOURS,
@@ -38,12 +41,12 @@ import {
 // ============================================
 
 const galleryImages = [
-  { src: market1, alt: 'String lights over the vendor booths',  span: 'col-span-2 row-span-2' },
-  { src: market6, alt: 'Handmade goods on display',             span: '' },
-  { src: market3, alt: 'Vintage clothing racks',                span: '' },
-  { src: market4, alt: 'Live music on the market stage',        span: '' },
-  { src: market5, alt: 'Cozy corner with holiday decor',        span: '' },
-  { src: market2, alt: 'Crowd at the night market',             span: 'col-span-2' },
+  { src: winter1, alt: '',  span: 'col-span-2 row-span-2' },
+  { src: market6, alt: '',             span: '' },
+  { src: winter2, alt: '',                span: '' },
+  { src: market4, alt: '',        span: '' },
+  { src: market5, alt: '',        span: '' },
+  { src: winter3, alt: '',             span: 'col-span-2' },
 ]
 
 // ============================================
@@ -70,7 +73,7 @@ const expectations = [
   {
     icon: Palette,
     title: 'Family-Friendly Activities & Workshops',
-    desc: 'Kid zone, and accessible workshops hosted by Bazaar47.',
+    desc: 'Kid zone and accessible workshops hosted by Bazaar47.',
     bg: 'bg-petal',
     text: 'text-henna',
     iconBg: 'bg-henna/15 text-henna',
@@ -339,7 +342,7 @@ export default function WinterMarketExplorePage() {
               </h2>
             </div>
             <p className="font-host-grotesk text-sm text-rosewood/50 max-w-xs">
-              A peek at the 2025 - Winter Market at The Streatery — vendors, lights, music, and community.
+              A peek at the 2025 - 2026 Winter Market at The Streatery — vendors, lights, music, and community.
             </p>
           </motion.div>
 

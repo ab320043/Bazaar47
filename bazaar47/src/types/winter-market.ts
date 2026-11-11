@@ -9,15 +9,22 @@ export type WinterMarketPaymentStatus =
 export interface WinterMarketApplication {
   id: string
   fullName: string
-  email: string
-  phone: string
-  instagram?: string
+  preferredName?: string
+  pronouns?: string
   businessName: string
+  phone: string
+  email: string
+  instagram: string
+  city: string
   products: string
-  needsTable: boolean
-  needsTent: boolean
-  needsElectricity: boolean
-  needsExtensionCord: boolean
+  pricePoints: string
+  portfolioLink: string
+  soundSensitivity: string
+  accessibilityNeeds?: string
+  consentHighlight: string
+  consentMedia: string
+  liabilityAgreement: boolean
+  
   selectedDates: string[]
   paymentStatus: WinterMarketPaymentStatus
   stripePaymentIntentId?: string
@@ -37,14 +44,20 @@ export interface WinterMarketAvailability {
 
 export interface WinterMarketApplyPayload {
   fullName: string
-  email: string
-  phone: string
-  instagram?: string
+  preferredName?: string
+  pronouns?: string
   businessName: string
+  phone: string
+  email: string
+  instagram: string
+  city: string
   products: string
-  needsTable: boolean
-  needsTent: boolean
-  needsElectricity: boolean
-  needsExtensionCord: boolean
+  pricePoints: string
+  portfolioLink: string
+  soundSensitivity: string
+  accessibilityNeeds?: string
+  consentHighlight: string
+  consentMedia: string
+  liabilityAgreement: boolean
   selectedDates: string[]
 }
