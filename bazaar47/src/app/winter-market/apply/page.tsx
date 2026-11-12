@@ -334,9 +334,9 @@ export default function WinterMarketApplyPage() {
                 </div>
 
                 <div>
-                  <label className={labelClass}>Please submit photos of your booth setup <span className="text-poppy">*</span></label>
+                  <label className={labelClass}>Please submit photos of your booth setup</label>
                   <p className="text-xs text-rosewood/50 mb-2">We require photos to consider your application. You may provide a link to photos from social media or your website.</p>
-                  <input type="url" name="portfolioLink" value={form.portfolioLink} onChange={handleChange} required placeholder="https://..." className={inputClass} />
+                  <input type="url" name="portfolioLink" value={form.portfolioLink} onChange={handleChange} placeholder="https://..." className={inputClass} />
                 </div>
 
                 <hr className="border-rosewood/5" />
@@ -344,8 +344,8 @@ export default function WinterMarketApplyPage() {
                 {/* Extra Questions */}
                 <div className="grid grid-cols-1 gap-4">
                   <div>
-                    <label className={labelClass}>Are you sensitive to sound? Do you need to be set up further from the stages?</label>
-                    <select name="soundSensitivity" value={form.soundSensitivity} onChange={handleChange} className={inputClass}>
+                    <label className={labelClass}>Are you sensitive to sound? Do you need to be set up further from the stages? <span className="text-poppy">*</span></label>
+                    <select name="soundSensitivity" value={form.soundSensitivity} onChange={handleChange} required className={inputClass}>
                       <option value="no">No</option>
                       <option value="yes">Yes</option>
                       <option value="other">Other (explain in accessibility)</option>
@@ -353,21 +353,21 @@ export default function WinterMarketApplyPage() {
                   </div>
                   
                   <div>
-                    <label className={labelClass}>Do you have any accessibility needs?</label>
-                    <textarea name="accessibilityNeeds" value={form.accessibilityNeeds} onChange={handleChange} rows={2} className={`${inputClass} resize-none`} />
+                    <label className={labelClass}>Do you have any accessibility needs? <span className="text-poppy">*</span></label>
+                    <textarea name="accessibilityNeeds" value={form.accessibilityNeeds} onChange={handleChange} required rows={2} className={`${inputClass} resize-none`} />
                   </div>
                   
                   <div>
-                    <label className={labelClass}>Are you okay with us posting a vendor highlight of you on our social media and website?</label>
-                    <select name="consentHighlight" value={form.consentHighlight} onChange={handleChange} className={inputClass}>
+                    <label className={labelClass}>Are you okay with us posting a vendor highlight of you on our social media and website? <span className="text-poppy">*</span></label>
+                    <select name="consentHighlight" value={form.consentHighlight} onChange={handleChange} required className={inputClass}>
                       <option value="yes">Yes</option>
                       <option value="no">No</option>
                     </select>
                   </div>
 
                   <div>
-                    <label className={labelClass}>Do you consent to the Big media team taking photos and/or videos of you during the Big Marketplace and using them in recap footage or promotional content?</label>
-                    <select name="consentMedia" value={form.consentMedia} onChange={handleChange} className={inputClass}>
+                    <label className={labelClass}>Do you consent to the Bazaar media team taking photos and/or videos of you during the Winter Market Series and using them in recap footage or promotional content? <span className="text-poppy">*</span></label>
+                    <select name="consentMedia" value={form.consentMedia} onChange={handleChange} required className={inputClass}>
                       <option value="yes">Yes</option>
                       <option value="no">No</option>
                     </select>
@@ -382,7 +382,7 @@ export default function WinterMarketApplyPage() {
                     </div>
                     <input type="checkbox" name="liabilityAgreement" checked={form.liabilityAgreement} onChange={handleChange} className="sr-only" />
                     <span className="font-host-grotesk text-sm text-rosewood/80 leading-relaxed">
-                      As a vendor, I acknowledge that I am solely responsible for my merchandise and personal property. I agree that Big: Culture & Arts Festival is not liable for any loss, damage, or theft of my goods. <span className="text-poppy">*</span>
+                      As a vendor, I acknowledge that I am solely responsible for my merchandise and personal property. I agree that Bazaar47, Big: Culture & Arts Festival and the City of Gainesville is not liable for any loss, damage, or theft of my goods. <span className="text-poppy">*</span>
                     </span>
                   </label>
                 </div>
