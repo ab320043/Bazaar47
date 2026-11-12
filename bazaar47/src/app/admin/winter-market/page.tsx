@@ -27,6 +27,8 @@ export default function AdminWinterMarketPage() {
   const [availability, setAvailability] = useState<Availability[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [syncing, setSyncing] = useState(false)
+
   
   // Action states
   const [refunding, setRefunding] = useState<string | null>(null)
@@ -83,6 +85,29 @@ export default function AdminWinterMarketPage() {
       setDeleteConfirmApp(null)
       await fetchAll({ silent: true })
     } catch { alert('Network error while deleting') } finally { setDeletingId(null) }
+  }
+
+
+   // Add this function under handleManualApprove
+  const handleSyncStripe = async () => {
+    if (!confirm('This will fetch recent successful payments from Stripe and mark them as PAID. Proceed?')) return
+    setSyncing(true)
+    try {
+      const res = await fetch('/api/admin/winter-market/sync', { method: 'POST' })
+      const data = await res.json()
+      
+      if (!res.ok) {
+        alert(data.error || 'Sync failed')
+        return
+      }
+      
+      alert(data.message)
+      await fetchAll({ silent: true })
+    } catch {
+      alert('Network error during sync')
+    } finally {
+      setSyncing(false)
+    }
   }
 
   // Filter logic
@@ -189,6 +214,14 @@ export default function AdminWinterMarketPage() {
             </button>
             <button onClick={handleExport} className="bg-chartreuse text-grove px-4 py-2 rounded-xl font-host-grotesk font-semibold text-sm flex items-center gap-2 shadow-sm disabled:opacity-40 hover:bg-chartreuse/90 transition-colors">
               <Download className="w-4 h-4" /> Export CSV
+            </button>
+             <button 
+              onClick={handleSyncStripe} 
+              disabled={syncing} 
+              className="bg-rosewood text-plaster px-4 py-2 rounded-xl font-host-grotesk font-semibold text-sm flex items-center gap-2 shadow-sm hover:bg-rosewood/90 transition-colors disabled:opacity-50"
+            >
+              {syncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />} 
+              Sync Stripe
             </button>
           </div>
         </div>
