@@ -125,7 +125,7 @@ const tourCities: EventDefinition[] = [
     highlights: ['Art Walk', 'Street Performers', 'Local Vendors', 'Cultural Exhibitions'],
   },
 
-  // 4. GAINESVILLE | THE FEST - ACTIVE
+  // 4. GAINESVILLE | THE FEST - COMPLETED
   {
     id: 'gainesville-fest-tour',
     slug: 'gainesville-fest',
@@ -150,32 +150,6 @@ const tourCities: EventDefinition[] = [
     venueDetails: 'The FEST is one of Gainesville\'s most anticipated annual events, bringing together artists, musicians, and creatives from across the region.',
     highlights: ['The FEST Festival', 'Local Artists', 'Music', 'Community Gathering'],
   },
-
-  // 5. GULF COAST — commented out
-  // {
-  //   id: 'gulf-coast-tour',
-  //   slug: 'gulf-coast',
-  //   name: 'Gulf Coast',
-  //   type: 'tour',
-  //   status: 'active',
-  //   date: '2026-11-21',
-  //   dateDisplay: 'Saturday, November 21',
-  //   time: '5-10pm',
-  //   location: 'CAMP Tampa',
-  //   address: '3012 W Palmira Ave, Tampa, FL 33629',
-  //   city: 'Gulf Coast',
-  //   capacity: 180,
-  //   hasVendors: true,
-  //   hasRSVP: true,
-  //   hasDanceSignup: false,
-  //   isFree: true,
-  //   description: 'A celebration of culture with food, music, and the warmth of community. Bring your family and friends.',
-  //   image: Camp,
-  //   ticketUrl: '#',
-  //   parentEventId: 'florida-tour',
-  //   venueDetails: 'Gulf Coast is a unique community space that hosts events, workshops, and cultural gatherings.',
-  //   highlights: ['Family Friendly', 'Live Music', 'Local Food', 'Community Workshops'],
-  // },
 
   // 6. GAINESVILLE FINALE - ACTIVE
   {
@@ -237,10 +211,6 @@ const standaloneEvents: EventDefinition[] = [
       'Bazaar47 reopens its doors at 60 SW 2nd Street. The Grand (Re)Opening is a two-in-one celebration: our return, and Laila\'s birthday party.',
     highlights: ['Grand (Re)Opening', "Laila's Birthday Party", 'Live Music', 'Full Bar'],
   },
-
-  // ============================
-  // BLOCK PARTY — completed
-  // ============================
 ]
 
 // ============================================
