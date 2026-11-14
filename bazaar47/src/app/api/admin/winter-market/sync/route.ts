@@ -46,6 +46,13 @@ export async function POST() {
           totalPaid: pi.amount / 100,
           holdExpiresAt: undefined,
         })
+        // ADD THIS: Fire the email
+        await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'https://www.bazaar47.com'}/api/send-winter-market-email`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ applicationId: appId }),
+        }).catch(() => {})
+
         updatedCount++
       }
     }

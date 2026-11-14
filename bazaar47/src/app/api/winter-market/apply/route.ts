@@ -45,11 +45,7 @@ export async function POST(request: NextRequest) {
     if (!body.city?.trim()) return NextResponse.json({ error: 'City is required' }, { status: 400 })
     if (!body.products?.trim()) return NextResponse.json({ error: 'Products description is required' }, { status: 400 })
     if (!body.pricePoints?.trim()) return NextResponse.json({ error: 'Price points are required' }, { status: 400 })
-    
-    if (!body.portfolioLink?.trim()) {
-      return NextResponse.json({ error: 'Portfolio link is required' }, { status: 400 })
-    }
-    if (!isValidUrl(body.portfolioLink)) {
+    if (body.portfolioLink?.trim() && !isValidUrl(body.portfolioLink)) {
       return NextResponse.json({ error: 'Please provide a valid URL for your portfolio' }, { status: 400 })
     }
 

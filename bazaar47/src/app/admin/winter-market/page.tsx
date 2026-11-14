@@ -4,7 +4,7 @@
 import { useState, useEffect, useCallback, useMemo, Fragment } from 'react'
 import {
   Calendar, Loader2, AlertCircle, RefreshCw, Download,
-  Undo2, Users, Trash2, X, AlertTriangle, ChevronDown, ChevronUp, Filter
+  Undo2, Users, Trash2, X, AlertTriangle, ChevronDown, ChevronUp, Filter, Mail
 } from 'lucide-react'
 import type { WinterMarketApplication } from '@/types/winter-market'
 import { WINTER_MARKET_DATES } from '@/data/winter-market'
@@ -305,6 +305,18 @@ export default function AdminWinterMarketPage() {
                             <button onClick={() => setDeleteConfirmApp(a)} className="text-xs font-host-grotesk text-rosewood/50 hover:text-poppy transition-colors flex items-center gap-1">
                               <Trash2 className="w-3 h-3" /> Delete
                             </button>
+                            <button onClick={async (e) => {
+                                e.stopPropagation(); // prevent row expand
+                                if(!confirm(`Resend confirmation email to ${a.email}?`)) return;
+                                await fetch('/api/send-winter-market-email', {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ applicationId: a.id })
+                                });
+                                alert('Email sent!');
+                              }} className="text-xs font-host-grotesk text-rosewood/50 hover:text-chartreuse transition-colors flex items-center gap-1">
+                                <Mail className="w-3 h-3" /> Email
+                              </button>
                           </div>
                         </td>
                       </tr>
