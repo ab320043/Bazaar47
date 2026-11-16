@@ -677,6 +677,7 @@ export default function StaffShiftsPage() {
                     </p>
                   )}
 
+
                   <div className="mt-4">
                     <StaffNoteEditor
                       initialValue={current.staffNote || ''}
@@ -869,6 +870,13 @@ export default function StaffShiftsPage() {
                         initialValue={assignment.staffNote || ''}
                         onSave={(note) => handleStaffNoteSave(assignment.id, note)}
                       />
+                      <Link
+                        href={`/staff/shifts/${assignment.id}`}
+                        className="mt-2 inline-flex items-center gap-1 text-xs font-host-grotesk font-semibold text-rosewood/50 hover:text-chartreuse transition-colors"
+                      >
+                        View event details
+                        <ArrowRight className="w-3 h-3" />
+                      </Link>
 
                       <div className="mt-4 pt-4 border-t border-rosewood/5">
                         <button

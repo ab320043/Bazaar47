@@ -45,6 +45,16 @@ interface EventWithStats {
   }
 }
 
+// 3C.1 — coverage summary shape returned by
+// GET /api/admin/events/coverage-summaries
+interface CoverageSummary {
+  totalOffers: number
+  totalSlotsNeeded: number
+  totalSlotsFilled: number
+  totalSlotsPending: number
+  isFullyStaffed: boolean
+}
+
 // ============================================
 // HELPERS
 // ============================================
@@ -93,6 +103,10 @@ export default function AdminDashboard() {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedCity, setSelectedCity] = useState<string>('all')
 
+  // 3C.1 — per-event staffing coverage, keyed by event id.
+  // Missing key = no offers configured for that event; no badge renders.
+  const [coverage, setCoverage] = useState<Record<string, CoverageSummary>>({})
+
   useEffect(() => {
     let cancelled = false
 
@@ -114,7 +128,24 @@ export default function AdminDashboard() {
       }
     }
 
+    // 3C.1 — fire-and-forget coverage fetch. Runs in parallel with
+    // loadEvents; must not block the event list, must not fail the
+    // page if it errors.
+    const loadCoverage = async () => {
+      try {
+        const res = await fetch('/api/admin/events/coverage-summaries')
+        if (!res.ok) return
+        const body = await res.json()
+        if (!cancelled) {
+          setCoverage(body.summaries || {})
+        }
+      } catch {
+        // non-fatal — badges just won't render
+      }
+    }
+
     loadEvents()
+    void loadCoverage()
 
     return () => {
       cancelled = true
@@ -289,7 +320,11 @@ export default function AdminDashboard() {
               >
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {groups.live.map((event) => (
-                    <EventCard key={event.id} event={event} />
+                    <EventCard
+                      key={event.id}
+                      event={event}
+                      coverage={coverage[event.id]}
+                    />
                   ))}
                 </div>
               </Section>
@@ -305,7 +340,11 @@ export default function AdminDashboard() {
               >
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {groups.upcoming.map((event) => (
-                    <EventCard key={event.id} event={event} />
+                    <EventCard
+                      key={event.id}
+                      event={event}
+                      coverage={coverage[event.id]}
+                    />
                   ))}
                 </div>
               </Section>
@@ -321,7 +360,11 @@ export default function AdminDashboard() {
               >
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {groups.past.map((event) => (
-                    <EventCard key={event.id} event={event} />
+                    <EventCard
+                      key={event.id}
+                      event={event}
+                      coverage={coverage[event.id]}
+                    />
                   ))}
                 </div>
               </Section>
@@ -346,7 +389,11 @@ export default function AdminDashboard() {
               >
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {groups.archived.slice(0, 6).map((event) => (
-                    <EventCard key={event.id} event={event} />
+                    <EventCard
+                      key={event.id}
+                      event={event}
+                      coverage={coverage[event.id]}
+                    />
                   ))}
                 </div>
                 {groups.archived.length > 6 && (
@@ -426,7 +473,15 @@ function Section({
 // EVENT CARD
 // ============================================
 
-function EventCard({ event }: { event: EventWithStats }) {
+function EventCard({
+  event,
+  coverage,
+}: {
+  event: EventWithStats
+  // 3C.1 — optional. Undefined when the event has no offers configured,
+  // or while the coverage fetch is still in flight.
+  coverage?: CoverageSummary
+}) {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'active':
@@ -467,6 +522,29 @@ function EventCard({ event }: { event: EventWithStats }) {
       ? 'border-rosewood/20'
       : 'border-rosewood/10'
 
+  // 3C.1 — staffing badge. Hide entirely when no offers configured.
+  // Show "needs N" whenever anything is unfilled, and "N/M staffed"
+  // when fully covered. Pending claims do not count as filled.
+  const staffingBadge = (() => {
+    if (!coverage) return null
+    if (coverage.totalSlotsNeeded === 0) return null
+
+    if (coverage.isFullyStaffed) {
+      return (
+        <span className="text-[10px] font-host-grotesk font-semibold px-2 py-0.5 rounded-full bg-chartreuse/15 text-cypress">
+          ✅ {coverage.totalSlotsFilled}/{coverage.totalSlotsNeeded} staffed
+        </span>
+      )
+    }
+
+    const missing = coverage.totalSlotsNeeded - coverage.totalSlotsFilled
+    return (
+      <span className="text-[10px] font-host-grotesk font-semibold px-2 py-0.5 rounded-full bg-poppy/10 text-poppy">
+        ⚠️ Needs {missing}
+      </span>
+    )
+  })()
+
   return (
     <Link href={`/admin/events/${event.id}`}>
       <div
@@ -484,12 +562,13 @@ function EventCard({ event }: { event: EventWithStats }) {
               <span>{event.dateDisplay || event.date}</span>
             </div>
           </div>
-          <div className="flex items-center gap-1.5">
+          <div className="flex flex-col items-end gap-1.5">
             <span
               className={`text-xs font-host-grotesk font-semibold px-2 py-0.5 rounded-full ${statusColor}`}
             >
               {getStatusLabel(event.status)}
             </span>
+            {staffingBadge}
           </div>
         </div>
 
