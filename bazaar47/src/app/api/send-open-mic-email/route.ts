@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
     const { data, error } = await resend.emails.send({
       from: 'Bazaar47 <info@bazaar47.com>',
       to: [email],
-      subject: `🎤 You're on for Open Mic — ${sessionLabel}`,
+      subject: `🎤 You're on for Open Mic — ${sessionDate}`,
       react: OpenMicConfirmation({
         fullName,
         artistName,
@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
         sessionLabel,
         confirmationNumber,
       }),
-      text: `You're on for Open Mic!\n\nHey ${artistName},\n\nThanks for signing up. We'll see you on ${sessionLabel} at Bazaar47.\n\nArtist: ${artistName}\nGenre: ${genre}\nEmail: ${email}\nConfirmation #: ${confirmationNumber}\n\nCheck-in at 7:30 PM. Bring whatever you need for your set.\n\n✦ Bazaar47 · A space for culture, community, and connection. ✦`,
+      text: `You're on for Open Mic!\n\nHey ${artistName},\n\nThanks for signing up. We'll see you on ${sessionDate} at Bazaar47.\n\nArtist: ${artistName}\nGenre: ${genre}\nEmail: ${email}\nConfirmation #: ${confirmationNumber}\n\nCheck-in at 7:30 PM. Bring whatever you need for your set.\n\n✦ Bazaar47 · A space for culture, community, and connection. ✦`,
       tags: [
         { name: 'category', value: 'open-mic-confirmation' },
         { name: 'program', value: 'open-mic' },
