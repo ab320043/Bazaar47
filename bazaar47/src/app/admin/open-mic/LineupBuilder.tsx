@@ -1,7 +1,7 @@
 // app/admin/open-mic/LineupBuilder.tsx
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import {
   DndContext, DragOverlay, closestCenter, KeyboardSensor, PointerSensor,
   useSensor, useSensors, DragStartEvent, DragEndEvent,
@@ -59,7 +59,7 @@ export function LineupBuilder({
   const [lineup, setLineup] = useState<LineupSlot[]>(initialSession?.lineup || [])
   const [activeId, setActiveId] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
-  
+
   const [showAddCustom, setShowAddCustom] = useState(false)
   const [customName, setCustomName] = useState('')
   const [customEmail, setCustomEmail] = useState('')
@@ -85,7 +85,7 @@ export function LineupBuilder({
         const timed = generateLineupTimes(sessionDate, newLineup)
         const slot = timed.find((s) => s.id === triggerEmailForSlotId)
         const submission = pool.find((p) => p.id === slot?.submissionId)
-        
+
         if (slot && submission) {
           await fetch('/api/send-open-mic-schedule', {
             method: 'POST',
@@ -145,13 +145,14 @@ export function LineupBuilder({
     e.preventDefault()
     if (!customName || !customEmail) return
     setSaving(true)
-    
+
     try {
       const poolRes = await fetch('/api/admin/open-mic', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'add_to_pool',
+          sessionIso: sessionDate,
           fullName: customName,
           artistName: customName,
           email: customEmail,
@@ -160,12 +161,12 @@ export function LineupBuilder({
           addedByAdmin: true,
         }),
       })
-      
+
       const poolData = await poolRes.json()
       if (!poolRes.ok) throw new Error(poolData.error)
-      
+
       const newSub = poolData.submission as OpenMicSubmission
-      
+
       const newSlot: LineupSlot = {
         id: crypto.randomUUID(),
         submissionId: newSub.id,
@@ -173,15 +174,15 @@ export function LineupBuilder({
         startTime: new Date().toISOString(),
         durationMinutes: 7,
       }
-      
+
       const newLineup = [...lineup, newSlot]
       setLineup(newLineup)
       await saveLineup(newLineup, newSlot.id)
-      
+
       setCustomName('')
       setCustomEmail('')
       setShowAddCustom(false)
-      
+
     } catch (err) {
       alert('Failed to add custom artist')
     } finally {
@@ -212,10 +213,12 @@ export function LineupBuilder({
             <h2 className="font-host-grotesk font-bold text-xl text-rosewood">
               {formatSessionLong(sessionDate)}
             </h2>
-            <p className="text-xs text-rosewood/50">Drag artists to build the run of show.</p>
+            <p className="text-xs text-rosewood/50">
+              Drag artists from this week&apos;s signups into the run of show.
+            </p>
           </div>
         </div>
-        
+
         <div className="flex items-center gap-2 w-full sm:w-auto">
           {saving && (
             <span className="text-xs text-chartreuse font-semibold animate-pulse mr-2">
@@ -256,22 +259,38 @@ export function LineupBuilder({
 
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={(e) => setActiveId(e.active.id as string)} onDragEnd={handleDragEnd}>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          
-          <div className="lg:col-span-1">
+
+          <div className="lg:col-span-1 space-y-3">
             <div className="bg-white rounded-2xl border border-rosewood/5 shadow-sm overflow-hidden sticky top-6">
               <div className="p-4 border-b border-rosewood/10 bg-plaster/30">
-                <h3 className="font-host-grotesk font-bold text-rosewood">Artist Pool</h3>
-                <p className="text-xs text-rosewood/50">{pool.length} unassigned</p>
+                <h3 className="font-host-grotesk font-bold text-rosewood">This Week&apos;s Signups</h3>
+                <p className="text-xs text-rosewood/50">{pool.length} artist{pool.length === 1 ? '' : 's'} not yet scheduled</p>
               </div>
-              <div className="p-4 space-y-3 max-h-[70vh] overflow-y-auto">
+              <div className="p-4 space-y-3 max-h-[55vh] overflow-y-auto">
                 {pool.map((submission) => (
                   <PoolItem key={submission.id} submission={submission} />
                 ))}
                 {pool.length === 0 && (
-                  <p className="text-center text-sm text-rosewood/40 py-8">No artists in the pool.</p>
+                  <p className="text-center text-sm text-rosewood/40 py-8">
+                    Everyone signed up for this week is already in the lineup.
+                  </p>
                 )}
               </div>
             </div>
+
+            {/* Escape hatch: pull an artist from another week */}
+            <details className="bg-white rounded-2xl border border-rosewood/5 shadow-sm overflow-hidden">
+              <summary className="cursor-pointer p-3 text-sm font-semibold text-rosewood/70 flex items-center justify-between">
+                <span>Add an artist from another week</span>
+                <Plus className="w-4 h-4 text-rosewood/40" />
+              </summary>
+              <div className="p-4 space-y-2 max-h-72 overflow-y-auto">
+                <OtherWeeksArtistPicker
+                  sessionDate={sessionDate}
+                  onAssigned={onBack}
+                />
+              </div>
+            </details>
           </div>
 
           <div className="lg:col-span-2">
@@ -279,17 +298,17 @@ export function LineupBuilder({
               <div className="p-4 border-b border-rosewood/10 bg-chartreuse/10 flex justify-between items-center">
                 <h3 className="font-host-grotesk font-bold text-cypress">Run of Show</h3>
                 <span className="text-xs font-semibold text-cypress bg-chartreuse/20 px-2 py-0.5 rounded-full">
-                  {lineup.length} artists
+                  {lineup.length} artist{lineup.length === 1 ? '' : 's'}
                 </span>
               </div>
-              
+
               <div className="p-4 flex-1">
                 <SortableContext items={timedLineup.map(s => s.id)} strategy={verticalListSortingStrategy}>
                   <div className="space-y-2">
                     {timedLineup.map((slot) => (
-                      <LineupRow 
-                        key={slot.id} 
-                        slot={slot} 
+                      <LineupRow
+                        key={slot.id}
+                        slot={slot}
                         onRemove={() => removeSlot(slot.id)}
                         onDurationChange={(mins) => updateDuration(slot.id, mins)}
                       />
@@ -316,6 +335,10 @@ export function LineupBuilder({
   )
 }
 
+// ============================================
+// POOL ITEM
+// ============================================
+
 function PoolItem({ submission }: { submission: OpenMicSubmission }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: submission.id, data: { type: 'pool-item', submission },
@@ -335,6 +358,10 @@ function PoolItem({ submission }: { submission: OpenMicSubmission }) {
     </div>
   )
 }
+
+// ============================================
+// LINEUP ROW
+// ============================================
 
 function LineupRow({ slot, onRemove, onDurationChange }: { slot: LineupSlot, onRemove: () => void, onDurationChange: (mins: number) => void }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -369,5 +396,94 @@ function LineupRow({ slot, onRemove, onDurationChange }: { slot: LineupSlot, onR
         </div>
       </div>
     </div>
+  )
+}
+
+// ============================================
+// OTHER-WEEK ARTIST PICKER
+// ============================================
+
+function OtherWeeksArtistPicker({
+  sessionDate,
+  onAssigned,
+}: {
+  sessionDate: string
+  onAssigned: () => void
+}) {
+  const [all, setAll] = useState<OpenMicSubmission[]>([])
+  const [loading, setLoading] = useState(true)
+  const [assigningId, setAssigningId] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    const load = async () => {
+      try {
+        const res = await fetch('/api/admin/open-mic')
+        if (!res.ok) return
+        const body = await res.json()
+        if (!cancelled) setAll(body.pool || [])
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+    void load()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const candidates = all.filter((s) => !s.sessionDates.includes(sessionDate))
+
+  const assign = async (id: string) => {
+    setAssigningId(id)
+    try {
+      const res = await fetch(`/api/admin/open-mic/${id}/assign-session`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionIso: sessionDate }),
+      })
+      if (res.ok) onAssigned()
+    } finally {
+      setAssigningId(null)
+    }
+  }
+
+  if (loading) {
+    return <p className="text-xs text-rosewood/40 text-center py-4">Loading…</p>
+  }
+  if (candidates.length === 0) {
+    return (
+      <p className="text-xs text-rosewood/40 text-center py-4">
+        Every artist in the pool is already signed up for this week.
+      </p>
+    )
+  }
+
+  return (
+    <>
+      {candidates.map((s) => (
+        <div
+          key={s.id}
+          className="flex items-center justify-between gap-2 p-2 bg-plaster/20 rounded-lg border border-rosewood/5"
+        >
+          <div className="min-w-0">
+            <p className="font-host-grotesk font-semibold text-sm text-rosewood truncate">
+              {s.artistName}
+            </p>
+            <p className="font-host-grotesk text-xs text-rosewood/50 truncate">
+              {s.genre} · {s.sessionDates.length} other week
+              {s.sessionDates.length === 1 ? '' : 's'}
+            </p>
+          </div>
+          <button
+            onClick={() => assign(s.id)}
+            disabled={assigningId === s.id}
+            className="shrink-0 text-xs font-host-grotesk font-semibold bg-chartreuse hover:bg-chartreuse/90 text-grove px-2.5 py-1 rounded-lg transition-colors disabled:opacity-50"
+          >
+            {assigningId === s.id ? 'Adding…' : 'Add to this week'}
+          </button>
+        </div>
+      ))}
+    </>
   )
 }

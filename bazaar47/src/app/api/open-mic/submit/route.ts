@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createSubmission } from '@/lib/storage/open-mic'
 import { isSubmissionWindowOpen } from '@/lib/open-mic/window'
+import { getTargetSessionIso } from '@/lib/open-mic/dates'
 import type { OpenMicSubmitPayload } from '@/types/open-mic'
 
 function isValidEmail(v: unknown): v is string {
@@ -25,32 +26,65 @@ function normalizeOptionalUrl(v: unknown): string | undefined {
 
 export async function POST(request: NextRequest) {
   try {
-    // Block submissions outside the allowed window
     if (!isSubmissionWindowOpen()) {
       return NextResponse.json(
-        { error: 'Submissions are currently closed. The form reopens Thursday at midnight.' },
+        {
+          error:
+            'Submissions are currently closed. The form reopens Thursday at midnight.',
+        },
         { status: 403 }
       )
     }
 
+    // Every submission targets the coming Wednesday. The submission
+    // window (Thu–Tue) guarantees this is the Wednesday the artist is
+    // signing up for.
+    const sessionIso = getTargetSessionIso()
+    if (!sessionIso) {
+      return NextResponse.json(
+        { error: 'Could not determine target session. Please try again.' },
+        { status: 500 }
+      )
+    }
+
     const body = await request.json()
-    const { fullName, artistName, genre, musicLink, instagram, email } = body as Partial<OpenMicSubmitPayload>
+    const { fullName, artistName, genre, musicLink, instagram, email } =
+      body as Partial<OpenMicSubmitPayload>
 
-    if (!isNonEmptyString(fullName)) return NextResponse.json({ error: 'Full name is required' }, { status: 400 })
-    if (!isNonEmptyString(artistName)) return NextResponse.json({ error: 'Artist name is required' }, { status: 400 })
-    if (!isNonEmptyString(genre)) return NextResponse.json({ error: 'Music genre is required' }, { status: 400 })
-    if (!isValidEmail(email)) return NextResponse.json({ error: 'A valid email is required' }, { status: 400 })
+    if (!isNonEmptyString(fullName))
+      return NextResponse.json({ error: 'Full name is required' }, { status: 400 })
+    if (!isNonEmptyString(artistName))
+      return NextResponse.json({ error: 'Artist name is required' }, { status: 400 })
+    if (!isNonEmptyString(genre))
+      return NextResponse.json({ error: 'Music genre is required' }, { status: 400 })
+    if (!isValidEmail(email))
+      return NextResponse.json({ error: 'A valid email is required' }, { status: 400 })
 
-    const submission = await createSubmission({
-      fullName: fullName.trim(),
-      artistName: artistName.trim(),
-      genre: genre.trim(),
-      musicLink: normalizeOptionalUrl(musicLink),
-      instagram: instagram?.trim() ? instagram.trim() : undefined,
-      email: email.trim().toLowerCase(),
-      submittedAt: new Date().toISOString(),
-      addedByAdmin: false,
-    })
+    const result = await createSubmission(
+      {
+        fullName: fullName.trim(),
+        artistName: artistName.trim(),
+        genre: genre.trim(),
+        musicLink: normalizeOptionalUrl(musicLink),
+        instagram: instagram?.trim() ? instagram.trim() : undefined,
+        email: email.trim().toLowerCase(),
+        submittedAt: new Date().toISOString(),
+        addedByAdmin: false,
+      },
+      sessionIso
+    )
+
+    if (result.kind === 'duplicate-week') {
+      return NextResponse.json(
+        {
+          error: `You're already signed up for ${formatDateForMessage(sessionIso)}. If you need to change your details, reach out to us directly.`,
+          sessionIso,
+        },
+        { status: 409 }
+      )
+    }
+
+    const submission = result.submission
 
     // Fire confirmation email (non-blocking)
     try {
@@ -64,16 +98,32 @@ export async function POST(request: NextRequest) {
           musicLink: submission.musicLink,
           instagram: submission.instagram,
           email: submission.email,
+          sessionIso,
         }),
       })
     } catch {}
 
-    return NextResponse.json({ success: true, id: submission.id })
+    return NextResponse.json({
+      success: true,
+      id: submission.id,
+      sessionIso,
+      appended: result.kind === 'appended',
+    })
   } catch (error) {
-    if (error instanceof Error && error.name === 'DuplicateSubmission') {
-      return NextResponse.json({ error: error.message }, { status: 409 })
-    }
     console.error('Open Mic submit error:', error)
-    return NextResponse.json({ error: 'Failed to save submission' }, { status: 500 })
+    return NextResponse.json(
+      { error: 'Failed to save submission' },
+      { status: 500 }
+    )
   }
+}
+
+function formatDateForMessage(iso: string): string {
+  const [y, m, d] = iso.split('-').map(Number)
+  const dt = new Date(y, (m || 1) - 1, d || 1)
+  return dt.toLocaleDateString('en-US', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+  })
 }

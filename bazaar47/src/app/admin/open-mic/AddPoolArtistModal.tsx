@@ -4,13 +4,17 @@
 import { useState } from 'react'
 import { X, Loader2, AlertCircle } from 'lucide-react'
 import type { OpenMicSubmission } from '@/types/open-mic'
+import { getNextWednesdays, todayIsoLocal, formatSessionLong } from '@/lib/open-mic/dates'
+
 
 interface AddPoolArtistModalProps {
   onClose: () => void
   onSuccess: (newArtist: OpenMicSubmission) => void
+  /** ISO of the Wednesday this artist is being added to. */
+  defaultSessionIso: string
 }
 
-export function AddPoolArtistModal({ onClose, onSuccess }: AddPoolArtistModalProps) {
+export function AddPoolArtistModal({ onClose, onSuccess, defaultSessionIso }: AddPoolArtistModalProps) {
   const [form, setForm] = useState({
     fullName: '',
     artistName: '',
@@ -19,6 +23,7 @@ export function AddPoolArtistModal({ onClose, onSuccess }: AddPoolArtistModalPro
     instagram: '',
     musicLink: '',
   })
+  const [sessionIso, setSessionIso] = useState(defaultSessionIso)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -37,16 +42,17 @@ export function AddPoolArtistModal({ onClose, onSuccess }: AddPoolArtistModalPro
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          action: 'add_to_pool',
-          fullName: form.fullName.trim(),
-          artistName: form.artistName.trim(),
-          genre: form.genre.trim(),
-          email: form.email.trim(),
-          instagram: form.instagram.trim() || undefined,
-          musicLink: form.musicLink.trim() || undefined,
-          submittedAt: new Date().toISOString(),
-          addedByAdmin: true,
-        }),
+        action: 'add_to_pool',
+        sessionIso,
+        fullName: form.fullName.trim(),
+        artistName: form.artistName.trim(),
+        genre: form.genre.trim(),
+        email: form.email.trim(),
+        instagram: form.instagram.trim() || undefined,
+        musicLink: form.musicLink.trim() || undefined,
+        submittedAt: new Date().toISOString(),
+        addedByAdmin: true,
+      }),
       })
 
       const data = await res.json()
@@ -90,6 +96,26 @@ export function AddPoolArtistModal({ onClose, onSuccess }: AddPoolArtistModalPro
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <div>
+            <label className="font-host-grotesk font-semibold text-sm text-rosewood/80 block mb-1">
+              Wednesday <span className="text-poppy">*</span>
+            </label>
+            <select
+              value={sessionIso}
+              onChange={(e) => setSessionIso(e.target.value)}
+              required
+              className="w-full px-4 py-2 bg-plaster/30 border border-rosewood/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-chartreuse/40 font-host-grotesk text-rosewood"
+            >
+              {getNextWednesdays(todayIsoLocal(), 12).map((iso) => (
+                <option key={iso} value={iso}>
+                  {formatSessionLong(iso)}
+                </option>
+              ))}
+            </select>
+            <p className="font-host-grotesk text-xs text-rosewood/40 mt-1">
+              The artist will appear in that week&apos;s signup pool.
+            </p>
+          </div>
           <div>
             <label className="font-host-grotesk font-semibold text-sm text-rosewood/80 block mb-1">
               Full Name <span className="text-poppy">*</span>

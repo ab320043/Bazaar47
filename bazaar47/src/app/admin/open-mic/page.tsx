@@ -21,6 +21,7 @@ import {
   formatSessionLong,
   formatSessionShort,
   getNextWednesdays,
+  getTargetSessionIso,
   shiftWeeks,
   todayIsoLocal,
 } from '@/lib/open-mic/dates'
@@ -33,7 +34,7 @@ import { PoolEditModal } from './PoolEditModal'
 import { DeletePoolConfirmModal } from './DeletePoolConfirmModal'
 import { DeleteSessionConfirmModal } from './DeleteSessionConfirmModal'
 import { AddPoolArtistModal } from './AddPoolArtistModal'
-import { ToastProvider, useToast } from './Toast'
+import { ToastProvider, useToast, type ToastInput } from './Toast'
 
 // ============================================
 // TYPES
@@ -42,6 +43,7 @@ import { ToastProvider, useToast } from './Toast'
 interface OpenMicApiResponse {
   pool: OpenMicSubmission[]
   sessions: OpenMicSession[]
+  unscheduled?: OpenMicSubmission[]
 }
 
 // ============================================
@@ -65,10 +67,17 @@ function AdminOpenMicInner() {
 
   const [pool, setPool] = useState<OpenMicSubmission[]>([])
   const [sessions, setSessions] = useState<OpenMicSession[]>([])
+  const [unscheduled, setUnscheduled] = useState<OpenMicSubmission[]>([])
   const [loading, setLoading] = useState(true)
   const [activeSessionDate, setActiveSessionDate] = useState<string | null>(
     null
   )
+
+  // Which Wednesday's pool the right rail shows. Defaults to the
+  // upcoming Wednesday so the admin opens onto "this week's signups".
+  const [poolFilterIso, setPoolFilterIso] = useState<string>(() => {
+    return getTargetSessionIso()
+  })
 
   const [pickerAnchorIso, setPickerAnchorIso] = useState<string>(() =>
     todayIsoLocal()
@@ -94,6 +103,7 @@ function AdminOpenMicInner() {
         const data: OpenMicApiResponse = await res.json()
         setPool(data.pool || [])
         setSessions(data.sessions || [])
+        setUnscheduled(data.unscheduled || [])
       } catch (err) {
         console.error('Failed to load open mic data', err)
         if (!opts?.silent) {
@@ -138,6 +148,23 @@ function AdminOpenMicInner() {
     [sessions]
   )
 
+  // ---- Per-session signup counts ----
+
+  const signupCountBySession = useMemo(() => {
+    const m = new Map<string, number>()
+    for (const sub of pool) {
+      for (const iso of sub.sessionDates) {
+        m.set(iso, (m.get(iso) ?? 0) + 1)
+      }
+    }
+    return m
+  }, [pool])
+
+  const poolForFilter = useMemo(
+    () => pool.filter((s) => s.sessionDates.includes(poolFilterIso)),
+    [pool, poolFilterIso]
+  )
+
   // ---- Sessions grouped by state ----
 
   const groupedSessions = useMemo(() => {
@@ -162,12 +189,25 @@ function AdminOpenMicInner() {
   // ---- Pool: Add ----
 
   const handleAddArtistSuccess = (newArtist: OpenMicSubmission) => {
-    setPool((prev) => [newArtist, ...prev])
+    setPool((prev) => {
+      const idx = prev.findIndex((s) => s.id === newArtist.id)
+      if (idx === -1) return [newArtist, ...prev]
+      const next = [...prev]
+      next[idx] = newArtist
+      return next
+    })
+    // If they landed in the currently-filtered week, keep them visible;
+    // otherwise switch the filter so the admin sees what they just did.
+    const assignedIso = newArtist.sessionDates[newArtist.sessionDates.length - 1]
+    if (assignedIso && !newArtist.sessionDates.includes(poolFilterIso)) {
+      setPoolFilterIso(assignedIso)
+    }
     showToast({
       kind: 'success',
       title: 'Artist added to pool',
       message: `${newArtist.artistName} is ready to be scheduled.`,
     })
+    void fetchData({ silent: true })
   }
 
   // ---- Pool: edit ----
@@ -273,10 +313,13 @@ function AdminOpenMicInner() {
     const session =
       sessions.find((s) => s.date === activeSessionDate) || null
 
-    const state = classifySession(activeSessionDate)
-
+    // Only artists signed up for THIS week appear in the builder's
+    // pool rail. The "Add from another week" picker in the builder
+    // is the escape hatch for pulling in outside artists.
     const availablePool = pool.filter(
-      (p) => !session?.lineup.some((l) => l.submissionId === p.id)
+      (p) =>
+        p.sessionDates.includes(activeSessionDate) &&
+        !session?.lineup.some((l) => l.submissionId === p.id)
     )
 
     return (
@@ -322,6 +365,11 @@ function AdminOpenMicInner() {
             <p className="text-rosewood/50 text-sm mt-1">
               {totalSessions} session{totalSessions === 1 ? '' : 's'} ·{' '}
               {pool.length} artist{pool.length === 1 ? '' : 's'} in pool
+              {unscheduled.length > 0 && (
+                <span className="text-poppy ml-1">
+                  · {unscheduled.length} unscheduled
+                </span>
+              )}
             </p>
           </div>
           <div className="flex gap-2 w-full sm:w-auto">
@@ -391,6 +439,7 @@ function AdminOpenMicInner() {
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               {upcomingWednesdays.map((iso) => {
                 const alreadyExists = existingSessionDates.has(iso)
+                const signupCount = signupCountBySession.get(iso) ?? 0
                 return (
                   <button
                     key={iso}
@@ -406,6 +455,7 @@ function AdminOpenMicInner() {
                     </p>
                     <p className="font-host-grotesk text-[11px] text-rosewood/50 mt-0.5">
                       {alreadyExists ? 'Open existing' : 'New session'}
+                      {signupCount > 0 && ` · ${signupCount} signed up`}
                     </p>
                   </button>
                 )
@@ -424,6 +474,7 @@ function AdminOpenMicInner() {
                 title="Current"
                 hint="Happening today"
                 sessions={groupedSessions.current}
+                signupCounts={signupCountBySession}
                 onOpen={(iso) => setActiveSessionDate(iso)}
                 onDelete={handleDeleteSessionIntent}
               />
@@ -435,6 +486,7 @@ function AdminOpenMicInner() {
               title="Upcoming"
               hint={`${groupedSessions.upcoming.length} scheduled`}
               sessions={groupedSessions.upcoming}
+              signupCounts={signupCountBySession}
               onOpen={(iso) => setActiveSessionDate(iso)}
               onDelete={handleDeleteSessionIntent}
               emptyMessage="No upcoming sessions."
@@ -444,28 +496,48 @@ function AdminOpenMicInner() {
             {groupedSessions.past.length > 0 && (
               <ArchivedGroup
                 sessions={groupedSessions.past}
+                signupCounts={signupCountBySession}
                 onOpen={(iso) => setActiveSessionDate(iso)}
                 onDelete={handleDeleteSessionIntent}
               />
             )}
           </div>
 
-          {/* Raw Pool */}
+          {/* Pool — filtered to a specific Wednesday */}
           <div className="space-y-3">
-            <h2 className="font-host-grotesk font-bold text-xl text-rosewood">
-              Artist Pool
-            </h2>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              <h2 className="font-host-grotesk font-bold text-xl text-rosewood">
+                Artist Pool
+              </h2>
+              <div className="flex items-center gap-2">
+                <label className="font-host-grotesk text-xs text-rosewood/50 shrink-0">
+                  Week:
+                </label>
+                <select
+                  value={poolFilterIso}
+                  onChange={(e) => setPoolFilterIso(e.target.value)}
+                  className="px-3 py-1.5 bg-white border border-rosewood/10 rounded-xl font-host-grotesk text-sm text-rosewood focus:outline-none focus:ring-2 focus:ring-chartreuse/40"
+                >
+                  {getNextWednesdays(todayIsoLocal(), 12).map((iso) => (
+                    <option key={iso} value={iso}>
+                      {formatSessionShort(iso)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
             <div className="bg-white rounded-xl border border-rosewood/5 shadow-sm overflow-hidden flex flex-col max-h-[70vh]">
               <div className="bg-plaster/30 p-3 text-sm text-rosewood/60 font-semibold border-b border-rosewood/5 flex justify-between">
-                <span>Unassigned Submissions</span>
+                <span>Signed up for {formatSessionShort(poolFilterIso)}</span>
                 <span className="bg-rosewood/10 text-rosewood/60 px-2 py-0.5 rounded-full text-xs">
-                  {pool.length}
+                  {poolForFilter.length}
                 </span>
               </div>
-              
+
               <div className="overflow-y-auto p-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {pool.map((sub) => (
+                  {poolForFilter.map((sub) => (
                     <PoolRow
                       key={sub.id}
                       submission={sub}
@@ -474,13 +546,40 @@ function AdminOpenMicInner() {
                     />
                   ))}
                 </div>
-                {pool.length === 0 && (
+                {poolForFilter.length === 0 && (
                   <p className="text-center text-sm text-rosewood/40 py-8">
-                    The pool is empty.
+                    No one has signed up for this week yet.
                   </p>
                 )}
               </div>
             </div>
+
+            {/* Legacy / unscheduled records — pre-per-week signups */}
+            {unscheduled.length > 0 && (
+              <details className="bg-white rounded-xl border border-rosewood/5 shadow-sm overflow-hidden">
+                <summary className="cursor-pointer p-3 bg-plaster/30 text-sm text-rosewood/60 font-semibold flex items-center justify-between">
+                  <span>Unscheduled (legacy signups)</span>
+                  <span className="bg-poppy/10 text-poppy px-2 py-0.5 rounded-full text-xs">
+                    {unscheduled.length}
+                  </span>
+                </summary>
+                <div className="p-4 space-y-2">
+                  <p className="font-host-grotesk text-xs text-rosewood/50 mb-2">
+                    These records predate per-week signups. Assign a week to
+                    make them visible in the pool above.
+                  </p>
+                  {unscheduled.map((sub) => (
+                    <LegacyPoolRow
+                      key={sub.id}
+                      submission={sub}
+                      targetIso={poolFilterIso}
+                      onAssigned={() => fetchData({ silent: true })}
+                      showToast={showToast}
+                    />
+                  ))}
+                </div>
+              </details>
+            )}
           </div>
         </div>
       </div>
@@ -490,6 +589,7 @@ function AdminOpenMicInner() {
         <AddPoolArtistModal
           onClose={() => setIsAddingArtist(false)}
           onSuccess={handleAddArtistSuccess}
+          defaultSessionIso={poolFilterIso}
         />
       )}
 
@@ -531,6 +631,7 @@ function SessionGroup({
   title,
   hint,
   sessions,
+  signupCounts,
   onOpen,
   onDelete,
   emptyMessage,
@@ -539,6 +640,7 @@ function SessionGroup({
   title: string
   hint?: string
   sessions: OpenMicSession[]
+  signupCounts: Map<string, number>
   onOpen: (iso: string) => void
   onDelete: (session: OpenMicSession) => void
   emptyMessage?: string
@@ -569,6 +671,7 @@ function SessionGroup({
             <SessionRow
               key={s.date}
               session={s}
+              signupCount={signupCounts.get(s.date) ?? 0}
               onOpen={() => onOpen(s.date)}
               onDelete={() => onDelete(s)}
             />
@@ -585,10 +688,12 @@ function SessionGroup({
 
 function ArchivedGroup({
   sessions,
+  signupCounts,
   onOpen,
   onDelete,
 }: {
   sessions: OpenMicSession[]
+  signupCounts: Map<string, number>
   onOpen: (iso: string) => void
   onDelete: (session: OpenMicSession) => void
 }) {
@@ -622,6 +727,7 @@ function ArchivedGroup({
             <SessionRow
               key={s.date}
               session={s}
+              signupCount={signupCounts.get(s.date) ?? 0}
               onOpen={() => onOpen(s.date)}
               onDelete={() => onDelete(s)}
             />
@@ -638,10 +744,12 @@ function ArchivedGroup({
 
 function SessionRow({
   session,
+  signupCount,
   onOpen,
   onDelete,
 }: {
   session: OpenMicSession
+  signupCount: number
   onOpen: () => void
   onDelete: () => void
 }) {
@@ -655,10 +763,7 @@ function SessionRow({
 
   return (
     <div className="group bg-white rounded-xl border border-rosewood/5 shadow-sm hover:border-chartreuse transition-all flex items-center">
-      <button
-        onClick={onOpen}
-        className="flex-1 text-left p-4 min-w-0"
-      >
+      <button onClick={onOpen} className="flex-1 text-left p-4 min-w-0">
         <div className="flex items-center gap-2 mb-0.5">
           <span
             className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${stateStyle}`}
@@ -674,8 +779,7 @@ function SessionRow({
           {formatSessionLong(session.date)}
         </p>
         <p className="text-sm text-rosewood/50">
-          {session.lineup.length} artist
-          {session.lineup.length === 1 ? '' : 's'} scheduled
+          {signupCount} signed up · {session.lineup.length} scheduled
           {state === 'past' && ' · read-only'}
         </p>
       </button>
@@ -706,7 +810,7 @@ function SessionRow({
 }
 
 // ============================================
-// POOL ROW (with edit / delete actions)
+// POOL ROW (per-week view)
 // ============================================
 
 function PoolRow({
@@ -767,6 +871,82 @@ function PoolRow({
           </button>
         </div>
       </div>
+    </div>
+  )
+}
+
+// ============================================
+// LEGACY POOL ROW (assign-to-week action)
+// ============================================
+
+function LegacyPoolRow({
+  submission,
+  targetIso,
+  onAssigned,
+  showToast,
+}: {
+  submission: OpenMicSubmission
+  targetIso: string
+  onAssigned: () => void
+  showToast: (input: ToastInput) => void
+}) {
+  const [assigning, setAssigning] = useState(false)
+
+  const handleAssign = async () => {
+    setAssigning(true)
+    try {
+      const res = await fetch(
+        `/api/admin/open-mic/${submission.id}/assign-session`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionIso: targetIso }),
+        }
+      )
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        showToast({
+          kind: 'error',
+          title: 'Could not assign week',
+          message: body.error || 'Please try again.',
+        })
+        return
+      }
+      showToast({
+        kind: 'success',
+        title: 'Added to week',
+        message: `${submission.artistName} is now signed up for ${formatSessionShort(targetIso)}.`,
+      })
+      onAssigned()
+    } catch {
+      showToast({
+        kind: 'error',
+        title: 'Network error',
+        message: 'Could not assign week.',
+      })
+    } finally {
+      setAssigning(false)
+    }
+  }
+
+  return (
+    <div className="flex items-center justify-between gap-2 p-2 bg-plaster/20 rounded-lg border border-rosewood/5">
+      <div className="min-w-0 flex-1">
+        <p className="font-host-grotesk font-semibold text-sm text-rosewood truncate">
+          {submission.artistName}
+        </p>
+        <p className="font-host-grotesk text-xs text-rosewood/50 truncate">
+          {submission.email}
+        </p>
+      </div>
+      <button
+        onClick={handleAssign}
+        disabled={assigning}
+        className="shrink-0 text-xs font-host-grotesk font-semibold bg-chartreuse hover:bg-chartreuse/90 text-grove px-2.5 py-1 rounded-lg transition-colors disabled:opacity-50 flex items-center gap-1"
+      >
+        {assigning && <Loader2 className="w-3 h-3 animate-spin" />}
+        Assign to {formatSessionShort(targetIso)}
+      </button>
     </div>
   )
 }

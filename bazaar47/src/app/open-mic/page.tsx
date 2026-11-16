@@ -41,6 +41,8 @@ type SubmitState =
       kind: 'success'
       artistName: string
       confirmationNumber: string
+      sessionIso: string
+      wasAppended: boolean
     }
   | { kind: 'error'; message: string }
 
@@ -134,6 +136,8 @@ export default function OpenMicPage() {
         kind: 'success',
         artistName: form.artistName.trim(),
         confirmationNumber: body.id ? `OM-${body.id.slice(0, 6).toUpperCase()}` : 'Confirmed',
+        sessionIso: typeof body.sessionIso === 'string' ? body.sessionIso : '',
+        wasAppended: body.appended === true,
       })
     } catch (err) {
       console.error('Open Mic submit error:', err)
@@ -285,11 +289,26 @@ export default function OpenMicPage() {
                       <CheckCircle2 className="w-8 h-8 text-cypress" />
                     </div>
                     <h2 className="font-host-grotesk font-bold text-2xl text-rosewood">
-                      You&apos;re in the pool, {submitState.artistName}!
+                      You&apos;re signed up, {submitState.artistName}!
                     </h2>
                     <p className="font-host-grotesk text-rosewood/60 mt-2 max-w-md">
-                      We&apos;ve received your submission. Our team will review it and reach out with your scheduled performance time.
+                      {submitState.wasAppended
+                        ? "We've added this Wednesday to your existing artist profile."
+                        : "We've received your submission. Our team will be in touch with your scheduled performance time."}
                     </p>
+
+                    {submitState.sessionIso && (
+                      <div className="mt-4 inline-flex items-center gap-2 bg-chartreuse/10 border border-chartreuse/30 rounded-xl px-4 py-2">
+                        <Calendar className="w-4 h-4 text-cypress shrink-0" />
+                        <span className="font-host-grotesk text-sm font-semibold text-cypress">
+                          {new Date(`${submitState.sessionIso}T12:00:00`).toLocaleDateString(
+                            'en-US',
+                            { weekday: 'long', month: 'long', day: 'numeric' }
+                          )}
+                        </span>
+                      </div>
+                    )}
+
                     <p className="font-host-grotesk text-xs text-rosewood/40 mt-4 font-mono">
                       Ref #{submitState.confirmationNumber}
                     </p>

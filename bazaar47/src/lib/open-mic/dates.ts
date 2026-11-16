@@ -176,3 +176,16 @@ export function formatSessionDateOnly(iso: string): string {
   if (!d) return iso
   return `${MONTHS_LONG[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`
 }
+
+/**
+ * The Wednesday a submission targets right now.
+ *
+ * The window runs Thu 00:00 → Tue 23:59, so any submission that
+ * arrives during the window is for the *coming* Wednesday. On
+ * Wednesday itself the window is closed, but this still returns
+ * today's Wednesday — callers that gate on the window first won't
+ * reach this on a Wednesday.
+ */
+export function getTargetSessionIso(now: Date = new Date()): string {
+  return getNextWednesdays(toIsoLocal(now), 1)[0] ?? toIsoLocal(now)
+}
