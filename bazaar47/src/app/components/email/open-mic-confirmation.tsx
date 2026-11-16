@@ -1,5 +1,4 @@
-// app/components/email/open-mic-confirmation.tsx
-import * as React from 'react'
+// components/email/open-mic-confirmation.tsx
 
 interface OpenMicConfirmationProps {
   fullName: string
@@ -8,9 +7,11 @@ interface OpenMicConfirmationProps {
   musicLink?: string
   instagram?: string
   email: string
-  sessionDate: string
+  /**
+   * Human-readable label for the Wednesday this submission targets,
+   * e.g. "Wednesday, November 18, 2026".
+   */
   sessionLabel: string
-  confirmationNumber: string
 }
 
 export function OpenMicConfirmation({
@@ -21,8 +22,9 @@ export function OpenMicConfirmation({
   instagram,
   email,
   sessionLabel,
-  confirmationNumber,
 }: OpenMicConfirmationProps) {
+  const reachOutVia = instagram ? 'Instagram DM' : 'email'
+
   return (
     <div
       style={{
@@ -97,22 +99,58 @@ export function OpenMicConfirmation({
           style={{
             color: '#341B1C',
             fontSize: '22px',
-            margin: '0 0 5px',
+            margin: '0 0 10px',
           }}
         >
-          You&apos;re on, {artistName}!
+          Thanks for signing up, {artistName}.
         </h2>
         <p
           style={{
             color: '#6A2630',
             fontSize: '14px',
             margin: '0 0 20px',
+            lineHeight: '1.6',
           }}
         >
-          Thanks for signing up for Open Mic at Bazaar47. We&apos;ll see you there.
+          We&apos;ve received your submission for Open Mic at Bazaar47.
+          This confirms your entry, not a scheduled performance slot.
         </p>
 
-        {/* Session Details */}
+        {/* Signed-up-for date — the ONLY scheduling detail */}
+        <div
+          style={{
+            backgroundColor: '#CCD145',
+            padding: '18px',
+            borderRadius: '8px',
+            marginBottom: '20px',
+            textAlign: 'center',
+          }}
+        >
+          <p
+            style={{
+              color: '#202912',
+              fontSize: '11px',
+              fontWeight: 'bold',
+              letterSpacing: '2px',
+              textTransform: 'uppercase',
+              margin: '0 0 6px',
+            }}
+          >
+            You signed up for
+          </p>
+          <p
+            style={{
+              color: '#202912',
+              fontSize: '18px',
+              fontWeight: 'bold',
+              margin: '0',
+            }}
+          >
+            {sessionLabel}
+          </p>
+        </div>
+
+        {/* What happens next */}
         <div
           style={{
             backgroundColor: '#F5F0E8',
@@ -124,50 +162,84 @@ export function OpenMicConfirmation({
           <h3
             style={{
               color: '#341B1C',
-              fontSize: '16px',
+              fontSize: '15px',
               margin: '0 0 10px',
               fontWeight: 'bold',
             }}
           >
-            Session Details
+            What happens next
           </h3>
-          <table style={{ width: '100%', fontSize: '14px' }}>
+          <p
+            style={{
+              color: '#6A2630',
+              fontSize: '13px',
+              margin: '0 0 10px',
+              lineHeight: '1.6',
+            }}
+          >
+            Our team reviews every signup and puts together the run of
+            show. You&apos;ll hear from us via <strong>{reachOutVia}</strong>
+            {' '}with the details — your set time, order, and anything else
+            you need to know for the night.
+          </p>
+          <p
+            style={{
+              color: '#6A2630',
+              fontSize: '13px',
+              margin: '0',
+              lineHeight: '1.6',
+            }}
+          >
+            Getting this email doesn&apos;t guarantee a slot — the lineup
+            is set after we&apos;ve reviewed all submissions for the week.
+            If you&apos;re selected, we&apos;ll reach out directly.
+          </p>
+        </div>
+
+        {/* Submission summary (no scheduling info) */}
+        <div
+          style={{
+            backgroundColor: '#F5F0E8',
+            padding: '16px 20px',
+            borderRadius: '8px',
+            marginBottom: '20px',
+          }}
+        >
+          <h3
+            style={{
+              color: '#341B1C',
+              fontSize: '13px',
+              margin: '0 0 10px',
+              fontWeight: 'bold',
+              letterSpacing: '1px',
+              textTransform: 'uppercase',
+            }}
+          >
+            Your submission
+          </h3>
+          <table style={{ width: '100%', fontSize: '13px' }}>
             <tbody>
               <tr>
-                <td style={{ color: '#6A2630', padding: '4px 0' }}>When</td>
-                <td
-                  style={{
-                    color: '#341B1C',
-                    fontWeight: 'bold',
-                    textAlign: 'right',
-                  }}
-                >
-                  {sessionLabel}
-                </td>
-              </tr>
-              <tr>
-                <td style={{ color: '#6A2630', padding: '4px 0' }}>Where</td>
+                <td style={{ color: '#6A2630', padding: '3px 0' }}>Name</td>
                 <td style={{ color: '#341B1C', textAlign: 'right' }}>
-                  Bazaar47 · 60 SW 2nd Street
+                  {fullName}
                 </td>
               </tr>
               <tr>
-                <td style={{ color: '#6A2630', padding: '4px 0' }}>
-                  Artist
-                </td>
+                <td style={{ color: '#6A2630', padding: '3px 0' }}>Artist</td>
                 <td style={{ color: '#341B1C', textAlign: 'right' }}>
                   {artistName}
                 </td>
               </tr>
               <tr>
-                <td style={{ color: '#6A2630', padding: '4px 0' }}>Genre</td>
+                <td style={{ color: '#6A2630', padding: '3px 0' }}>Genre</td>
                 <td style={{ color: '#341B1C', textAlign: 'right' }}>
                   {genre}
                 </td>
               </tr>
               {musicLink && (
                 <tr>
-                  <td style={{ color: '#6A2630', padding: '4px 0' }}>
+                  <td style={{ color: '#6A2630', padding: '3px 0' }}>
                     Your music
                   </td>
                   <td style={{ color: '#341B1C', textAlign: 'right' }}>
@@ -185,7 +257,7 @@ export function OpenMicConfirmation({
               )}
               {instagram && (
                 <tr>
-                  <td style={{ color: '#6A2630', padding: '4px 0' }}>
+                  <td style={{ color: '#6A2630', padding: '3px 0' }}>
                     Instagram
                   </td>
                   <td style={{ color: '#341B1C', textAlign: 'right' }}>
@@ -193,36 +265,17 @@ export function OpenMicConfirmation({
                   </td>
                 </tr>
               )}
+              <tr>
+                <td style={{ color: '#6A2630', padding: '3px 0' }}>Email</td>
+                <td style={{ color: '#341B1C', textAlign: 'right' }}>
+                  {email}
+                </td>
+              </tr>
             </tbody>
           </table>
         </div>
 
-        {/* Confirmation Number */}
-        <div
-          style={{
-            backgroundColor: '#CCD145',
-            padding: '15px',
-            borderRadius: '8px',
-            textAlign: 'center',
-            marginBottom: '20px',
-          }}
-        >
-          <p
-            style={{
-              color: '#202912',
-              fontSize: '14px',
-              fontWeight: 'bold',
-              margin: '0',
-            }}
-          >
-            Confirmation #{confirmationNumber}
-          </p>
-          <p style={{ color: '#202912', fontSize: '12px', margin: '5px 0 0' }}>
-            Save this for check-in
-          </p>
-        </div>
-
-        {/* Check-in note */}
+        {/* DM heads-up */}
         <div
           style={{
             backgroundColor: '#FFDBE1',
@@ -236,12 +289,13 @@ export function OpenMicConfirmation({
               color: '#6A2630',
               fontSize: '13px',
               margin: '0',
-              lineHeight: '1.5',
+              lineHeight: '1.6',
             }}
           >
-            <strong>Check-in at 7:30 PM.</strong> Bring whatever you need
-            for your set — cables, instruments, backing tracks. The
-            stage is yours.
+            <strong>Heads up:</strong> keep an eye on your{' '}
+            {instagram ? 'Instagram inbox' : 'email inbox'}. That&apos;s
+            where the run-of-show details will land if you&apos;re in the
+            lineup.
           </p>
         </div>
 
