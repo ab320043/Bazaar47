@@ -12,7 +12,9 @@ import {
   getAllClaims,
   getClaimsForOffer,
   countConfirmedClaimsForOffer,
+  updateClaim,
 } from '@/lib/storage/staff-claims'
+import { getAssignments, saveAssignments } from '@/lib/storage/staff-assignments'
 import type {
   ShiftOffer,
   ShiftOfferCreatePayload,
@@ -21,17 +23,15 @@ import type {
   RoleCoverage,
   OfferWithClaims,
 } from '@/types/shift-offer'
-import { claimIsActive } from '@/types/staff-claim'
-import type { StaffMember } from '@/types/staff'
+import type { ClaimReleaseReason, ShiftClaim } from '@/types/staff-claim'
+import { claimIsActive, claimOccupiesSlot } from '@/types/staff-claim'
+import type { StaffMember, StaffAssignment } from '@/types/staff'
 import { STAFF_ROLES } from '@/data/staff-roles'
 
 // ============================================
 // ELIGIBILITY
 // ============================================
 
-/**
- * Does this staff member match the offer's eligibility rule?
- */
 export function staffCanClaimOffer(
   staff: StaffMember,
   offer: ShiftOffer
@@ -57,9 +57,9 @@ export function staffCanClaimOffer(
  * Build a per-role coverage view for one event.
  *
  * Groups offers by role. For each offer, counts confirmed claims
- * (occupying slots) and pending claims (awaiting admin confirmation).
- * `isFullyStaffed` is true only when every offer has zero pending
- * claims AND `slotsFilled === slotsNeeded`.
+ * (occupying slots) and pending/waitlisted claims (awaiting admin or
+ * staff action). `isFullyStaffed` is true only when every offer has
+ * zero pending/waitlisted claims AND `slotsFilled === slotsNeeded`.
  */
 export async function getCoverageForEvent(
   eventId: string,
@@ -69,7 +69,7 @@ export async function getCoverageForEvent(
   const offers = await getOffersForEvent(eventId)
   const allClaims = await getAllClaims()
 
-  const claimsByOffer = new Map<string, typeof allClaims>()
+  const claimsByOffer = new Map<string, ShiftClaim[]>()
   for (const c of allClaims) {
     if (!claimsByOffer.has(c.offerId)) claimsByOffer.set(c.offerId, [])
     claimsByOffer.get(c.offerId)!.push(c)
@@ -97,15 +97,10 @@ export async function getCoverageForEvent(
     const group = byRole.get(role)!
     const claims = claimsByOffer.get(offer.id) || []
 
-    const confirmed = claims.filter(
-      (c) =>
-        c.status === 'confirmed' ||
-        c.status === 'checked-in' ||
-        c.status === 'checked-out' ||
-        c.status === 'completed' ||
-        c.status === 'auto-closed'
+    const confirmed = claims.filter((c) => claimOccupiesSlot(c.status))
+    const pending = claims.filter(
+      (c) => c.status === 'pending' || c.status === 'waitlisted'
     )
-    const pending = claims.filter((c) => c.status === 'pending')
 
     const withClaims: OfferWithClaims = {
       offer,
@@ -165,18 +160,6 @@ export async function getCoverageForEvent(
 // PUBLISH / UPDATE / CANCEL
 // ============================================
 
-/**
- * Publish a new offer.
- *
- * Validates:
- *   - shiftEnd > shiftStart
- *   - slotsNeeded >= 1
- *   - hourlyRate > 0
- *
- * Sets status to 'open' by default. If `status: 'draft'` is passed,
- * the offer is created but not visible on the coverage board's
- * "counts toward coverage" logic.
- */
 export async function publishOffer(
   payload: ShiftOfferCreatePayload,
   createdBy: string
@@ -224,25 +207,101 @@ export async function updateOfferSafely(
   return updateOffer(id, updates)
 }
 
+// ============================================
+// CANCEL OFFER (WITH CASCADE)
+// ============================================
+
+export interface CancelOfferResult {
+  offer: ShiftOffer
+  cancelledClaims: ShiftClaim[]
+  cancelledAssignments: string[]
+}
+
 /**
- * Cancel an offer.
+ * Cancel an offer and cascade the cancellation to every claim and
+ * assignment attached to it.
  *
- * All pending and confirmed claims on it are transitioned to
- * 'cancelled' with releaseReason 'event-cancelled'. Their assignments
- * (if any) are NOT cancelled here — Phase 2C will handle that cascade.
- * For Phase 2A, offer cancellation only marks the claims as cancelled.
+ * Mapping:
+ *   - pending      → cancelled, releaseReason 'admin'
+ *   - waitlisted   → cancelled, releaseReason 'admin'   (never had the slot)
+ *   - confirmed    → cancelled, releaseReason 'event-cancelled'
+ *   - checked-in   → cancelled, releaseReason 'event-cancelled'
+ *   - checked-out  → cancelled, releaseReason 'event-cancelled'
+ *   - completed    → cancelled, releaseReason 'event-cancelled'
+ *   - auto-closed  → cancelled, releaseReason 'event-cancelled'
+ *
+ * Linked assignments are marked 'cancelled'. WorkLogs are NOT touched —
+ * they remain the source of truth for pay, per the project invariants.
  */
 export async function cancelOfferAndCascade(
-  offerId: string
-): Promise<ShiftOffer | undefined> {
-  const cancelled = await cancelOffer(offerId)
-  if (!cancelled) return undefined
+  offerId: string,
+  reason: ClaimReleaseReason = 'event-cancelled',
+  now: Date = new Date()
+): Promise<CancelOfferResult | undefined> {
+  const offer = await getOfferById(offerId)
+  if (!offer) return undefined
+  if (offer.status === 'cancelled') {
+    // Idempotent: return an empty result.
+    return { offer, cancelledClaims: [], cancelledAssignments: [] }
+  }
 
-  // Phase 2A does not yet cascade to claims — Phase 2C will.
-  // The offer itself is out of the coverage board, which is the
-  // important effect. Confirmed claims become orphaned (their offer
-  // is cancelled), which the coverage board treats as "not counting".
-  return cancelled
+  const claims = await getClaimsForOffer(offerId)
+  const cancelledClaims: ShiftClaim[] = []
+  const cancelledAssignments: string[] = []
+
+  // Build the assignment-cancel set first so we can do one write.
+  const assignmentIdsToCancel = new Set<string>()
+  for (const c of claims) {
+    if (c.assignmentId && claimOccupiesSlot(c.status)) {
+      assignmentIdsToCancel.add(c.assignmentId)
+    }
+  }
+
+  if (assignmentIdsToCancel.size > 0) {
+    try {
+      const assignments = await getAssignments()
+      const next: StaffAssignment[] = assignments.map((a) =>
+        assignmentIdsToCancel.has(a.id)
+          ? { ...a, status: 'cancelled', updatedAt: now.toISOString() }
+          : a
+      )
+      await saveAssignments(next)
+      cancelledAssignments.push(...assignmentIdsToCancel)
+    } catch (err) {
+      console.error('[cancelOfferAndCascade] assignment cancel failed:', err)
+    }
+  }
+
+  // Cancel each claim.
+  for (const c of claims) {
+    if (c.status === 'cancelled' || c.status === 'released') continue
+
+    const isPreSlot =
+      c.status === 'pending' || c.status === 'waitlisted'
+    const claimReason: ClaimReleaseReason = isPreSlot ? 'admin' : reason
+
+    try {
+      const updated = await updateClaim(c.id, {
+        status: 'cancelled',
+        releaseReason: claimReason,
+        releasedAt: now.toISOString(),
+        waitlistOfferedAt: undefined,
+        waitlistExpiresAt: undefined,
+      })
+      if (updated) cancelledClaims.push(updated)
+    } catch (err) {
+      console.error('[cancelOfferAndCascade] claim cancel failed:', c.id, err)
+    }
+  }
+
+  const cancelledOffer = await cancelOffer(offerId)
+  if (!cancelledOffer) return undefined
+
+  return {
+    offer: cancelledOffer,
+    cancelledClaims,
+    cancelledAssignments,
+  }
 }
 
 // ============================================
@@ -262,11 +321,6 @@ export async function refreshOfferSlots(offerId: string): Promise<void> {
 // EVENT SUMMARY
 // ============================================
 
-/**
- * A lightweight summary for the event list / dashboard: does this event
- * have any open offers, how many slots filled / needed in total, and
- * is it fully covered.
- */
 export interface EventCoverageSummary {
   eventId: string
   totalOffers: number
@@ -291,15 +345,10 @@ export async function getEventCoverageSummary(
   for (const offer of active) {
     const claims = await getClaimsForOffer(offer.id)
     slotsNeeded += offer.slotsNeeded
-    slotsFilled += claims.filter(
-      (c) =>
-        c.status === 'confirmed' ||
-        c.status === 'checked-in' ||
-        c.status === 'checked-out' ||
-        c.status === 'completed' ||
-        c.status === 'auto-closed'
+    slotsFilled += claims.filter((c) => claimOccupiesSlot(c.status)).length
+    slotsPending += claims.filter(
+      (c) => c.status === 'pending' || c.status === 'waitlisted'
     ).length
-    slotsPending += claims.filter((c) => c.status === 'pending').length
   }
 
   return {
@@ -317,7 +366,6 @@ export async function getEventCoverageSummary(
 
 /**
  * Coverage summary for every event that has at least one active offer.
- * Used by the admin event list to show "3 of 5 staffed" style badges.
  */
 export async function getAllEventsCoverageSummaries(): Promise<
   Map<string, EventCoverageSummary>
@@ -331,7 +379,7 @@ export async function getAllEventsCoverageSummaries(): Promise<
   }
 
   const allClaims = await getAllClaims()
-  const claimsByOffer = new Map<string, typeof allClaims>()
+  const claimsByOffer = new Map<string, ShiftClaim[]>()
   for (const c of allClaims) {
     if (!claimsByOffer.has(c.offerId)) claimsByOffer.set(c.offerId, [])
     claimsByOffer.get(c.offerId)!.push(c)
@@ -347,15 +395,10 @@ export async function getAllEventsCoverageSummaries(): Promise<
     for (const offer of offers) {
       const claims = claimsByOffer.get(offer.id) || []
       slotsNeeded += offer.slotsNeeded
-      slotsFilled += claims.filter(
-        (c) =>
-          c.status === 'confirmed' ||
-          c.status === 'checked-in' ||
-          c.status === 'checked-out' ||
-          c.status === 'completed' ||
-          c.status === 'auto-closed'
+      slotsFilled += claims.filter((c) => claimOccupiesSlot(c.status)).length
+      slotsPending += claims.filter(
+        (c) => c.status === 'pending' || c.status === 'waitlisted'
       ).length
-      slotsPending += claims.filter((c) => c.status === 'pending').length
     }
 
     result.set(eventId, {

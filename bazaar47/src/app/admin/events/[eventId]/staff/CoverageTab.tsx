@@ -14,12 +14,13 @@ import {
   Users,
   RefreshCw,
   Trash2,
+  Timer,
+  SkipForward,
 } from 'lucide-react'
 import type {
   EventCoverage,
   RoleCoverage,
   OfferWithClaims,
-  ShiftOffer,
 } from '@/types/shift-offer'
 import type { StaffAssignment, EventType } from '@/types/staff'
 import { STAFF_ROLES } from '@/data/staff-roles'
@@ -142,7 +143,11 @@ export function CoverageTab({
   }
 
   const handleRejectClaim = async (offerId: string, claimId: string) => {
-    if (!confirm('Reject this claim? The staff member can claim again if the offer is still open.')) {
+    if (
+      !confirm(
+        'Reject this claim? The staff member can claim again if the offer is still open.'
+      )
+    ) {
       return
     }
     setActionClaimId(claimId)
@@ -165,7 +170,11 @@ export function CoverageTab({
   }
 
   const handleCancelOffer = async (offerId: string) => {
-    if (!confirm('Cancel this offer? Any pending or confirmed claims will stay visible but the offer will no longer count toward coverage.')) {
+    if (
+      !confirm(
+        'Cancel this offer? All pending, waitlisted, and confirmed claims will be cancelled. Confirmed staff will be notified. Work logs are not affected.'
+      )
+    ) {
       return
     }
     try {
@@ -177,6 +186,12 @@ export function CoverageTab({
         alert(body.error || 'Failed to cancel offer')
         return
       }
+      const body = await res.json().catch(() => ({}))
+      if (body.cancelledClaimCount) {
+        alert(
+          `Offer cancelled. ${body.cancelledClaimCount} claim(s) and ${body.cancelledAssignmentCount} assignment(s) cancelled.`
+        )
+      }
       await fetchCoverage({ silent: true })
     } catch {
       alert('Network error')
@@ -184,23 +199,73 @@ export function CoverageTab({
   }
 
   const handleDeleteOffer = async (offerId: string) => {
-  if (!confirm('Permanently delete this offer? This cannot be undone.')) {
-    return
-  }
-  try {
-    const res = await fetch(`/api/admin/offers/${offerId}?hard=true`, {
-      method: 'DELETE',
-    })
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({}))
-      alert(body.error || 'Failed to delete offer')
+    if (!confirm('Permanently delete this offer? This cannot be undone.')) {
       return
     }
-    await fetchCoverage({ silent: true })
-  } catch {
-    alert('Network error')
+    try {
+      const res = await fetch(`/api/admin/offers/${offerId}?hard=true`, {
+        method: 'DELETE',
+      })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        alert(body.error || 'Failed to delete offer')
+        return
+      }
+      await fetchCoverage({ silent: true })
+    } catch {
+      alert('Network error')
+    }
   }
-}
+
+  const handleExtendWaitlist = async (
+    offerId: string,
+    claimId: string
+  ) => {
+    setActionClaimId(claimId)
+    try {
+      const res = await fetch(
+        `/api/admin/offers/${offerId}/extend-waitlist/${claimId}`,
+        { method: 'POST' }
+      )
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        alert(body.error || 'Failed to extend waitlist')
+        return
+      }
+      await fetchCoverage({ silent: true })
+    } catch {
+      alert('Network error')
+    } finally {
+      setActionClaimId(null)
+    }
+  }
+
+  const handleSkipWaitlist = async (offerId: string, claimId: string) => {
+    if (
+      !confirm(
+        'Skip this waitlisted staff member? They will return to the pending queue and the next person in line will be offered the slot.'
+      )
+    ) {
+      return
+    }
+    setActionClaimId(claimId)
+    try {
+      const res = await fetch(
+        `/api/admin/offers/${offerId}/skip-waitlist/${claimId}`,
+        { method: 'POST' }
+      )
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        alert(body.error || 'Failed to skip waitlisted claim')
+        return
+      }
+      await fetchCoverage({ silent: true })
+    } catch {
+      alert('Network error')
+    } finally {
+      setActionClaimId(null)
+    }
+  }
 
   // ---- LOADING ----
 
@@ -298,6 +363,8 @@ export function CoverageTab({
           onReject={handleRejectClaim}
           onCancelOffer={handleCancelOffer}
           onDeleteOffer={handleDeleteOffer}
+          onExtendWaitlist={handleExtendWaitlist}
+          onSkipWaitlist={handleSkipWaitlist}
           onPublish={() => setPublishOpen(true)}
         />
       ))}
@@ -369,6 +436,8 @@ function RoleCard({
   onReject,
   onCancelOffer,
   onDeleteOffer,
+  onExtendWaitlist,
+  onSkipWaitlist,
   onPublish,
 }: {
   roleGroup: RoleCoverage
@@ -377,6 +446,8 @@ function RoleCard({
   onReject: (offerId: string, claimId: string) => void
   onCancelOffer: (offerId: string) => void
   onDeleteOffer: (offerId: string) => void
+  onExtendWaitlist: (offerId: string, claimId: string) => void
+  onSkipWaitlist: (offerId: string, claimId: string) => void
   onPublish: () => void
 }) {
   const roleDef = getRoleDef(roleGroup.role)
@@ -404,7 +475,7 @@ function RoleCard({
               {filledText}
               {roleGroup.totalSlotsPending > 0 && (
                 <span className="text-chartreuse ml-1">
-                  · {roleGroup.totalSlotsPending} pending
+                  · {roleGroup.totalSlotsPending} pending/waitlist
                 </span>
               )}
             </p>
@@ -436,6 +507,8 @@ function RoleCard({
             onReject={onReject}
             onCancelOffer={onCancelOffer}
             onDeleteOffer={onDeleteOffer}
+            onExtendWaitlist={onExtendWaitlist}
+            onSkipWaitlist={onSkipWaitlist}
           />
         ))}
       </div>
@@ -465,6 +538,8 @@ function OfferRow({
   onReject,
   onCancelOffer,
   onDeleteOffer,
+  onExtendWaitlist,
+  onSkipWaitlist,
 }: {
   offerWithClaims: OfferWithClaims
   actionClaimId: string | null
@@ -472,6 +547,8 @@ function OfferRow({
   onReject: (offerId: string, claimId: string) => void
   onCancelOffer: (offerId: string) => void
   onDeleteOffer: (offerId: string) => void
+  onExtendWaitlist: (offerId: string, claimId: string) => void
+  onSkipWaitlist: (offerId: string, claimId: string) => void
 }) {
   const { offer, claims } = offerWithClaims
 
@@ -484,6 +561,7 @@ function OfferRow({
       c.status === 'auto-closed'
   )
   const pending = claims.filter((c) => c.status === 'pending')
+  const waitlisted = claims.filter((c) => c.status === 'waitlisted')
 
   return (
     <div className="p-4">
@@ -507,25 +585,72 @@ function OfferRow({
           {offer.slotsFilled}/{offer.slotsNeeded}
         </span>
         <div className="ml-auto flex items-center gap-2">
-        {claims.length === 0 && (
+          {claims.length === 0 && (
             <button
-            onClick={() => onDeleteOffer(offer.id)}
-            className="text-xs font-host-grotesk text-rosewood/40 hover:text-poppy transition-colors flex items-center gap-1"
-            title="Delete offer (permanent)"
+              onClick={() => onDeleteOffer(offer.id)}
+              className="text-xs font-host-grotesk text-rosewood/40 hover:text-poppy transition-colors flex items-center gap-1"
+              title="Delete offer (permanent)"
             >
-            <Trash2 className="w-3 h-3" />
-                Delete
+              <Trash2 className="w-3 h-3" />
+              Delete
             </button>
-        )}
-        <button
+          )}
+          <button
             onClick={() => onCancelOffer(offer.id)}
             className="text-xs font-host-grotesk text-rosewood/40 hover:text-poppy transition-colors"
-            title="Cancel offer"
-        >
+            title="Cancel offer and cascade"
+          >
             Cancel offer
-        </button>
+          </button>
         </div>
       </div>
+
+      {/* Waitlisted claims */}
+      {waitlisted.length > 0 && (
+        <div className="space-y-1.5 mb-2">
+          {waitlisted.map((claim) => {
+            const isActing = actionClaimId === claim.claimId
+            return (
+              <div
+                key={claim.claimId}
+                className="flex items-center gap-2 bg-hippie/15 border border-hippie/40 rounded-lg px-3 py-2"
+              >
+                <Timer className="w-4 h-4 text-rosewood shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <span className="font-host-grotesk text-sm text-rosewood font-medium truncate block">
+                    {claim.staffName}
+                  </span>
+                  <span className="text-[10px] text-rosewood/60">
+                    Waitlisted — 12h window to reconfirm
+                  </span>
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    onClick={() => onExtendWaitlist(offer.id, claim.claimId)}
+                    disabled={isActing}
+                    className="bg-white hover:bg-hippie/20 text-rosewood/70 border border-rosewood/15 px-2.5 py-1 rounded-lg font-host-grotesk font-semibold text-xs transition-all disabled:opacity-50 flex items-center gap-1"
+                  >
+                    {isActing ? (
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                    ) : (
+                      <Timer className="w-3 h-3" />
+                    )}
+                    Extend
+                  </button>
+                  <button
+                    onClick={() => onSkipWaitlist(offer.id, claim.claimId)}
+                    disabled={isActing}
+                    className="bg-white hover:bg-poppy/10 text-rosewood/50 hover:text-poppy border border-rosewood/15 px-2.5 py-1 rounded-lg font-host-grotesk font-semibold text-xs transition-all disabled:opacity-50 flex items-center gap-1"
+                  >
+                    <SkipForward className="w-3 h-3" />
+                    Skip
+                  </button>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
 
       {/* Confirmed claims */}
       {confirmed.length > 0 && (
@@ -597,11 +722,13 @@ function OfferRow({
       )}
 
       {/* Empty offer */}
-      {confirmed.length === 0 && pending.length === 0 && (
-        <p className="font-host-grotesk text-xs text-rosewood/40 italic">
-          No claims yet. Staff will see this in their open shifts.
-        </p>
-      )}
+      {confirmed.length === 0 &&
+        pending.length === 0 &&
+        waitlisted.length === 0 && (
+          <p className="font-host-grotesk text-xs text-rosewood/40 italic">
+            No claims yet. Staff will see this in their open shifts.
+          </p>
+        )}
     </div>
   )
 }

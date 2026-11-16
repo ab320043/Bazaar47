@@ -12,10 +12,11 @@ import {
   getClaimById,
 } from '@/lib/storage/staff-claims'
 import { createAssignment } from '@/lib/storage/staff-assignments'
+import { getAssignments, saveAssignments } from '@/lib/storage/staff-assignments'
 import { refreshOfferSlots, staffCanClaimOffer } from '@/lib/staff/offer-actions'
 import type { ShiftOffer } from '@/types/shift-offer'
 import type { ShiftClaim } from '@/types/staff-claim'
-import type { StaffMember, StaffRole } from '@/types/staff'
+import type { StaffMember, StaffRole, StaffAssignment } from '@/types/staff'
 
 // ============================================
 // TYPES
@@ -26,40 +27,31 @@ export type ClaimCreateResult =
   | { ok: false; status: number; error: string }
 
 export type ClaimReleaseResult =
-  | { ok: true; claim: ShiftClaim }
+  | { ok: true; claim: ShiftClaim; cascadedTo?: ShiftClaim }
   | { ok: false; status: number; error: string }
+
+export type ClaimReconfirmResult =
+  | { ok: true; claim: ShiftClaim; assignmentId: string }
+  | { ok: false; status: number; error: string }
+
+// ============================================
+// CONSTANTS
+// ============================================
+
+/** Locked decision log: 12h window for waitlisted staff to reconfirm. */
+const WAITLIST_WINDOW_MS = 12 * 60 * 60 * 1000
+
+/** Locked decision log: late cancellation = release < 48h before shiftStart. */
+const LATE_CANCEL_WINDOW_MS = 48 * 60 * 60 * 1000
 
 // ============================================
 // ELIGIBILITY CHECKS
 // ============================================
 
 /**
- * Does this staff member already have an active claim that overlaps
- * the given shift window? Returns the conflicting claim if so.
- */
-// async function findOverlappingClaim(
-//   staffId: string,
-//   shiftStart: string,
-//   shiftEnd: string
-// ): Promise<ShiftClaim | undefined> {
-//   const active = await getActiveClaimsForStaff(staffId)
-//   const startMs = new Date(shiftStart).getTime()
-//   const endMs = new Date(shiftEnd).getTime()
-
-//   return active.find((c) => {
-//     // We need the offer's shift window to compare — but claims store
-//     // locked role and rate, not times. Fetch the offer.
-//     // Note: this is a per-claim async fetch. For small datasets this
-//     // is fine. If claims grow past a few hundred, denormalize
-//     // shiftStart/shiftEnd onto the claim record.
-//     return false // placeholder; see below
-//   })
-// }
-
-/**
- * Overlap detection that actually works. Because claims don't store
- * their shift window (only the offer does), we look up each active
- * claim's offer and compare time windows.
+ * Overlap detection. Because claims don't store their shift window (only
+ * the offer does), we look up each active claim's offer and compare
+ * time windows.
  */
 async function findOverlap(
   staffId: string,
@@ -71,6 +63,11 @@ async function findOverlap(
   const newEndMs = new Date(shiftEnd).getTime()
 
   for (const claim of active) {
+    // A waitlisted claim is not yet a commitment — do not count it as an
+    // overlap. (A person may hold a waitlist window on one shift while
+    // claiming another.)
+    if (claim.status === 'waitlisted') continue
+
     const offer = await getOfferById(claim.offerId)
     if (!offer) continue
     const existingStartMs = new Date(offer.shiftStart).getTime()
@@ -93,21 +90,16 @@ async function findOverlap(
  * Create a pending claim on an offer.
  *
  * Checks, in order:
- *   1. Offer exists and is `open` or `filled` (drafts and closed/cancelled
- *      offers aren't claimable).
+ *   1. Offer exists and is `open` or `filled`.
  *   2. Staff is eligible per the offer's whoCanClaim rule.
- *   3. We're past the minNoticeHours window (i.e. now <= shiftStart - notice).
+ *   3. We're past the minNoticeHours window.
  *   4. Staff has no active claim that overlaps this shift window.
- *   5. Offer still has remaining capacity (slotsFilled < slotsNeeded) OR
- *      the offer is at capacity but we still allow a pending claim
- *      (admin's coverage board will show it as "waitlist"-like and the
- *      admin can reject or increase slots).
+ *   5. Same staff hasn't already claimed this offer.
  *
- * Note: (5) is intentionally permissive. Staff CAN submit a pending claim
- * on a full offer. That's the waitlist-ish behavior — admin decides what
- * to do with over-capacity pending claims (reject, increase slots). This
- * matches how Phase 2C will implement the waitlist; for Phase 2B, we just
- * don't block submission.
+ * Note: a pending claim on a full offer is allowed. If the offer is
+ * at capacity, the claim sits as `pending` until an admin acts
+ * (reject or increase slots) or a confirmed claim is released — at
+ * which point `cascadeWaitlist` promotes it to `waitlisted`.
  */
 export async function createStaffClaim(
   staff: StaffMember,
@@ -192,6 +184,9 @@ export async function createStaffClaim(
       assignmentId: null,
     })
 
+    // If the slot is already filled, this claim will be promoted to
+    // 'waitlisted' when a confirmed claim is released. Nothing else
+    // to do here.
     return { ok: true, claim }
   } catch (err) {
     console.error('[createStaffClaim] failed:', err)
@@ -200,26 +195,31 @@ export async function createStaffClaim(
 }
 
 // ============================================
-// RELEASE PENDING CLAIM
+// RELEASE CLAIM (staff-initiated)
 // ============================================
 
 /**
- * Release a claim that's still pending.
+ * Release a claim.
  *
- * Only works if:
- *   - The claim belongs to this staff member.
- *   - The claim is in `pending` status.
+ * Pending:
+ *   Soft-delete: status → 'cancelled', releaseReason → 'staff'.
+ *   No cascade (the slot was never occupied).
  *
- * Confirmed claims cannot be released via this route (that's Phase 2C,
- * with cancellation windows and late-cancel flags).
+ * Confirmed:
+ *   - Flag wasLateCancellation if now < shiftStart - 48h... wait, the
+ *     rule is "released < 48h before shift start". So flag when
+ *     (shiftStart - now) < 48h.
+ *   - Cancel the linked assignment.
+ *   - Soft-delete: status → 'cancelled', releaseReason → 'staff'.
+ *   - cascadeWaitlist(offerId, now): promote the earliest pending
+ *     claim to 'waitlisted'.
  *
- * Uses soft-delete: status → 'cancelled', releaseReason → 'staff'.
- * The record is preserved for admin audit; the coverage board filters
- * it out of the actionable pending list.
+ * Any other status is rejected.
  */
 export async function releaseStaffClaim(
   staff: StaffMember,
-  claimId: string
+  claimId: string,
+  now: Date = new Date()
 ): Promise<ClaimReleaseResult> {
   const claim = await getClaimById(claimId)
   if (!claim) {
@@ -228,27 +228,237 @@ export async function releaseStaffClaim(
   if (claim.staffId !== staff.id) {
     return { ok: false, status: 403, error: 'Forbidden' }
   }
-  if (claim.status !== 'pending') {
-    return {
-      ok: false,
-      status: 400,
-      error: `Cannot release: claim is already ${claim.status}`,
+
+  // ---- Pending ----
+  if (claim.status === 'pending') {
+    try {
+      const updated = await updateClaim(claimId, {
+        status: 'cancelled',
+        releaseReason: 'staff',
+        releasedAt: now.toISOString(),
+      })
+      if (!updated) {
+        return { ok: false, status: 500, error: 'Failed to release claim' }
+      }
+      return { ok: true, claim: updated }
+    } catch (err) {
+      console.error('[releaseStaffClaim pending] failed:', err)
+      return { ok: false, status: 500, error: 'Failed to release claim' }
     }
   }
 
-  try {
-    const updated = await updateClaim(claimId, {
-      status: 'cancelled',
-      releaseReason: 'staff',
-      releasedAt: new Date().toISOString(),
-    })
-    if (!updated) {
+  // ---- Waitlisted ----
+  // Releasing a waitlisted window just returns it to 'pending' — it does
+  // not cancel the claim, and does not advance the queue. (The next
+  // cascade will re-promote them only if no one older is waiting.)
+  if (claim.status === 'waitlisted') {
+    try {
+      const updated = await updateClaim(claimId, {
+        status: 'pending',
+        waitlistOfferedAt: undefined,
+        waitlistExpiresAt: undefined,
+      })
+      if (!updated) {
+        return { ok: false, status: 500, error: 'Failed to release claim' }
+      }
+      return { ok: true, claim: updated }
+    } catch (err) {
+      console.error('[releaseStaffClaim waitlisted] failed:', err)
       return { ok: false, status: 500, error: 'Failed to release claim' }
     }
-    return { ok: true, claim: updated }
+  }
+
+  // ---- Confirmed ----
+  if (claim.status === 'confirmed') {
+    const offer = await getOfferById(claim.offerId)
+    if (!offer) {
+      return { ok: false, status: 404, error: 'Offer not found' }
+    }
+
+    const startMs = new Date(offer.shiftStart).getTime()
+    const isLate =
+      Number.isFinite(startMs) &&
+      startMs - now.getTime() < LATE_CANCEL_WINDOW_MS
+
+    // Cancel the linked assignment first (audit trail — do not delete).
+    if (claim.assignmentId) {
+      try {
+        const assignments = await getAssignments()
+        const next: StaffAssignment[] = assignments.map((a) =>
+          a.id === claim.assignmentId
+            ? { ...a, status: 'cancelled', updatedAt: now.toISOString() }
+            : a
+        )
+        await saveAssignments(next)
+      } catch (err) {
+        console.error('[releaseStaffClaim confirmed] cancel assignment failed:', err)
+        // Non-fatal: we still want to release the claim. The assignment
+        // will be orphaned but the claim audit is preserved.
+      }
+    }
+
+    let updated: ShiftClaim | undefined
+    try {
+      updated = await updateClaim(claimId, {
+        status: 'cancelled',
+        releaseReason: isLate ? 'late-cancel' : 'staff',
+        releasedAt: now.toISOString(),
+        wasLateCancellation: isLate,
+        waitlistOfferedAt: undefined,
+        waitlistExpiresAt: undefined,
+      })
+      if (!updated) {
+        return { ok: false, status: 500, error: 'Failed to release claim' }
+      }
+    } catch (err) {
+      console.error('[releaseStaffClaim confirmed] update failed:', err)
+      return { ok: false, status: 500, error: 'Failed to release claim' }
+    }
+
+    // Refresh offer slot count.
+    await refreshOfferSlots(claim.offerId).catch((err) => {
+      console.error('[releaseStaffClaim] refresh slots failed (non-fatal):', err)
+    })
+
+    // Advance the waitlist.
+    const cascadedTo = await cascadeWaitlist(claim.offerId, now)
+
+    // Fire-and-forget: notify admin/staff (3A best-effort).
+    if (cascadedTo) {
+      void (async () => {
+        try {
+          const { getStaffById } = await import('@/lib/storage/staff')
+          const { notifyWaitlistOffered } = await import('@/lib/email/notify')
+          const staffRecord = await getStaffById(cascadedTo.staffId)
+          if (staffRecord?.email) {
+            notifyWaitlistOffered(cascadedTo, offer, staffRecord.email)
+          }
+        } catch (err) {
+          console.error('[releaseStaffClaim] waitlist notify failed:', err)
+        }
+      })()
+    }
+
+    return { ok: true, claim: updated, cascadedTo }
+  }
+
+  return {
+    ok: false,
+    status: 400,
+    error: `Cannot release: claim is ${claim.status}`,
+  }
+}
+
+// ============================================
+// WAITLIST CASCADE
+// ============================================
+
+/**
+ * Promote the earliest pending claim on an offer to 'waitlisted',
+ * giving it a 12h window to reconfirm.
+ *
+ * Skips claims that are already waitlisted (they're already in a window).
+ * Does not change slot occupancy — a waitlisted claim still does not fill
+ * a slot until reconfirmed.
+ *
+ * Returns the promoted claim, or undefined if there is nobody to promote.
+ */
+export async function cascadeWaitlist(
+  offerId: string,
+  now: Date = new Date()
+): Promise<ShiftClaim | undefined> {
+  const claims = await getClaimsForOffer(offerId)
+  const candidates = claims
+    .filter((c) => c.status === 'pending')
+    .sort((a, b) => {
+      const t = new Date(a.claimedAt).getTime() - new Date(b.claimedAt).getTime()
+      if (t !== 0) return t
+      return a.id.localeCompare(b.id)
+    })
+
+  if (candidates.length === 0) return undefined
+
+  const chosen = candidates[0]
+  const offeredAt = now.toISOString()
+  const expiresAt = new Date(now.getTime() + WAITLIST_WINDOW_MS).toISOString()
+
+  try {
+    const updated = await updateClaim(chosen.id, {
+      status: 'waitlisted',
+      waitlistOfferedAt: offeredAt,
+      waitlistExpiresAt: expiresAt,
+    })
+    return updated
   } catch (err) {
-    console.error('[releaseStaffClaim] failed:', err)
-    return { ok: false, status: 500, error: 'Failed to release claim' }
+    console.error('[cascadeWaitlist] failed:', err)
+    return undefined
+  }
+}
+
+// ============================================
+// RECONFIRM WAITLISTED CLAIM (staff-initiated)
+// ============================================
+
+/**
+ * Staff accepts a waitlist offer within their window. This promotes
+ * the claim to confirmed — identical to an admin confirm, except the
+ * admin gate is waived because the waitlist window *is* the offer.
+ *
+ * The actual confirm work is delegated to confirmStaffClaim so there
+ * is exactly one assignment-creation path.
+ */
+export async function reconfirmWaitlistedClaim(
+  claimId: string,
+  staff: StaffMember,
+  now: Date = new Date()
+): Promise<ClaimReconfirmResult> {
+  const claim = await getClaimById(claimId)
+  if (!claim) {
+    return { ok: false, status: 404, error: 'Claim not found' }
+  }
+  if (claim.staffId !== staff.id) {
+    return { ok: false, status: 403, error: 'Forbidden' }
+  }
+  if (claim.status !== 'waitlisted') {
+    return {
+      ok: false,
+      status: 400,
+      error: `This claim is not waitlisted (status: ${claim.status})`,
+    }
+  }
+  if (!claim.waitlistExpiresAt) {
+    return { ok: false, status: 400, error: 'No waitlist window set' }
+  }
+  if (new Date(claim.waitlistExpiresAt).getTime() <= now.getTime()) {
+    return {
+      ok: false,
+      status: 400,
+      error: 'Waitlist window has expired',
+    }
+  }
+
+  // Delegate to the single confirm path.
+  const result = await confirmStaffClaim({
+    claimId,
+    offerId: claim.offerId,
+  })
+
+  if (!result.ok) {
+    return { ok: false, status: result.status, error: result.error }
+  }
+
+  // Clear the waitlist window — the claim is now confirmed.
+  await updateClaim(claimId, {
+    waitlistOfferedAt: undefined,
+    waitlistExpiresAt: undefined,
+  }).catch((err) => {
+    console.error('[reconfirmWaitlistedClaim] clear window failed (non-fatal):', err)
+  })
+
+  return {
+    ok: true,
+    claim: result.claim,
+    assignmentId: result.assignmentId,
   }
 }
 
@@ -257,21 +467,15 @@ export async function releaseStaffClaim(
 // ============================================
 
 /**
- * Admin confirms a pending claim. Creates an assignment in the same
- * call so the shift appears in the staff member's My Shifts page.
+ * Confirm a pending or waitlisted claim. Creates an assignment in the
+ * same call so the shift appears in the staff member's My Shifts page.
  *
- * Under Phase 2B (Option A), `StaffAssignment` is still written and
- * read by the staff dashboard. Phase 3 will retire this in favor of
- * reading claims directly.
+ * Accepts both 'pending' (admin gate) and 'waitlisted' (staff reconfirm
+ * path, or admin confirming a waitlisted claim directly).
  *
- * Pre-conditions (checked by the caller route):
- *   - Claim exists and belongs to the offer.
- *   - Claim status is `pending`.
- *   - Offer has remaining capacity.
- *
- * This function handles the assignment creation, claim update, offer
- * refresh, and claim→assignment linkage. Failure at any step rolls
- * back the previous ones as far as possible.
+ * Handles: assignment creation, claim update, offer refresh,
+ * claim→assignment linkage. Failure at any step rolls back the previous
+ * ones as far as possible.
  */
 export interface ConfirmClaimParams {
   claimId: string
@@ -299,7 +503,7 @@ export async function confirmStaffClaim(
   if (claim.offerId !== offerId) {
     return { ok: false, status: 400, error: 'Claim does not belong to this offer' }
   }
-  if (claim.status !== 'pending') {
+  if (claim.status !== 'pending' && claim.status !== 'waitlisted') {
     return {
       ok: false,
       status: 400,
@@ -318,8 +522,6 @@ export async function confirmStaffClaim(
   }
 
   // ---- Create the assignment ----
-  // This is what makes the shift visible on the staff dashboard
-  // (Option A).
 
   let assignmentId: string
   try {
@@ -345,6 +547,7 @@ export async function confirmStaffClaim(
   }
 
   // ---- Update claim → confirmed ----
+
   let updatedClaim: ShiftClaim | undefined
   try {
     updatedClaim = await updateClaim(claimId, {
@@ -352,15 +555,14 @@ export async function confirmStaffClaim(
       confirmedBy: 'admin-confirm',
       confirmedAt: new Date().toISOString(),
       assignmentId,
+      waitlistOfferedAt: undefined,
+      waitlistExpiresAt: undefined,
     })
     if (!updatedClaim) {
       throw new Error('updateClaim returned undefined')
     }
   } catch (err) {
     console.error('[confirmStaffClaim] failed to update claim:', err)
-    // The assignment exists but the claim didn't flip. Flag for admin
-    // review but do not attempt to delete the assignment — deleting
-    // would lose the audit trail. Instead, surface the error.
     return {
       ok: false,
       status: 500,
@@ -369,12 +571,7 @@ export async function confirmStaffClaim(
     }
   }
 
-    // ---- Refresh offer slot count ----
-    await refreshOfferSlots(offerId).catch((err) => {
-      console.error('[confirmStaffClaim] failed to refresh offer slots (non-fatal):', err)
-    })
-
-    // ---- Refresh offer slot count ----
+  // ---- Refresh offer slot count ----
   await refreshOfferSlots(offerId).catch((err) => {
     console.error('[confirmStaffClaim] failed to refresh offer slots (non-fatal):', err)
   })
@@ -400,17 +597,6 @@ export async function confirmStaffClaim(
 // LIST OFFERS FOR STAFF
 // ============================================
 
-/**
- * All open/filled offers a staff member is eligible to claim, grouped
- * by event. Used by the /staff/events page.
- *
- * Returns offers that are open or filled (not draft/closed/cancelled),
- * where the staff matches the eligibility rule.
- *
- * The caller is responsible for filtering out offers the staff has
- * already claimed (both pending and confirmed). That filtering is done
- * in the API route using `getClaimsForStaff`.
- */
 export interface OfferForEvent {
   offer: ShiftOffer
   slotsRemaining: number
@@ -427,11 +613,14 @@ export interface EventOffersGroup {
   offers: OfferForEvent[]
 }
 
+/**
+ * All open/filled offers a staff member is eligible to claim, grouped
+ * by event. Used by the /staff/events page.
+ */
 export async function getClaimableOffersForStaff(
   staff: StaffMember
 ): Promise<EventOffersGroup[]> {
-//   const allOffers = await getOffersForEventless()
-     const allOffers = await getAllOffers()
+  const allOffers = await getAllOffers()
 
   const staffClaims = await getActiveClaimsForStaff(staff.id)
   const claimByOfferId = new Map(staffClaims.map((c) => [c.offerId, c]))

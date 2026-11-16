@@ -446,3 +446,64 @@ export function notifyAdminUnderstaffed(
     `
   )
 }
+
+/**
+ * Fired when a confirmed claim is released and the next pending claim
+ * is promoted to the front of the waitlist. The staff member has a 12h
+ * window to reconfirm before the slot goes to the next person in line.
+ *
+ * Idempotent per claim (7-day Redis key) so a reconcile-tick racing an
+ * admin "skip" cannot double-send.
+ */
+export function notifyWaitlistOffered(
+  claim: ShiftClaim,
+  offer: ShiftOffer,
+  staffEmail: string
+): void {
+  void (async () => {
+    const key = `waitlist-offered:${claim.id}`
+    if (await alreadySent(key)) return
+    await markSent(key)
+
+    const expires = claim.waitlistExpiresAt
+      ? formatWindow(claim.waitlistExpiresAt, claim.waitlistExpiresAt)
+      : '12 hours from now'
+
+    await send(
+      staffEmail,
+      `⏳ You're next in line — ${offer.eventName}`,
+      `
+        <h2 style="color: #341B1C; margin-top: 0;">Hey ${claim.staffName.split(' ')[0]},</h2>
+        <p style="color: #6A2630;">
+          A slot just opened up for <strong>${offer.eventName}</strong> and
+          you're at the front of the waitlist.
+        </p>
+
+        <div style="background: #F5F0E8; padding: 20px; border-radius: 8px; margin: 20px 0;">
+          <p style="margin: 4px 0;"><strong>Event:</strong> ${offer.eventName}</p>
+          <p style="margin: 4px 0;"><strong>When:</strong> ${formatWindow(offer.shiftStart, offer.shiftEnd)}</p>
+          <p style="margin: 4px 0;"><strong>Role:</strong> ${claim.lockedRole}</p>
+          <p style="margin: 4px 0;"><strong>Rate:</strong> ${formatCurrency(claim.lockedRate)}/hr</p>
+        </div>
+
+        <div style="background: #FFDBE1; padding: 16px; border-radius: 8px; margin: 20px 0;">
+          <p style="margin: 0; color: #341B1C;">
+            <strong>Respond by ${expires}</strong> to claim this shift.
+            After that, the slot goes to the next person in line.
+          </p>
+        </div>
+
+        <p style="color: #6A2630; font-size: 13px;">
+          <a href="https://bazaar47.com/staff/shifts" style="color: #295211;">
+            Reconfirm my shift →
+          </a>
+        </p>
+
+        <p style="color: #6A2630; font-size: 12px;">
+          If you don't want this shift, just ignore this email — the window
+          will expire on its own and you'll stay in the queue.
+        </p>
+      `
+    )
+  })()
+}

@@ -8,7 +8,12 @@ import {
   getWorkLogByAssignmentId,
   updateWorkLog,
 } from '@/lib/storage/staff-worklogs'
+import {
+  getAllClaims,
+  updateClaim,
+} from '@/lib/storage/staff-claims'
 import { getPeriodForDate } from '@/lib/staff/payroll-period'
+import { cascadeWaitlist } from '@/lib/staff/claim-actions'
 import { Redis } from '@upstash/redis'
 import type { StaffAssignment, StaffRole } from '@/types/staff'
 
@@ -33,6 +38,8 @@ export interface ReconcileRunRecord {
   noShowCount: number
   autoClosedCount: number
   backfilledCount: number
+  /** Phase 3B: number of waitlisted claims whose 12h window expired. */
+  waitlistExpiredCount: number
   errors: string[]
 }
 
@@ -41,8 +48,6 @@ export interface ReconcileRunRecord {
 // ============================================
 
 function pickRole(assignment: StaffAssignment): StaffRole {
-  // Phase 2 will always have exactly one role via claim.
-  // Phase 0 assignments may have multiple — pick the first.
   return assignment.roles[0] || 'event-coordinator'
 }
 
@@ -69,13 +74,6 @@ function computeHoursWorked(
 // ============================================
 // STEP 1 — NO-SHOW SWEEP
 // ============================================
-//
-// Assignments where:
-//   - status === 'checked-in'
-//   - no checkInTime
-//   - now > shiftStart + noShowMinutes
-//
-// Action: mark assignment.noShow = true. No work log created.
 
 async function sweepNoShows(
   assignments: StaffAssignment[],
@@ -115,14 +113,6 @@ async function sweepNoShows(
 // ============================================
 // STEP 2 — AUTO-CLOSE SWEEP
 // ============================================
-//
-// Assignments where:
-//   - status === 'checked-in'
-//   - checkInTime exists
-//   - no checkOutTime
-//   - now > shiftEnd + graceHours
-//
-// Action: create/update work log with checkOutTime = shiftEnd.
 
 async function sweepAutoClose(
   assignments: StaffAssignment[],
@@ -191,8 +181,6 @@ async function sweepAutoClose(
           editReason: null,
         })
       }
-      // Fire-and-forget: notify staff that their shift was auto-closed.
-      // Admin gets a digest via /api/cron/notify, not a per-shift email.
       void (async () => {
         try {
           const { getStaffById } = await import('@/lib/storage/staff')
@@ -239,13 +227,6 @@ async function sweepAutoClose(
 // ============================================
 // STEP 3 — BACKFILL SWEEP
 // ============================================
-//
-// Assignments where:
-//   - status === 'completed'
-//   - checkOutTime exists
-//   - no existing work log
-//
-// Action: create work log with resolution = 'manual'.
 
 async function sweepBackfill(
   assignments: StaffAssignment[],
@@ -263,7 +244,6 @@ async function sweepBackfill(
     }
 
     if (!a.checkInTime) {
-      // Completed but no check-in — skip backfill. Odd data; flag in errors.
       if (!dryRun) {
         console.warn('[reconcile] completed assignment with no checkInTime:', a.id)
       }
@@ -317,6 +297,87 @@ async function sweepBackfill(
 }
 
 // ============================================
+// STEP 4 — WAITLIST EXPIRY SWEEP (Phase 3B)
+// ============================================
+//
+// Runs AFTER the three assignment sweeps (ordering is load-bearing
+// per the project invariants). A waitlisted claim whose 12h window
+// has passed is released (status → 'released', releaseReason →
+// 'admin'), and the offer's next pending claim is promoted via
+// cascadeWaitlist.
+//
+// Releasing (rather than requeueing) is the locked decision: the
+// staffer was offered the slot and did not reconfirm in time, so the
+// slot goes public.
+
+async function sweepWaitlistExpiry(
+  now: number,
+  dryRun: boolean
+): Promise<number> {
+  let count = 0
+
+  const claims = await getAllClaims()
+  const expired = claims.filter(
+    (c) =>
+      c.status === 'waitlisted' &&
+      !!c.waitlistExpiresAt &&
+      new Date(c.waitlistExpiresAt).getTime() <= now
+  )
+
+  for (const c of expired) {
+    if (!dryRun) {
+      try {
+        await updateClaim(c.id, {
+          status: 'released',
+          releaseReason: 'admin',
+          releasedAt: new Date(now).toISOString(),
+          waitlistOfferedAt: undefined,
+          waitlistExpiresAt: undefined,
+        })
+      } catch (err) {
+        console.error('[reconcile] waitlist release failed:', c.id, err)
+        continue
+      }
+
+      // Advance the queue.
+      try {
+        const promoted = await cascadeWaitlist(c.offerId, new Date(now))
+        if (promoted) {
+          void (async () => {
+            try {
+              const { getStaffById } = await import('@/lib/storage/staff')
+              const { notifyWaitlistOffered } = await import('@/lib/email/notify')
+              const staffRecord = await getStaffById(promoted.staffId)
+              const { getOfferById } = await import('@/lib/storage/shift-offers')
+              const offer = await getOfferById(promoted.offerId)
+              if (staffRecord?.email && offer) {
+                notifyWaitlistOffered(promoted, offer, staffRecord.email)
+              }
+            } catch (err) {
+              console.error('[reconcile] waitlist promote notify failed:', err)
+            }
+          })()
+        }
+      } catch (err) {
+        console.error('[reconcile] cascade after expiry failed:', c.id, err)
+      }
+    }
+
+    count++
+
+    if (!dryRun) {
+      console.log('[reconcile] waitlist expired:', {
+        claimId: c.id,
+        staffId: c.staffId,
+        offerId: c.offerId,
+      })
+    }
+  }
+
+  return count
+}
+
+// ============================================
 // ORCHESTRATOR
 // ============================================
 
@@ -333,6 +394,7 @@ export async function runReconcile(opts: {
     noShowCount: 0,
     autoClosedCount: 0,
     backfilledCount: 0,
+    waitlistExpiredCount: 0,
     errors,
   }
 
@@ -356,11 +418,6 @@ export async function runReconcile(opts: {
   }
 
   // ---- Step 2: auto-close sweep ----
-  //
-  // IMPORTANT: run this against the list AFTER applying no-show mutations,
-  // so a no-show is not double-processed by auto-close. In dry-run, the
-  // touched list is only used for counting, so we still merge it for
-  // correctness of the dry-run report.
   let autoCloseMutated: StaffAssignment[] = []
   try {
     const workingList = applyMutations(assignments, noShowMutated)
@@ -383,6 +440,15 @@ export async function runReconcile(opts: {
     errors.push(`backfill sweep failed: ${String(err)}`)
   }
 
+  // ---- Step 4: waitlist expiry sweep (Phase 3B) ----
+  // Runs last. Must NOT depend on assignment mutations.
+  try {
+    const count = await sweepWaitlistExpiry(now, dryRun)
+    record.waitlistExpiredCount = count
+  } catch (err) {
+    errors.push(`waitlist expiry sweep failed: ${String(err)}`)
+  }
+
   // ---- Persist assignment mutations ----
   if (!dryRun) {
     try {
@@ -390,7 +456,6 @@ export async function runReconcile(opts: {
         ...noShowMutated,
         ...autoCloseMutated,
       ])
-      // Only save if something actually changed.
       if (noShowMutated.length > 0 || autoCloseMutated.length > 0) {
         await saveAssignments(finalList)
       }

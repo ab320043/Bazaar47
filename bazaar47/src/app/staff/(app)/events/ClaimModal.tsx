@@ -5,12 +5,12 @@ import { useState } from 'react'
 import {
   X,
   Clock,
-  DollarSign,
   Users,
   Loader2,
   CheckCircle2,
   AlertCircle,
   Trash2,
+  Timer,
 } from 'lucide-react'
 import type { ShiftClaim } from '@/types/staff-claim'
 import type { ShiftOffer } from '@/types/shift-offer'
@@ -102,7 +102,7 @@ export function ClaimModal({ group, onClose, onChanged }: ClaimModalProps) {
   const handleRelease = async (claimId: string, offerId: string) => {
     if (
       !confirm(
-        'Release this pending claim? You can claim it again later if the slot is still open.'
+        'Release this claim? You can claim it again later if the slot is still open.'
       )
     ) {
       return
@@ -127,6 +127,37 @@ export function ClaimModal({ group, onClose, onChanged }: ClaimModalProps) {
       onChanged()
     } catch (err) {
       console.error('Release error:', err)
+      setFeedback({ kind: 'error', message: 'Network error' })
+    } finally {
+      setActingOfferId(null)
+    }
+  }
+
+  const handleReconfirm = async (claimId: string, offerId: string) => {
+    setActingOfferId(offerId)
+    setFeedback(null)
+    try {
+      const res = await fetch(
+        `/api/staff/claims/${claimId}/reconfirm`,
+        { method: 'POST' }
+      )
+      const body = await res.json().catch(() => ({}))
+
+      if (!res.ok) {
+        setFeedback({
+          kind: 'error',
+          message: body.error || 'Failed to reconfirm claim',
+        })
+        return
+      }
+
+      setFeedback({
+        kind: 'success',
+        message: 'You’re confirmed for this shift.',
+      })
+      onChanged()
+    } catch (err) {
+      console.error('Reconfirm error:', err)
       setFeedback({ kind: 'error', message: 'Network error' })
     } finally {
       setActingOfferId(null)
@@ -201,6 +232,11 @@ export function ClaimModal({ group, onClose, onChanged }: ClaimModalProps) {
                   ? handleRelease(item.existingClaim.id, item.offer.id)
                   : undefined
               }
+              onReconfirm={() =>
+                item.existingClaim
+                  ? handleReconfirm(item.existingClaim.id, item.offer.id)
+                  : undefined
+              }
             />
           ))}
         </div>
@@ -218,15 +254,18 @@ function OfferRow({
   acting,
   onClaim,
   onRelease,
+  onReconfirm,
 }: {
   item: OfferWithStatus
   acting: boolean
   onClaim: () => void
   onRelease: () => void
+  onReconfirm: () => void
 }) {
-  const { offer, slotsRemaining, alreadyClaimed } = item
+  const { offer, slotsRemaining, alreadyClaimed, existingClaim } = item
   const roleDef = STAFF_ROLES.find((r) => r.id === offer.role)
   const isFull = slotsRemaining === 0
+  const isWaitlisted = existingClaim?.status === 'waitlisted'
 
   return (
     <div className="bg-plaster/30 rounded-2xl p-4 border border-rosewood/5">
@@ -266,26 +305,59 @@ function OfferRow({
 
       {/* Action */}
       {alreadyClaimed ? (
-        <div className="flex items-center gap-2">
-          <div className="flex-1 bg-chartreuse/10 border border-chartreuse/30 rounded-lg px-3 py-2 flex items-center gap-2">
-            <Clock className="w-4 h-4 text-cypress shrink-0" />
-            <span className="font-host-grotesk text-xs text-cypress font-semibold">
-              Waiting for admin confirmation
-            </span>
-          </div>
-          <button
-            onClick={onRelease}
-            disabled={acting}
-            className="text-xs font-host-grotesk font-semibold text-rosewood/50 hover:text-poppy px-3 py-2 rounded-lg hover:bg-poppy/5 transition-colors flex items-center gap-1 disabled:opacity-50"
-          >
-            {acting ? (
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-            ) : (
+        isWaitlisted ? (
+          <div className="flex items-center gap-2">
+            <div className="flex-1 bg-hippie/15 border border-hippie/40 rounded-lg px-3 py-2 flex items-center gap-2">
+              <Timer className="w-4 h-4 text-rosewood shrink-0" />
+              <span className="font-host-grotesk text-xs text-rosewood font-semibold">
+                Waitlisted — respond within 12h
+              </span>
+            </div>
+            <button
+              onClick={onReconfirm}
+              disabled={acting}
+              className="text-xs font-host-grotesk font-semibold bg-chartreuse hover:bg-chartreuse/90 text-grove px-3 py-2 rounded-lg transition-colors flex items-center gap-1 disabled:opacity-50"
+            >
+              {acting ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <CheckCircle2 className="w-3.5 h-3.5" />
+              )}
+              Confirm
+            </button>
+            <button
+              onClick={onRelease}
+              disabled={acting}
+              className="text-xs font-host-grotesk font-semibold text-rosewood/50 hover:text-poppy px-3 py-2 rounded-lg hover:bg-poppy/5 transition-colors flex items-center gap-1 disabled:opacity-50"
+            >
               <Trash2 className="w-3.5 h-3.5" />
-            )}
-            Release
-          </button>
-        </div>
+              Decline
+            </button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2">
+            <div className="flex-1 bg-chartreuse/10 border border-chartreuse/30 rounded-lg px-3 py-2 flex items-center gap-2">
+              <Clock className="w-4 h-4 text-cypress shrink-0" />
+              <span className="font-host-grotesk text-xs text-cypress font-semibold">
+                {existingClaim?.status === 'confirmed'
+                  ? 'Confirmed — you’re on'
+                  : 'Waiting for admin confirmation'}
+              </span>
+            </div>
+            <button
+              onClick={onRelease}
+              disabled={acting}
+              className="text-xs font-host-grotesk font-semibold text-rosewood/50 hover:text-poppy px-3 py-2 rounded-lg hover:bg-poppy/5 transition-colors flex items-center gap-1 disabled:opacity-50"
+            >
+              {acting ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Trash2 className="w-3.5 h-3.5" />
+              )}
+              Release
+            </button>
+          </div>
+        )
       ) : isFull ? (
         <div className="bg-rosewood/5 rounded-lg px-3 py-2 text-center">
           <span className="font-host-grotesk text-xs text-rosewood/50">

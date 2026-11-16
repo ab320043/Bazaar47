@@ -71,7 +71,7 @@ export async function getClaimsForOfferByStatus(
 
 /**
  * Count the claims on an offer that actually occupy a slot — confirmed
- * or later. Pending claims do NOT occupy slots.
+ * or later. Pending and waitlisted claims do NOT occupy slots.
  */
 export async function countConfirmedClaimsForOffer(
   offerId: string
@@ -147,12 +147,15 @@ export async function createClaim(input: CreateClaimInput): Promise<ShiftClaim> 
 
 export interface UpdateClaimInput {
   status?: ClaimStatus
+  claimedAt?: string
   confirmedBy?: ConfirmedBy
   confirmedAt?: string | null
   releasedAt?: string | null
   releaseReason?: ClaimReleaseReason
   wasLateCancellation?: boolean
   assignmentId?: string | null
+  waitlistOfferedAt?: string
+  waitlistExpiresAt?: string
 }
 
 export async function updateClaim(
@@ -188,18 +191,20 @@ export async function updateClaim(
 // ============================================
 
 /**
- * Delete a claim outright. Only valid when the claim is still pending
- * and was never confirmed — i.e. it never occupied a slot. Used when
- * an admin "rejects" a pending claim from the coverage board.
+ * Delete a claim outright. Only valid when the claim never occupied
+ * a slot — pending or waitlisted. Used when an admin "rejects" a claim
+ * from the coverage board.
  *
- * For a confirmed claim, use updateClaim with status 'released' instead
- * to preserve the audit trail.
+ * For a confirmed-or-later claim, use updateClaim with status 'released'
+ * or 'cancelled' instead to preserve the audit trail.
  */
 export async function deletePendingClaim(id: string): Promise<boolean> {
   const map = await getMap()
   const existing = map[id]
   if (!existing) return false
-  if (existing.status !== 'pending') return false
+  if (existing.status !== 'pending' && existing.status !== 'waitlisted') {
+    return false
+  }
 
   delete map[id]
   await saveMap(map)

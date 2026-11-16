@@ -3,11 +3,13 @@ import { NextRequest, NextResponse } from 'next/server'
 import { isAdminAuthenticated } from '@/lib/admin/auth'
 import {
   getOfferById,
-  cancelOffer,
   deleteDraftOffer,
 } from '@/lib/storage/shift-offers'
 import { getClaimsForOffer } from '@/lib/storage/staff-claims'
-import { updateOfferSafely } from '@/lib/staff/offer-actions'
+import {
+  updateOfferSafely,
+  cancelOfferAndCascade,
+} from '@/lib/staff/offer-actions'
 import type { ShiftOfferUpdatePayload } from '@/types/shift-offer'
 import { isOfferEligibility, isOfferStatus } from '@/types/shift-offer'
 
@@ -107,16 +109,19 @@ export async function PATCH(
 }
 
 // ============================================
-// DELETE — cancel or hard-delete
+// DELETE — cancel (with cascade) or hard-delete
 // ============================================
 //
-// Without ?hard=true: cancels the offer (status='cancelled'), which
-// removes it from coverage but preserves the record + any claims.
+// Without ?hard=true: cancels the offer AND cascades to every claim
+// and assignment attached to it. Pending/waitlisted claims are
+// cancelled with releaseReason='admin'; confirmed-or-later claims are
+// cancelled with releaseReason='event-cancelled'. Linked assignments
+// are marked 'cancelled'. WorkLogs are NOT touched (payroll truth).
 //
 // With ?hard=true: refuses if the offer has any claims (pending,
-// confirmed, checked-in, completed — anything). If the offer has
-// zero claims, deletes the record outright. This is the "I published
-// this by mistake and want it gone" case.
+// waitlisted, confirmed, checked-in, completed — anything). If the
+// offer has zero claims, deletes the record outright. This is the
+// "I published this by mistake and want it gone" case.
 //
 // Rationale: deleting an offer with claims would leave those claims
 // orphaned. Cancel is the safe action; hard delete is the clean-slate
@@ -154,9 +159,6 @@ export async function DELETE(
       )
     }
 
-    // deleteDraftOffer only works on drafts, so force the status
-    // through updateOffer first if needed. Simpler: use a dedicated
-    // delete helper that ignores status. We'll add one inline here.
     const { deleteOfferForce } = await import('@/lib/storage/shift-offers')
     const deleted = await deleteOfferForce(id)
     if (!deleted) {
@@ -168,13 +170,26 @@ export async function DELETE(
     return NextResponse.json({ success: true, deleted: true })
   }
 
-  // Soft delete — cancel.
-  const cancelled = await cancelOffer(id)
-  if (!cancelled) {
+  // Soft delete — cancel with full cascade.
+  try {
+    const result = await cancelOfferAndCascade(id, 'event-cancelled')
+    if (!result) {
+      return NextResponse.json(
+        { error: 'Failed to cancel offer' },
+        { status: 500 }
+      )
+    }
+    return NextResponse.json({
+      success: true,
+      offer: result.offer,
+      cancelledClaimCount: result.cancelledClaims.length,
+      cancelledAssignmentCount: result.cancelledAssignments.length,
+    })
+  } catch (err) {
+    console.error('[offers DELETE] cascade failed:', err)
     return NextResponse.json(
       { error: 'Failed to cancel offer' },
       { status: 500 }
     )
   }
-  return NextResponse.json({ success: true, offer: cancelled })
 }
