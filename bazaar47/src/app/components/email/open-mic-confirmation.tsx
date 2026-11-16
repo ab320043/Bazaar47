@@ -7,11 +7,13 @@ interface OpenMicConfirmationProps {
   musicLink?: string
   instagram?: string
   email: string
+  sessionDate: string
   /**
    * Human-readable label for the Wednesday this submission targets,
    * e.g. "Wednesday, November 18, 2026".
    */
   sessionLabel: string
+  confirmationNumber: string
 }
 
 export function OpenMicConfirmation({
