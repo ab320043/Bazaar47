@@ -15,7 +15,7 @@ import {
 } from '@stripe/react-stripe-js'
 import overlay from '@/assets/newAssets/overlay.png'
 import {
-  VENDOR_FEE_PER_DAY, MAX_VENDORS_PER_DAY, VENUE_NAME, MARKET_COPY
+  VENDOR_FEE_PER_DAY, VENUE_NAME, MARKET_COPY
 } from '@/data/winter-market'
 import type { WinterMarketAvailability } from '@/types/winter-market'
 
@@ -115,7 +115,7 @@ export default function WinterMarketApplyPage() {
     city: '',
     products: '',
     pricePoints: '',
-    portfolioLink: '', // Now optional
+    portfolioLink: '',
     soundSensitivity: 'no', // default
     accessibilityNeeds: '',
     consentHighlight: 'yes', // default
@@ -334,8 +334,8 @@ export default function WinterMarketApplyPage() {
                 </div>
 
                 <div>
-                  <label className={labelClass}>Please submit photos of your booth setup <span className="text-rosewood/40 font-normal lowercase tracking-normal">(optional)</span></label>
-                  <p className="text-xs text-rosewood/50 mb-2">We recommend providing photos of your booth. You may provide a link to photos from social media or your website.</p>
+                  <label className={labelClass}>Please submit photos of your booth setup (Optional)</label>
+                  <p className="text-xs text-rosewood/50 mb-2">We highly recommend providing a link to photos from social media or your website to help your application stand out.</p>
                   <input type="url" name="portfolioLink" value={form.portfolioLink} onChange={handleChange} placeholder="https://..." className={inputClass} />
                 </div>
 
