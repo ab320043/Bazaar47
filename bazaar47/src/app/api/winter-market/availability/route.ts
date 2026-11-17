@@ -6,7 +6,7 @@ import {
 } from '@/lib/storage/winter-market'
 import {
   WINTER_MARKET_DATES,
-  MAX_VENDORS_PER_DAY,
+  getCapacityForDate,
 } from '@/data/winter-market'
 import type { WinterMarketAvailability } from '@/types/winter-market'
 
@@ -18,11 +18,13 @@ export async function GET() {
     const availability: WinterMarketAvailability[] = WINTER_MARKET_DATES.map(
       (date) => {
         const spotsTaken = countOccupiedSpots(applications, date, now)
-        const spotsRemaining = Math.max(0, MAX_VENDORS_PER_DAY - spotsTaken)
+        const spotsTotal = getCapacityForDate(date)
+        const spotsRemaining = Math.max(0, spotsTotal - spotsTaken)
+        
         return {
           date,
           spotsTaken,
-          spotsTotal: MAX_VENDORS_PER_DAY,
+          spotsTotal,
           spotsRemaining,
           isFull: spotsRemaining === 0,
         }

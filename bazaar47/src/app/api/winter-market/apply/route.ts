@@ -9,7 +9,7 @@ import {
 } from '@/lib/storage/winter-market'
 import {
   WINTER_MARKET_DATES,
-  MAX_VENDORS_PER_DAY,
+  getCapacityForDate,
   VENDOR_FEE_PER_DAY,
   HOLD_DURATION_MINUTES,
 } from '@/data/winter-market'
@@ -45,6 +45,7 @@ export async function POST(request: NextRequest) {
     if (!body.city?.trim()) return NextResponse.json({ error: 'City is required' }, { status: 400 })
     if (!body.products?.trim()) return NextResponse.json({ error: 'Products description is required' }, { status: 400 })
     if (!body.pricePoints?.trim()) return NextResponse.json({ error: 'Price points are required' }, { status: 400 })
+    
     if (body.portfolioLink?.trim() && !isValidUrl(body.portfolioLink)) {
       return NextResponse.json({ error: 'Please provide a valid URL for your portfolio' }, { status: 400 })
     }
@@ -69,7 +70,9 @@ export async function POST(request: NextRequest) {
     const now = Date.now()
     for (const date of selectedDates) {
       const taken = countOccupiedSpots(applications, date, now)
-      if (taken >= MAX_VENDORS_PER_DAY) {
+      const dateCapacity = getCapacityForDate(date)
+      
+      if (taken >= dateCapacity) {
         return NextResponse.json(
           { error: `Sorry, ${date} is full. Please pick another date.` },
           { status: 409 }
@@ -91,7 +94,7 @@ export async function POST(request: NextRequest) {
       city: body.city.trim(),
       products: body.products.trim(),
       pricePoints: body.pricePoints.trim(),
-      portfolioLink: body.portfolioLink.trim(),
+      portfolioLink: body.portfolioLink?.trim() || '',
       soundSensitivity: body.soundSensitivity,
       accessibilityNeeds: body.accessibilityNeeds?.trim() || undefined,
       consentHighlight: body.consentHighlight,

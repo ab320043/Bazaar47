@@ -5,7 +5,7 @@ import {
   getAllApplications,
   countOccupiedSpots,
 } from '@/lib/storage/winter-market'
-import { WINTER_MARKET_DATES, MAX_VENDORS_PER_DAY } from '@/data/winter-market'
+import { WINTER_MARKET_DATES, getCapacityForDate } from '@/data/winter-market'
 
 export async function GET() {
   if (!(await isAdminAuthenticated())) {
@@ -18,11 +18,13 @@ export async function GET() {
 
     const availability = WINTER_MARKET_DATES.map((date) => {
       const taken = countOccupiedSpots(applications, date, now)
+      const capacity = getCapacityForDate(date)
+      
       return {
         date,
         spotsTaken: taken,
-        spotsTotal: MAX_VENDORS_PER_DAY,
-        spotsRemaining: Math.max(0, MAX_VENDORS_PER_DAY - taken),
+        spotsTotal: capacity,
+        spotsRemaining: Math.max(0, capacity - taken),
       }
     })
 
