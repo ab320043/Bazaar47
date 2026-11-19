@@ -13,6 +13,7 @@ export const WINTER_MARKET_DATES = [
 // Set custom capacities per date. If a date isn't here, it falls back to the default below.
 export const CUSTOM_DATE_CAPACITIES: Record<string, number> = {
   '2026-12-05': 70, // Dec 5 gets 70 spots
+  '2026-12-12': 70, // Dec 12 gets 70 spots
 }
 
 // UPDATED: All other dates now get 40 spots
